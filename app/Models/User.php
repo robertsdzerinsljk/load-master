@@ -7,6 +7,8 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -26,12 +28,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 ])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
-    /**
-     * Casts
-     */
     protected function casts(): array
     {
         return [
@@ -41,35 +39,35 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     *  Students belong to class
-     */
     public function class()
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
     }
 
-    /**
-     *  Teacher has many classes
-     */
     public function teachingClasses()
     {
         return $this->hasMany(SchoolClass::class, 'teacher_id');
     }
 
-    /**
-     * Student orders (vēlāk izmantosim)
-     */
     public function studentOrders()
     {
         return $this->hasMany(StudentOrder::class, 'student_id');
     }
 
-    /**
-     *  Teacher templates (vēlāk)
-     */
     public function templates()
     {
         return $this->hasMany(OrderTemplate::class, 'teacher_id');
+    }
+
+    public function assignedOrderTemplates(): BelongsToMany
+{
+    return $this->belongsToMany(OrderTemplate::class, 'order_template_user')
+        ->withPivot('assigned_at')
+        ->withTimestamps();
+}
+
+    public function simulationAttempts(): HasMany
+    {
+        return $this->hasMany(SimulationAttempt::class);
     }
 }

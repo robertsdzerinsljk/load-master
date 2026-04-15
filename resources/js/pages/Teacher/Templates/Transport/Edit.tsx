@@ -1,126 +1,72 @@
 import BackButton from '@/components/BackButton';
 import TeacherLayout from '@/layouts/TeacherLayout';
+import TransportPresetForm from '@/components/TransportPresetForm';
 import { Head, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
 
-type PageProps = {
+type TransportTemplate = {
     id: number;
+    name: string;
+    type?: string | null;
+    description?: string | null;
+    capacity?: string | null;
+    temperature_support?: string | null;
+    capacity_containers?: string | number | null;
+    capacity_tons?: string | number | null;
+    avg_speed_kmh?: string | number | null;
+    cost_per_km?: string | number | null;
+    fuel_consumption_per_100km?: string | number | null;
+    max_range_km?: string | number | null;
+    loading_time_minutes?: string | number | null;
+    unloading_time_minutes?: string | number | null;
 };
 
-const transportItems = [
-    {
-        id: 1,
-        name: 'Standarta kravas auto',
-        description: 'Universāls transporta variants standarta kravām bez īpašām temperatūras prasībām.',
-        capacity: '24 paletes / 18 t',
-        temperatureSupport: 'Nav nepieciešams',
-    },
-    {
-        id: 2,
-        name: 'Aukstuma kravas auto',
-        description: 'Paredzēts pārtikas un medikamentu kravām ar stabilu temperatūras kontroli.',
-        capacity: '20 paletes / 16 t',
-        temperatureSupport: '+2°C līdz +8°C',
-    },
-    {
-        id: 3,
-        name: 'Konteiners 40FT',
-        description: 'Liela tilpuma jūras transporta vienība starptautiskām kravām.',
-        capacity: '67 m³ / 26 t',
-        temperatureSupport: 'Nav nepieciešams',
-    },
-];
+type PageProps = {
+    template: TransportTemplate;
+};
 
 export default function Edit() {
-    const { id } = usePage<{ props: PageProps }>().props;
-
-    const item = useMemo(
-        () => transportItems.find((transport) => transport.id === Number(id)) ?? transportItems[0],
-        [id]
-    );
-
-    const [form, setForm] = useState({
-        name: item.name,
-        description: item.description,
-        capacity: item.capacity,
-        temperatureSupport: item.temperatureSupport,
-    });
-
-    const inputClass =
-        'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-[16px] text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200';
+    const page = usePage<PageProps>();
+    const template = page.props.template;
 
     return (
-        <TeacherLayout>
-            <Head title="Rediģēt transporta veidu" />
+        <>
+            <Head title="Rediģēt sauszemes transportu" />
 
-            <div className="space-y-6 p-6">
-                <BackButton />
+            <TeacherLayout active="templates">
+                <BackButton href="/teacher/templates/transport" />
 
-                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h1 className="text-[28px] font-semibold text-slate-900">Rediģēt transporta veidu</h1>
-                    <p className="mt-2 text-[16px] text-slate-600">
-                        Atjaunojiet transporta veida parametrus simulatoram.
+                <div className="mt-4">
+                    <h1 className="text-[28px] font-semibold leading-tight text-[#182219]">
+                        Rediģēt sauszemes transportu
+                    </h1>
+
+                    <p className="mt-2 text-[16px] text-[#5b6b61]">
+                        Atjaunojiet transporta parametrus simulatoram
                     </p>
                 </div>
 
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        console.log('Updated transport:', form);
-                        alert('UI demo: transporta veids atjaunināts lokāli');
+                <TransportPresetForm
+                    submitLabel="Saglabāt izmaiņas"
+                    isEdit
+                    id={template.id}
+                    initialData={{
+                        name: template.name ?? '',
+                        type: template.type ?? '',
+                        description: template.description ?? '',
+                        capacity: template.capacity ?? '',
+                        temperature_support: template.temperature_support ?? '',
+                        capacity_containers: template.capacity_containers ?? '',
+                        capacity_tons: template.capacity_tons ?? '',
+                        avg_speed_kmh: template.avg_speed_kmh ?? '',
+                        cost_per_km: template.cost_per_km ?? '',
+                        fuel_consumption_per_100km:
+                            template.fuel_consumption_per_100km ?? '',
+                        max_range_km: template.max_range_km ?? '',
+                        loading_time_minutes: template.loading_time_minutes ?? '',
+                        unloading_time_minutes: template.unloading_time_minutes ?? '',
                     }}
-                    className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-                >
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                            <label className="mb-2 block text-[16px] font-medium text-slate-800">Nosaukums</label>
-                            <input
-                                value={form.name}
-                                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                                className={inputClass}
-                            />
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="mb-2 block text-[16px] font-medium text-slate-800">Apraksts</label>
-                            <textarea
-                                rows={4}
-                                value={form.description}
-                                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                className={inputClass}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="mb-2 block text-[16px] font-medium text-slate-800">Ietilpība</label>
-                            <input
-                                value={form.capacity}
-                                onChange={(e) => setForm((prev) => ({ ...prev, capacity: e.target.value }))}
-                                className={inputClass}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="mb-2 block text-[16px] font-medium text-slate-800">
-                                Temperatūras atbalsts
-                            </label>
-                            <input
-                                value={form.temperatureSupport}
-                                onChange={(e) =>
-                                    setForm((prev) => ({ ...prev, temperatureSupport: e.target.value }))
-                                }
-                                className={inputClass}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end">
-                        <button className="rounded-xl bg-[#166A4D] px-5 py-3 text-[16px] font-medium text-white hover:bg-[#145C3D]">
-                            Saglabāt izmaiņas
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </TeacherLayout>
+                />
+            </TeacherLayout>
+        </>
     );
 }

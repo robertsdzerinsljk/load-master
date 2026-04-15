@@ -1,5 +1,16 @@
 import { Head, router } from '@inertiajs/react';
-import { FileText, FolderKanban, Shield, Thermometer, Truck } from 'lucide-react';
+import {
+    Anchor,
+    FileText,
+    FolderKanban,
+    MapPin,
+    Shield,
+    Ship,
+    Thermometer,
+    Truck,
+    Route,
+    Fuel,
+} from 'lucide-react';
 import TeacherLayout from '@/layouts/TeacherLayout';
 
 function TemplateCard({
@@ -61,11 +72,46 @@ export default function TeacherTemplatesIndex() {
                     <div className="mt-4 grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-2">
                         <TemplateCard
                             icon={<Truck className="h-5 w-5" />}
-                            title="Transporta veidi"
-                            description="Definējiet transporta variantus, kurus vēlāk var izmantot pasūtījumos un scenārijos."
+                            title="Sauszemes transports"
+                            description="Definējiet sauszemes transporta variantus, kurus vēlāk var izmantot piegādēs līdz ostai, starp pilsētām un citos loģistikas scenārijos."
                             href="/teacher/templates/transport"
                         />
-
+                        <TemplateCard
+                            icon={<Anchor className="h-5 w-5" />}
+                            title="Ostas"
+                            description="Definējiet ostas, to iegrimuma ierobežojumus, attālumus un iekraušanas ātrumus simulatora scenārijiem."
+                            href="/teacher/templates/ports"
+                        />
+                        <TemplateCard
+                            icon={<Ship className="h-5 w-5" />}
+                            title="Kuģi"
+                            description="Definējiet kuģu parametrus, kapacitāti, iegrimumu un iekraušanas iespējas simulatora scenārijiem."
+                            href="/teacher/templates/ships"
+                        />
+                        <TemplateCard
+                            icon={<MapPin className="h-5 w-5" />}
+                            title="Lokācijas"
+                            description="Definējiet pilsētas, rūpnīcas, noliktavas, uzpildes vietas un citus punktus, kurus izmantos sauszemes maršrutos."
+                            href="/teacher/templates/locations"
+                        />
+                        <TemplateCard
+                            icon={<Fuel className="h-5 w-5" />}
+                            title="Uzpildes vietas"
+                            description="Definējiet degvielas cenu un tipu lokācijām, kuras izmanto kā uzpildes punktus sauszemes maršrutos."
+                            href="/teacher/templates/fuel-stations"
+                        />
+                        <TemplateCard
+                            icon={<Fuel className="h-5 w-5" />}
+                            title="Maršruta uzpildes pieturas"
+                            description="Piesaistiet uzpildes vietas konkrētiem sauszemes maršrutiem un norādiet attālumu no maršruta sākuma."
+                            href="/teacher/templates/route-fuel-stops"
+                        />
+                        <TemplateCard
+                            icon={<Route className="h-5 w-5" />}
+                            title="Sauszemes maršruti"
+                            description="Definējiet attālumus, paredzamo ceļā pavadīto laiku un nodevas starp lokācijām."
+                            href="/teacher/templates/land-routes"
+                        />
                         <TemplateCard
                             icon={<Thermometer className="h-5 w-5" />}
                             title="Temperatūras režīmi"
@@ -86,6 +132,7 @@ export default function TeacherTemplatesIndex() {
                             description="Saglabājiet biežāk izmantotos dokumentu komplektus konkrētiem piegādes scenārijiem."
                             href="/teacher/templates/customs"
                         />
+
                     </div>
                 </section>
 

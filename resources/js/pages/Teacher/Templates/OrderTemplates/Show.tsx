@@ -1,25 +1,154 @@
 import BackButton from '@/components/BackButton';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
-import {
-    fakeGroups,
-    fakeStudents,
-    orderTemplateList,
-} from './orderTemplateFakeData';
+import { useState } from 'react';
 
-type PageProps = {
+type NamedItem = {
     id: number;
+    name: string;
 };
 
-type AssignMode = 'student' | 'group' | null;
+type LocationData = {
+    id: number;
+    name: string;
+    city?: string | null;
+    type?: string | null;
+};
+
+type PortData = {
+    id: number;
+    name: string;
+    country?: string | null;
+};
+
+type LandRouteData = {
+    id: number;
+    distance_km?: string | number | null;
+    fromLocation?: {
+        id: number;
+        name: string;
+    } | null;
+    toLocation?: {
+        id: number;
+        name: string;
+    } | null;
+    from_location?: {
+        id: number;
+        name: string;
+    } | null;
+    to_location?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
+type Template = {
+    id: number;
+    title: string;
+    scenario_type: string;
+    status: string;
+    description?: string | null;
+    student_brief?: string | null;
+    teacher_notes?: string | null;
+    cargo_name?: string | null;
+    cargo_type?: string | null;
+    cargo_amount_containers?: string | number | null;
+    cargo_amount_tons?: string | number | null;
+    cargo_volume_m3?: string | number | null;
+    cargo_value?: string | number | null;
+    deadline_date?: string | null;
+    budget_limit?: string | number | null;
+    requires_refuel_planning?: boolean;
+    max_trips?: string | number | null;
+    priority?: string | null;
+
+    temperatureMode?: NamedItem | null;
+    temperature_mode?: NamedItem | null;
+    specialCondition?: NamedItem | null;
+    special_condition?: NamedItem | null;
+
+    startLocation?: LocationData | null;
+    start_location?: LocationData | null;
+    endLocation?: LocationData | null;
+    end_location?: LocationData | null;
+
+    startPort?: PortData | null;
+    start_port?: PortData | null;
+    endPort?: PortData | null;
+    end_port?: PortData | null;
+
+    transportTemplates?: NamedItem[];
+    transport_templates?: NamedItem[];
+    ships?: NamedItem[];
+    ports?: NamedItem[];
+    landRoutes?: LandRouteData[];
+    land_routes?: LandRouteData[];
+};
+
+type PreviewResponse = {
+    route?: {
+        from?: string | null;
+        to?: string | null;
+        distance_km?: number;
+        toll_cost?: number;
+    };
+    transport?: {
+        name?: string | null;
+        type?: string | null;
+        capacity_containers?: number;
+        avg_speed_kmh?: number;
+        cost_per_km?: number;
+        fuel_consumption_per_100km?: number;
+        max_range_km?: number;
+        loading_time_minutes?: number;
+        unloading_time_minutes?: number;
+    };
+    cargo?: {
+        amount_containers?: number;
+    };
+    result?: {
+        required_vehicles?: number;
+        trip_time_hours?: number;
+        cycle_time_hours?: number;
+        transport_cost_per_vehicle?: number;
+        base_cost_per_vehicle?: number;
+        total_base_cost?: number;
+        fuel_used_liters_per_vehicle?: number;
+        needs_refuel?: boolean;
+        can_complete_with_current_route_data?: boolean;
+        fuel_cost_per_vehicle?: number | null;
+        total_fuel_cost?: number | null;
+        total_cost?: number;
+    };
+    fuel?: {
+        available_fuel_stops?: Array<{
+            distance_from_start_km: number;
+            station_name?: string | null;
+            station_city?: string | null;
+            fuel_type?: string | null;
+            price_per_liter?: number | null;
+        }>;
+        recommended_fuel_stop?: {
+            distance_from_start_km: number;
+            station_name?: string | null;
+            station_city?: string | null;
+            fuel_type?: string | null;
+            price_per_liter?: number | null;
+        } | null;
+    };
+    message?: string;
+};
+
+type PageProps = {
+    template: Template;
+};
 
 function InfoRow({
     label,
     value,
 }: {
     label: string;
-    value: string;
+    value: string | number | null | undefined;
 }) {
     return (
         <div className="flex flex-col gap-1 rounded-xl border border-[#d9ded9] bg-white p-4">
@@ -27,17 +156,40 @@ function InfoRow({
                 {label}
             </span>
             <span className="text-[16px] font-semibold text-[#182219]">
-                {value || '—'}
+                {value !== null && value !== undefined && value !== '' ? value : '—'}
             </span>
         </div>
     );
 }
 
+function PreviewCard({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | number | null | undefined;
+}) {
+    return (
+        <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
+            <div className="text-[13px] font-medium uppercase tracking-wide text-[#7a877f]">
+                {label}
+            </div>
+            <div className="mt-2 text-[16px] font-semibold text-[#182219]">
+                {value !== null && value !== undefined && value !== '' ? value : '—'}
+            </div>
+        </div>
+    );
+}
+
 function StatusBadge({ status }: { status: string }) {
+    const labelMap: Record<string, string> = {
+        draft: 'Melnraksts',
+        ready: 'Gatavs',
+    };
+
     const styles: Record<string, string> = {
-        Melnraksts: 'bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb]',
-        Gatavs: 'bg-[#ecfdf3] text-[#166534] border-[#bbf7d0]',
-        Piešķirts: 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]',
+        draft: 'bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb]',
+        ready: 'bg-[#ecfdf3] text-[#166534] border-[#bbf7d0]',
     };
 
     return (
@@ -46,90 +198,112 @@ function StatusBadge({ status }: { status: string }) {
                 styles[status] ?? 'bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb]'
             }`}
         >
-            {status}
+            {labelMap[status] ?? status}
         </span>
     );
 }
 
-export default function Show() {
-    const { id } = usePage<{ props: PageProps }>().props;
+function ScenarioTypeBadge({ type }: { type: string }) {
+    const labelMap: Record<string, string> = {
+        general: 'Vispārējs scenārijs',
+        fuel_planning: 'Uzpildes plānošana',
+        port_restriction: 'Ostu ierobežojumi',
+        cost_optimization: 'Izmaksu optimizācija',
+        capacity_planning: 'Kapacitātes plānošana',
+    };
 
-    const [assignMode, setAssignMode] = useState<AssignMode>(null);
-    const [selectedStudentId, setSelectedStudentId] = useState('');
-    const [selectedGroupId, setSelectedGroupId] = useState('');
-    const [assignNote, setAssignNote] = useState('');
-    const [assignmentSuccess, setAssignmentSuccess] = useState<string | null>(null);
-
-    const template = useMemo(
-        () => orderTemplateList.find((item) => item.id === Number(id)) ?? orderTemplateList[0],
-        [id]
+    return (
+        <span className="inline-flex items-center rounded-full border border-[#d9ded9] bg-white px-3 py-1 text-[13px] font-medium text-[#182219]">
+            {labelMap[type] ?? type}
+        </span>
     );
+}
 
-    const previewData = {
-        scenarioTitle: template.title,
-        clientName: template.client,
-        clientCompany: template.client,
-        clientCountry: 'Latvija',
-        cargoName: template.cargo,
-        cargoWeight: '1200 kg',
-        cargoVolume: '18 m³',
-        cargoValue: '25 000 €',
-        priority: template.priority,
-        transportType: template.transportType,
-        temperatureMode: template.temperatureMode,
-        specialCondition: template.specialCondition,
-        customsDocument: template.customsDocument,
-        pickupLocation: 'Liepāja',
-        deliveryLocation: 'Hamburg',
-        deadline: '2026-05-15',
-        notes:
-            'Šī ir demo priekšskatījuma lapa. Vēlāk šeit varēs redzēt pilnu scenārija informāciju pirms piešķiršanas studentam vai grupai.',
-        status: template.status,
-    };
+function ListBlock({
+    title,
+    items,
+}: {
+    title: string;
+    items: string[];
+}) {
+    return (
+        <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
+            <h2 className="text-[22px] font-semibold text-[#182219]">{title}</h2>
 
-    const closeDrawer = () => {
-        setAssignMode(null);
-        setSelectedStudentId('');
-        setSelectedGroupId('');
-        setAssignNote('');
-    };
+            <div className="mt-5 space-y-3 text-[15px] text-[#5b6b61]">
+                {items.length > 0 ? (
+                    items.map((item, index) => (
+                        <div
+                            key={`${title}-${index}`}
+                            className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3"
+                        >
+                            {item}
+                        </div>
+                    ))
+                ) : (
+                    <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3">
+                        Nav norādīts.
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
 
-    const handleAssign = () => {
-        if (assignMode === 'student') {
-            const foundStudent = fakeStudents.find(
-                (student) => String(student.id) === selectedStudentId
+export default function Show() {
+    const page = usePage<PageProps>();
+    const template = page.props.template;
+
+    const [isTryingScenario, setIsTryingScenario] = useState(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+
+    const routeLabels =
+        (template.landRoutes ?? template.land_routes ?? []).map(
+            (route) =>
+                `${(route.fromLocation ?? route.from_location)?.name ?? '—'} → ${(
+                    route.toLocation ?? route.to_location
+                )?.name ?? '—'} (${route.distance_km ?? '—'} km)`
+        );
+
+    const handleTryScenario = async () => {
+        setIsTryingScenario(true);
+        setPreviewError(null);
+        setPreviewData(null);
+
+        try {
+            const response = await fetch(
+                `/teacher/templates/order-templates/${template.id}/preview`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({}),
+                    credentials: 'same-origin',
+                }
             );
 
-            if (!foundStudent) {
-                alert('Izvēlieties studentu.');
+            const data = await response.json();
+
+            if (!response.ok) {
+                setPreviewError(data.message || 'Neizdevās aprēķināt scenāriju.');
                 return;
             }
 
-            setAssignmentSuccess(`Sagatave piešķirta studentam ${foundStudent.name}.`);
-            closeDrawer();
-            return;
-        }
-
-        if (assignMode === 'group') {
-            const foundGroup = fakeGroups.find(
-                (group) => String(group.id) === selectedGroupId
-            );
-
-            if (!foundGroup) {
-                alert('Izvēlieties grupu.');
-                return;
-            }
-
-            setAssignmentSuccess(
-                `Sagatave piešķirta grupai ${foundGroup.name} (${foundGroup.studentCount} studenti).`
-            );
-            closeDrawer();
+            setPreviewData(data);
+        } catch {
+            setPreviewError('Neizdevās sazināties ar serveri.');
+        } finally {
+            setIsTryingScenario(false);
         }
     };
 
     return (
         <>
-            <Head title="Pasūtījuma sagataves priekšskatījums" />
+            <Head title="Uzdevuma sagataves priekšskatījums" />
 
             <TeacherLayout active="templates">
                 <BackButton href="/teacher/templates/order-templates" />
@@ -138,14 +312,15 @@ export default function Show() {
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
                             <h1 className="text-[28px] font-semibold leading-tight text-[#182219]">
-                                {previewData.scenarioTitle}
+                                {template.title}
                             </h1>
-                            <StatusBadge status={previewData.status} />
+                            <StatusBadge status={template.status} />
+                            <ScenarioTypeBadge type={template.scenario_type} />
                         </div>
 
                         <p className="mt-2 max-w-3xl text-[16px] leading-7 text-[#5b6b61]">
-                            Šeit pasniedzējs var pārskatīt pilnu scenāriju pirms tā rediģēšanas
-                            vai piešķiršanas studentiem.
+                            Šeit pasniedzējs var pārskatīt pilnu scenārija karkasu pirms tā
+                            rediģēšanas vai piešķiršanas studentiem.
                         </p>
                     </div>
 
@@ -162,25 +337,135 @@ export default function Show() {
 
                         <button
                             type="button"
-                            onClick={() => setAssignMode('student')}
-                            className="rounded-xl bg-[#166a4d] px-4 py-2 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                            onClick={handleTryScenario}
+                            disabled={isTryingScenario}
+                            className="rounded-xl border border-[#166a4d] bg-white px-4 py-2 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:opacity-60"
                         >
-                            Piešķirt studentam
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setAssignMode('group')}
-                            className="rounded-xl border border-[#166a4d] bg-white px-4 py-2 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6]"
-                        >
-                            Piešķirt grupai
+                            {isTryingScenario ? 'Notiek aprēķins...' : 'Izmēģināt'}
                         </button>
                     </div>
                 </div>
 
-                {assignmentSuccess && (
-                    <div className="mt-4 rounded-xl border border-[#bbf7d0] bg-[#ecfdf3] px-4 py-3 text-[15px] text-[#166534]">
-                        <span className="font-semibold">UI demo:</span> {assignmentSuccess}
+                {(previewError || previewData) && (
+                    <div className="mt-6 rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
+                        <h2 className="text-[22px] font-semibold text-[#182219]">
+                            Scenārija preview
+                        </h2>
+                        <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
+                            Šis ir saglabātās uzdevuma sagataves aprēķinu priekšskatījums.
+                        </p>
+
+                        {previewError && (
+                            <div className="mt-5 rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-[15px] text-[#991b1b]">
+                                {previewError}
+                            </div>
+                        )}
+
+                        {previewData && (
+                            <div className="mt-5 space-y-5">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    <PreviewCard
+                                        label="Maršruts"
+                                        value={`${previewData.route?.from ?? '—'} → ${previewData.route?.to ?? '—'}`}
+                                    />
+                                    <PreviewCard
+                                        label="Attālums"
+                                        value={`${previewData.route?.distance_km ?? '—'} km`}
+                                    />
+                                    <PreviewCard
+                                        label="Transports"
+                                        value={previewData.transport?.name ?? '—'}
+                                    />
+                                    <PreviewCard
+                                        label="Nepieciešamās vienības"
+                                        value={previewData.result?.required_vehicles ?? '—'}
+                                    />
+                                    <PreviewCard
+                                        label="Brauciena laiks"
+                                        value={`${previewData.result?.trip_time_hours ?? '—'} h`}
+                                    />
+                                    <PreviewCard
+                                        label="Pilna cikla laiks"
+                                        value={`${previewData.result?.cycle_time_hours ?? '—'} h`}
+                                    />
+                                    <PreviewCard
+                                        label="Bāzes izmaksas uz 1 transportu"
+                                        value={`${previewData.result?.base_cost_per_vehicle ?? '—'} €`}
+                                    />
+                                    <PreviewCard
+                                        label="Kopējās bāzes izmaksas"
+                                        value={`${previewData.result?.total_base_cost ?? '—'} €`}
+                                    />
+                                    <PreviewCard
+                                        label="Kopējās izmaksas"
+                                        value={`${previewData.result?.total_cost ?? '—'} €`}
+                                    />
+                                    <PreviewCard
+                                        label="Nepieciešama uzpilde"
+                                        value={previewData.result?.needs_refuel ? 'Jā' : 'Nē'}
+                                    />
+                                    <PreviewCard
+                                        label="Maršruts izpildāms"
+                                        value={
+                                            previewData.result?.can_complete_with_current_route_data
+                                                ? 'Jā'
+                                                : 'Nē'
+                                        }
+                                    />
+                                    <PreviewCard
+                                        label="Degviela uz 1 transportu"
+                                        value={`${previewData.result?.fuel_used_liters_per_vehicle ?? '—'} l`}
+                                    />
+                                </div>
+
+                                <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
+                                    <h3 className="text-[15px] font-semibold text-[#182219]">
+                                        Ieteicamā uzpildes vieta
+                                    </h3>
+                                    <p className="mt-2 text-[14px] leading-6 text-[#5b6b61]">
+                                        {previewData.fuel?.recommended_fuel_stop
+                                            ? `${previewData.fuel.recommended_fuel_stop.station_name ?? '—'} (${previewData.fuel.recommended_fuel_stop.distance_from_start_km} km no starta)`
+                                            : 'Pagaidām nav ieteicamas uzpildes vietas vai uzpilde nav nepieciešama.'}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
+                                    <h3 className="text-[15px] font-semibold text-[#182219]">
+                                        Pieejamās uzpildes pieturas maršrutā
+                                    </h3>
+
+                                    <div className="mt-3 space-y-3">
+                                        {previewData.fuel?.available_fuel_stops?.length ? (
+                                            previewData.fuel.available_fuel_stops.map((stop, index) => (
+                                                <div
+                                                    key={`${stop.station_name}-${index}`}
+                                                    className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3 text-[14px] text-[#5b6b61]"
+                                                >
+                                                    <div className="font-semibold text-[#182219]">
+                                                        {stop.station_name ?? '—'}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        {stop.distance_from_start_km} km no starta
+                                                        {stop.station_city ? ` — ${stop.station_city}` : ''}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        Degviela: {stop.fuel_type ?? '—'}
+                                                        {stop.price_per_liter !== null &&
+                                                        stop.price_per_liter !== undefined
+                                                            ? ` — ${stop.price_per_liter} €/l`
+                                                            : ''}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3 text-[14px] text-[#5b6b61]">
+                                                Maršrutam nav piesaistītu uzpildes pieturu.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -192,22 +477,17 @@ export default function Show() {
                             </h2>
 
                             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <InfoRow label="Scenārija nosaukums" value={previewData.scenarioTitle} />
-                                <InfoRow label="Prioritāte" value={previewData.priority} />
-                                <InfoRow label="Statuss" value={previewData.status} />
+                                <InfoRow label="Nosaukums" value={template.title} />
+                                <InfoRow label="Scenārija tips" value={template.scenario_type} />
+                                <InfoRow label="Statuss" value={template.status} />
+                                <InfoRow label="Prioritāte" value={template.priority} />
                             </div>
-                        </section>
 
-                        <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                            <h2 className="text-[22px] font-semibold text-[#182219]">
-                                Klienta dati
-                            </h2>
-
-                            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <InfoRow label="Kontaktpersona" value={previewData.clientName} />
-                                <InfoRow label="Uzņēmums" value={previewData.clientCompany} />
-                                <InfoRow label="Valsts" value={previewData.clientCountry} />
-                            </div>
+                            {template.description && (
+                                <p className="mt-5 text-[15px] leading-7 text-[#5b6b61]">
+                                    {template.description}
+                                </p>
+                            )}
                         </section>
 
                         <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
@@ -216,72 +496,95 @@ export default function Show() {
                             </h2>
 
                             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <InfoRow label="Kravas nosaukums" value={previewData.cargoName} />
-                                <InfoRow label="Svars" value={previewData.cargoWeight} />
-                                <InfoRow label="Tilpums" value={previewData.cargoVolume} />
-                                <InfoRow label="Kravas vērtība" value={previewData.cargoValue} />
+                                <InfoRow label="Kravas nosaukums" value={template.cargo_name} />
+                                <InfoRow label="Kravas tips" value={template.cargo_type} />
+                                <InfoRow
+                                    label="Konteineru skaits"
+                                    value={template.cargo_amount_containers}
+                                />
+                                <InfoRow label="Tonnas" value={template.cargo_amount_tons} />
+                                <InfoRow label="Tilpums (m³)" value={template.cargo_volume_m3} />
+                                <InfoRow label="Kravas vērtība (€)" value={template.cargo_value} />
+                                <InfoRow
+                                    label="Temperatūras režīms"
+                                    value={(template.temperatureMode ?? template.temperature_mode)?.name}
+                                />
+                                <InfoRow
+                                    label="Īpašie nosacījumi"
+                                    value={(template.specialCondition ?? template.special_condition)?.name}
+                                />
                             </div>
                         </section>
 
                         <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
                             <h2 className="text-[22px] font-semibold text-[#182219]">
-                                Loģistikas nosacījumi
+                                Sākuma un gala punkti
                             </h2>
 
                             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <InfoRow label="Transporta veids" value={previewData.transportType} />
-                                <InfoRow label="Temperatūras režīms" value={previewData.temperatureMode} />
-                                <InfoRow label="Īpašie nosacījumi" value={previewData.specialCondition} />
-                                <InfoRow label="Muitas dokuments" value={previewData.customsDocument} />
+                                <InfoRow
+                                    label="Sākuma lokācija"
+                                    value={(template.startLocation ?? template.start_location)?.name}
+                                />
+                                <InfoRow
+                                    label="Gala lokācija"
+                                    value={(template.endLocation ?? template.end_location)?.name}
+                                />
+                                <InfoRow
+                                    label="Sākuma osta"
+                                    value={(template.startPort ?? template.start_port)?.name}
+                                />
+                                <InfoRow
+                                    label="Gala osta"
+                                    value={(template.endPort ?? template.end_port)?.name}
+                                />
                             </div>
                         </section>
 
                         <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
                             <h2 className="text-[22px] font-semibold text-[#182219]">
-                                Maršruts un piegāde
+                                Ierobežojumi
                             </h2>
 
                             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <InfoRow label="Saņemšanas vieta" value={previewData.pickupLocation} />
-                                <InfoRow label="Piegādes vieta" value={previewData.deliveryLocation} />
-                                <InfoRow label="Piegādes termiņš" value={previewData.deadline} />
+                                <InfoRow label="Termiņš" value={template.deadline_date} />
+                                <InfoRow label="Budžeta limits" value={template.budget_limit} />
+                                <InfoRow label="Maks. reisu skaits" value={template.max_trips} />
+                                <InfoRow
+                                    label="Uzpildes plānošana"
+                                    value={template.requires_refuel_planning ? 'Jā' : 'Nē'}
+                                />
                             </div>
+                        </section>
+
+                        <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
+                            <h2 className="text-[22px] font-semibold text-[#182219]">
+                                Studentam redzamais uzdevums
+                            </h2>
+
+                            <p className="mt-4 text-[15px] leading-7 text-[#5b6b61]">
+                                {template.student_brief || 'Nav ievadīts uzdevuma teksts.'}
+                            </p>
                         </section>
                     </div>
 
                     <div className="space-y-6">
-                        <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                            <h2 className="text-[22px] font-semibold text-[#182219]">
-                                Ātrais kopsavilkums
-                            </h2>
+                        <ListBlock
+                            title="Pieejamais sauszemes transports"
+                            items={(template.transportTemplates ?? template.transport_templates ?? []).map((item) => item.name)}
+                        />
 
-                            <div className="mt-5 space-y-4 text-[15px] text-[#5b6b61]">
-                                <div>
-                                    <span className="font-semibold text-[#182219]">Klients:</span>{' '}
-                                    {previewData.clientCompany}
-                                </div>
+                        <ListBlock
+                            title="Pieejamie kuģi"
+                            items={(template.ships ?? []).map((item) => item.name)}
+                        />
 
-                                <div>
-                                    <span className="font-semibold text-[#182219]">Krava:</span>{' '}
-                                    {previewData.cargoName}
-                                </div>
+                        <ListBlock
+                            title="Pieejamās ostas"
+                            items={(template.ports ?? []).map((item) => item.name)}
+                        />
 
-                                <div>
-                                    <span className="font-semibold text-[#182219]">Maršruts:</span>{' '}
-                                    {previewData.pickupLocation} → {previewData.deliveryLocation}
-                                </div>
-
-                                <div>
-                                    <span className="font-semibold text-[#182219]">Prioritāte:</span>{' '}
-                                    {previewData.priority}
-                                </div>
-
-                                <div>
-                                    <span className="font-semibold text-[#182219]">Statuss:</span>{' '}
-                                    {previewData.status}
-                                </div>
-                            </div>
-                        </section>
+                        <ListBlock title="Pieejamie maršruti" items={routeLabels} />
 
                         <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
                             <h2 className="text-[22px] font-semibold text-[#182219]">
@@ -289,148 +592,9 @@ export default function Show() {
                             </h2>
 
                             <p className="mt-4 text-[15px] leading-7 text-[#5b6b61]">
-                                {previewData.notes}
+                                {template.teacher_notes || 'Nav pievienotas piezīmes.'}
                             </p>
                         </section>
-                    </div>
-                </div>
-
-                <div
-                    className={`fixed inset-0 z-40 transition-all duration-300 ${
-                        assignMode ? 'pointer-events-auto bg-black/30 opacity-100' : 'pointer-events-none bg-black/0 opacity-0'
-                    }`}
-                    onClick={closeDrawer}
-                />
-
-                <div
-                    className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md transform flex-col border-l border-[#d9ded9] bg-white shadow-2xl transition-transform duration-300 ease-out ${
-                        assignMode ? 'translate-x-0' : 'translate-x-full'
-                    }`}
-                >
-                    <div className="border-b border-[#d9ded9] px-6 py-5">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    {assignMode === 'student'
-                                        ? 'Piešķirt studentam'
-                                        : assignMode === 'group'
-                                        ? 'Piešķirt grupai'
-                                        : 'Piešķiršana'}
-                                </h2>
-
-                                <p className="mt-2 text-[15px] text-[#5b6b61]">
-                                    {assignMode === 'student'
-                                        ? 'Izvēlieties studentu un pievienojiet īsu instrukciju.'
-                                        : assignMode === 'group'
-                                        ? 'Izvēlieties grupu un pievienojiet kopīgu piezīmi.'
-                                        : 'Izvēlieties piešķiršanas veidu.'}
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={closeDrawer}
-                                className="rounded-lg border border-[#d9ded9] px-3 py-1 text-[14px] text-[#182219] hover:bg-[#f7f9f7]"
-                            >
-                                X
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
-                        <div>
-                            <label className="mb-2 block text-[15px] font-medium text-[#182219]">
-                                Sagatave
-                            </label>
-                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3 text-[15px] text-[#182219]">
-                                {previewData.scenarioTitle}
-                            </div>
-                        </div>
-
-                        {assignMode === 'student' && (
-                            <div>
-                                <label className="mb-2 block text-[15px] font-medium text-[#182219]">
-                                    Students
-                                </label>
-                                <select
-                                    value={selectedStudentId}
-                                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                                    className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[15px] text-[#182219] outline-none focus:border-[#b9c8be]"
-                                >
-                                    <option value="">Izvēlieties studentu</option>
-                                    {fakeStudents.map((student) => (
-                                        <option key={student.id} value={student.id}>
-                                            {student.name} — {student.group}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        {assignMode === 'group' && (
-                            <div>
-                                <label className="mb-2 block text-[15px] font-medium text-[#182219]">
-                                    Grupa
-                                </label>
-                                <select
-                                    value={selectedGroupId}
-                                    onChange={(e) => setSelectedGroupId(e.target.value)}
-                                    className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[15px] text-[#182219] outline-none focus:border-[#b9c8be]"
-                                >
-                                    <option value="">Izvēlieties grupu</option>
-                                    {fakeGroups.map((group) => (
-                                        <option key={group.id} value={group.id}>
-                                            {group.name} — {group.studentCount} studenti
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="mb-2 block text-[15px] font-medium text-[#182219]">
-                                Piezīme
-                            </label>
-                            <textarea
-                                rows={5}
-                                value={assignNote}
-                                onChange={(e) => setAssignNote(e.target.value)}
-                                placeholder="Piemēram, pievērsiet uzmanību temperatūras režīmam un piegādes termiņam."
-                                className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[15px] text-[#182219] outline-none focus:border-[#b9c8be]"
-                            />
-                        </div>
-
-                        <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-                            <h3 className="text-[15px] font-semibold text-[#182219]">
-                                Priekšskatījums
-                            </h3>
-
-                            <p className="mt-2 text-[14px] leading-6 text-[#5b6b61]">
-                                Šajā demonstrācijas režīmā piešķiršana vēl netiek saglabāta
-                                datubāzē, bet UI parāda, kā notiks scenārija nodošana
-                                studentam vai grupai.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-[#d9ded9] px-6 py-5">
-                        <div className="flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={closeDrawer}
-                                className="rounded-xl border border-[#d9ded9] bg-white px-4 py-2 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                            >
-                                Atcelt
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleAssign}
-                                className="rounded-xl bg-[#166a4d] px-4 py-2 text-[15px] font-medium text-white transition hover:bg-[#135740]"
-                            >
-                                Piešķirt
-                            </button>
-                        </div>
                     </div>
                 </div>
             </TeacherLayout>

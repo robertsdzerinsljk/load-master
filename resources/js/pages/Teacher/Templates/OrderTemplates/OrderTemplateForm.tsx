@@ -1,255 +1,527 @@
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
-import {
-    customsDocumentOptions,
-    orderTemplateStatusOptions,
-    specialConditionOptions,
-    temperatureModeOptions,
-    transportTypeOptions,
-} from './orderTemplateFakeData';
+import OrderTemplateFormSection from './OrderTemplateFormSection';
 
-type OrderTemplateFormData = {
-    scenarioTitle: string;
-    clientName: string;
-    clientCompany: string;
-    clientCountry: string;
-    cargoName: string;
-    cargoWeight: string;
-    cargoVolume: string;
-    cargoValue: string;
-    priority: string;
-    status: string;
-    transportTypeId: string;
-    temperatureModeId: string;
-    specialConditionId: string;
-    customsDocumentId: string;
-    pickupLocation: string;
-    deliveryLocation: string;
-    deadline: string;
-    notes: string;
+type SimpleOption = {
+    id: number;
+    name: string;
 };
 
-const initialForm: OrderTemplateFormData = {
-    scenarioTitle: '',
-    clientName: '',
-    clientCompany: '',
-    clientCountry: '',
-    cargoName: '',
-    cargoWeight: '',
-    cargoVolume: '',
-    cargoValue: '',
-    priority: '',
-    status: 'Melnraksts',
-    transportTypeId: '',
-    temperatureModeId: '',
-    specialConditionId: '',
-    customsDocumentId: '',
-    pickupLocation: '',
-    deliveryLocation: '',
-    deadline: '',
-    notes: '',
+type ScenarioOption = {
+    value: string;
+    label: string;
+};
+
+type LocationOption = {
+    id: number;
+    name: string;
+    city?: string | null;
+    type?: string | null;
+};
+
+type PortOption = {
+    id: number;
+    name: string;
+    country?: string | null;
+};
+
+type TransportOption = {
+    id: number;
+    name: string;
+    type?: string | null;
+};
+
+type ShipOption = {
+    id: number;
+    name: string;
+    cargo_type?: string | null;
+};
+
+type LandRouteOption = {
+    id: number;
+    distance_km?: string | number | null;
+    fromLocation?: {
+        id: number;
+        name: string;
+    } | null;
+    toLocation?: {
+        id: number;
+        name: string;
+    } | null;
+    from_location?: {
+        id: number;
+        name: string;
+    } | null;
+    to_location?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
+type Options = {
+    temperatureModes: SimpleOption[];
+    specialConditions: SimpleOption[];
+    locations: LocationOption[];
+    ports: PortOption[];
+    transportTemplates: TransportOption[];
+    ships: ShipOption[];
+    landRoutes: LandRouteOption[];
+    scenarioTypes: ScenarioOption[];
+    statusOptions: ScenarioOption[];
+    priorityOptions: ScenarioOption[];
+};
+
+type InitialData = {
+    title?: string;
+    scenario_type?: string;
+    status?: string;
+    description?: string | null;
+    student_brief?: string | null;
+    teacher_notes?: string | null;
+    cargo_name?: string | null;
+    cargo_type?: string | null;
+    cargo_amount_containers?: string | number | null;
+    cargo_amount_tons?: string | number | null;
+    cargo_volume_m3?: string | number | null;
+    cargo_value?: string | number | null;
+    temperature_mode_id?: number | string | null;
+    special_condition_id?: number | string | null;
+    start_location_id?: number | string | null;
+    end_location_id?: number | string | null;
+    deadline_date?: string | null;
+    budget_limit?: string | number | null;
+    requires_refuel_planning?: boolean;
+    max_trips?: string | number | null;
+    priority?: string | null;
+    transportTemplates?: Array<{ id: number }>;
+    transport_templates?: Array<{ id: number }>;
+    ships?: Array<{ id: number }>;
+    ports?: Array<{ id: number }>;
+    landRoutes?: Array<{ id: number }>;
+    land_routes?: Array<{ id: number }>;
+};
+
+type PreviewResponse = {
+    route?: {
+        from?: string | null;
+        to?: string | null;
+        distance_km?: number;
+        toll_cost?: number;
+    };
+    transport?: {
+        name?: string | null;
+        type?: string | null;
+        capacity_containers?: number;
+        avg_speed_kmh?: number;
+        cost_per_km?: number;
+        fuel_consumption_per_100km?: number;
+        max_range_km?: number;
+        loading_time_minutes?: number;
+        unloading_time_minutes?: number;
+    };
+    cargo?: {
+        amount_containers?: number;
+    };
+    result?: {
+        required_vehicles?: number;
+        trip_time_hours?: number;
+        cycle_time_hours?: number;
+        transport_cost_per_vehicle?: number;
+        base_cost_per_vehicle?: number;
+        total_base_cost?: number;
+        fuel_used_liters_per_vehicle?: number;
+        needs_refuel?: boolean;
+        can_complete_with_current_route_data?: boolean;
+        fuel_cost_per_vehicle?: number | null;
+        total_fuel_cost?: number | null;
+        total_cost?: number;
+    };
+    fuel?: {
+        available_fuel_stops?: Array<{
+            distance_from_start_km: number;
+            station_name?: string | null;
+            station_city?: string | null;
+            fuel_type?: string | null;
+            price_per_liter?: number | null;
+        }>;
+        recommended_fuel_stop?: {
+            distance_from_start_km: number;
+            station_name?: string | null;
+            station_city?: string | null;
+            fuel_type?: string | null;
+            price_per_liter?: number | null;
+        } | null;
+    };
+    message?: string;
 };
 
 type Props = {
+    options: Options;
+    initialData?: InitialData;
+    submitLabel?: string;
+    isEdit?: boolean;
+    id?: number;
     onCancel?: () => void;
 };
 
-export default function OrderTemplateForm({ onCancel }: Props) {
-    const [form, setForm] = useState<OrderTemplateFormData>(initialForm);
+export default function OrderTemplateForm({
+    options,
+    initialData = {},
+    submitLabel = 'Saglabāt',
+    isEdit = false,
+    id,
+    onCancel,
+}: Props) {
+    const [title, setTitle] = useState(initialData.title ?? '');
+    const [scenarioType, setScenarioType] = useState(initialData.scenario_type ?? 'general');
+    const [status, setStatus] = useState(initialData.status ?? 'draft');
+    const [description, setDescription] = useState(initialData.description ?? '');
+    const [studentBrief, setStudentBrief] = useState(initialData.student_brief ?? '');
+    const [teacherNotes, setTeacherNotes] = useState(initialData.teacher_notes ?? '');
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    const [cargoName, setCargoName] = useState(initialData.cargo_name ?? '');
+    const [cargoType, setCargoType] = useState(initialData.cargo_type ?? '');
+    const [cargoAmountContainers, setCargoAmountContainers] = useState(
+        String(initialData.cargo_amount_containers ?? '')
+    );
+    const [cargoAmountTons, setCargoAmountTons] = useState(
+        String(initialData.cargo_amount_tons ?? '')
+    );
+    const [cargoVolumeM3, setCargoVolumeM3] = useState(
+        String(initialData.cargo_volume_m3 ?? '')
+    );
+    const [cargoValue, setCargoValue] = useState(String(initialData.cargo_value ?? ''));
+
+    const [temperatureModeId, setTemperatureModeId] = useState(
+        String(initialData.temperature_mode_id ?? '')
+    );
+    const [specialConditionId, setSpecialConditionId] = useState(
+        String(initialData.special_condition_id ?? '')
+    );
+
+    const [startLocationId, setStartLocationId] = useState(
+        String(initialData.start_location_id ?? '')
+    );
+    const [endLocationId, setEndLocationId] = useState(
+        String(initialData.end_location_id ?? '')
+    );
+
+    const [deadlineDate, setDeadlineDate] = useState(initialData.deadline_date ?? '');
+    const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?? ''));
+    const [requiresRefuelPlanning, setRequiresRefuelPlanning] = useState(
+        Boolean(initialData.requires_refuel_planning ?? false)
+    );
+    const [maxTrips, setMaxTrips] = useState(String(initialData.max_trips ?? ''));
+    const [priority, setPriority] = useState(initialData.priority ?? '');
+
+    const [transportTemplateIds, setTransportTemplateIds] = useState<number[]>(
+        (initialData.transportTemplates ?? initialData.transport_templates ?? []).map((item) => item.id)
+    );
+    const [shipIds, setShipIds] = useState<number[]>(
+        initialData.ships?.map((item) => item.id) ?? []
+    );
+    const [portIds, setPortIds] = useState<number[]>(
+        initialData.ports?.map((item) => item.id) ?? []
+    );
+    const [landRouteIds, setLandRouteIds] = useState<number[]>(
+        (initialData.landRoutes ?? initialData.land_routes ?? []).map((item) => item.id)
+    );
+
+    const [isTryingScenario, setIsTryingScenario] = useState(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+
+    const inputClass =
+        'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
+
+    const labelClass = 'text-[14px] font-medium text-[#182219]';
+
+    const toggleMultiSelect = (
+        current: number[],
+        setFn: (value: number[]) => void,
+        selectedId: number
     ) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        if (current.includes(selectedId)) {
+            setFn(current.filter((item) => item !== selectedId));
+            return;
+        }
+
+        setFn([...current, selectedId]);
     };
+
+    const buildPayload = () => ({
+        title,
+        scenario_type: scenarioType,
+        status,
+        description: description || null,
+        student_brief: studentBrief || null,
+        teacher_notes: teacherNotes || null,
+        cargo_name: cargoName || null,
+        cargo_type: cargoType || null,
+        cargo_amount_containers:
+            cargoAmountContainers === '' ? null : Number(cargoAmountContainers),
+        cargo_amount_tons: cargoAmountTons === '' ? null : Number(cargoAmountTons),
+        cargo_volume_m3: cargoVolumeM3 === '' ? null : Number(cargoVolumeM3),
+        cargo_value: cargoValue === '' ? null : Number(cargoValue),
+        temperature_mode_id: temperatureModeId === '' ? null : Number(temperatureModeId),
+        special_condition_id:
+            specialConditionId === '' ? null : Number(specialConditionId),
+        start_location_id: startLocationId === '' ? null : Number(startLocationId),
+        end_location_id: endLocationId === '' ? null : Number(endLocationId),
+        deadline_date: deadlineDate || null,
+        budget_limit: budgetLimit === '' ? null : Number(budgetLimit),
+        requires_refuel_planning: requiresRefuelPlanning,
+        max_trips: maxTrips === '' ? null : Number(maxTrips),
+        priority: priority || null,
+        transport_template_ids: transportTemplateIds,
+        ship_ids: shipIds,
+        port_ids: portIds,
+        land_route_ids: landRouteIds,
+    });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Order template:', form);
-        alert('UI demo: sagatave saglabāta lokāli');
+
+        const payload = buildPayload();
+
+        if (isEdit && id) {
+            router.put(`/teacher/templates/order-templates/${id}`, payload);
+        } else {
+            router.post('/teacher/templates/order-templates', payload);
+        }
     };
 
-    const inputClass =
-        'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-[16px] text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200';
+    const handleTryScenario = async () => {
+        setIsTryingScenario(true);
+        setPreviewError(null);
+        setPreviewData(null);
 
-    const sectionClass = 'rounded-xl border border-slate-200 bg-white p-6 shadow-sm';
-    const labelClass = 'mb-2 block text-[16px] font-medium text-slate-800';
+        try {
+            const response = await fetch('/teacher/templates/order-templates/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(buildPayload()),
+                credentials: 'same-origin',
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setPreviewError(data.message || 'Neizdevās aprēķināt scenāriju.');
+                return;
+            }
+
+            setPreviewData(data);
+        } catch {
+            setPreviewError('Neizdevās sazināties ar serveri.');
+        } finally {
+            setIsTryingScenario(false);
+        }
+    };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Pamata informācija</h2>
-
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <OrderTemplateFormSection
+                title="Pamata informācija"
+                description="Definējiet uzdevuma fokusu, sarežģītību un galveno ideju. Scenārijs var ietvert gan sauszemes, gan ostu, gan kuģu loģiku."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
-                        <label className={labelClass}>Scenārija nosaukums</label>
+                        <label className={labelClass}>Uzdevuma nosaukums *</label>
                         <input
                             type="text"
-                            name="scenarioTitle"
-                            value={form.scenarioTitle}
-                            onChange={handleChange}
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
                             className={inputClass}
-                            placeholder="Piemēram, Zivju piegāde uz Somiju"
+                            placeholder="Piemēram, 500 konteineru nogāde uz Liepājas ostu"
+                            required
                         />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Scenārija fokuss *</label>
+                        <select
+                            value={scenarioType}
+                            onChange={(e) => setScenarioType(e.target.value)}
+                            className={inputClass}
+                            required
+                        >
+                            {options.scenarioTypes.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Statuss *</label>
+                        <select
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                            className={inputClass}
+                            required
+                        >
+                            {options.statusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
                         <label className={labelClass}>Prioritāte</label>
                         <select
-                            name="priority"
-                            value={form.priority}
-                            onChange={handleChange}
+                            value={priority}
+                            onChange={(e) => setPriority(e.target.value)}
                             className={inputClass}
                         >
-                            <option value="">Izvēlies prioritāti</option>
-                            <option value="Zema">Zema</option>
-                            <option value="Vidēja">Vidēja</option>
-                            <option value="Augsta">Augsta</option>
-                            <option value="Kritiska">Kritiska</option>
-                        </select>
-                    </div>
-
-                    <div className="md:col-span-2">
-                        <label className={labelClass}>Statuss</label>
-                        <select
-                            name="status"
-                            value={form.status}
-                            onChange={handleChange}
-                            className={inputClass}
-                        >
-                            {orderTemplateStatusOptions.map((status) => (
-                                <option key={status} value={status}>
-                                    {status}
+                            <option value="">Izvēlieties</option>
+                            {options.priorityOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
                                 </option>
                             ))}
                         </select>
                     </div>
-                </div>
-            </section>
-
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Klienta dati</h2>
-
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div>
-                        <label className={labelClass}>Kontaktpersona</label>
-                        <input
-                            type="text"
-                            name="clientName"
-                            value={form.clientName}
-                            onChange={handleChange}
-                            className={inputClass}
-                        />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Uzņēmums</label>
-                        <input
-                            type="text"
-                            name="clientCompany"
-                            value={form.clientCompany}
-                            onChange={handleChange}
-                            className={inputClass}
-                        />
-                    </div>
 
                     <div className="md:col-span-2">
-                        <label className={labelClass}>Valsts</label>
-                        <input
-                            type="text"
-                            name="clientCountry"
-                            value={form.clientCountry}
-                            onChange={handleChange}
+                        <label className={labelClass}>Apraksts</label>
+                        <textarea
+                            rows={4}
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
                             className={inputClass}
+                            placeholder="Īss skolotāja apraksts par uzdevuma būtību."
                         />
                     </div>
                 </div>
-            </section>
+            </OrderTemplateFormSection>
 
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Kravas dati</h2>
+            <OrderTemplateFormSection
+                title="Studentam redzamais uzdevums"
+                description="Šeit ierakstiet to, ko students redzēs kā uzdevuma aprakstu, nepasakot priekšā pilnu risinājumu."
+            >
+                <div>
+                    <label className={labelClass}>Studenta uzdevuma teksts</label>
+                    <textarea
+                        rows={6}
+                        value={studentBrief}
+                        onChange={(e) => setStudentBrief(e.target.value)}
+                        className={inputClass}
+                        placeholder="Piemēram, jānogādā 500 konteineri no rūpnīcas uz ostu, izvēloties atbilstošāko loģistikas risinājumu."
+                    />
+                </div>
+            </OrderTemplateFormSection>
 
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <OrderTemplateFormSection
+                title="Pasniedzēja piezīmes"
+                description="Šīs piezīmes paliek skolotāja pusē un nav jāparāda studentam."
+            >
+                <div>
+                    <label className={labelClass}>Iekšējās piezīmes</label>
+                    <textarea
+                        rows={5}
+                        value={teacherNotes}
+                        onChange={(e) => setTeacherNotes(e.target.value)}
+                        className={inputClass}
+                        placeholder="Piemēram, students nedrīkst ignorēt uzpildes plānošanu."
+                    />
+                </div>
+            </OrderTemplateFormSection>
+
+            <OrderTemplateFormSection
+                title="Kravas dati"
+                description="Definējiet sākuma parametrus, kurus students saņem uzdevumā."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
                         <label className={labelClass}>Kravas nosaukums</label>
                         <input
                             type="text"
-                            name="cargoName"
-                            value={form.cargoName}
-                            onChange={handleChange}
+                            value={cargoName}
+                            onChange={(e) => setCargoName(e.target.value)}
                             className={inputClass}
+                            placeholder="Piemēram, Konteinerizēta pārtika"
                         />
                     </div>
 
                     <div>
-                        <label className={labelClass}>Svars (kg)</label>
+                        <label className={labelClass}>Kravas tips</label>
                         <input
                             type="text"
-                            name="cargoWeight"
-                            value={form.cargoWeight}
-                            onChange={handleChange}
+                            value={cargoType}
+                            onChange={(e) => setCargoType(e.target.value)}
                             className={inputClass}
+                            placeholder="Piemēram, konteineri"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Konteineru skaits</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={cargoAmountContainers}
+                            onChange={(e) => setCargoAmountContainers(e.target.value)}
+                            className={inputClass}
+                            placeholder="Piemēram, 500"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Krava tonnās</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={cargoAmountTons}
+                            onChange={(e) => setCargoAmountTons(e.target.value)}
+                            className={inputClass}
+                            placeholder="Piemēram, 10000"
                         />
                     </div>
 
                     <div>
                         <label className={labelClass}>Tilpums (m³)</label>
                         <input
-                            type="text"
-                            name="cargoVolume"
-                            value={form.cargoVolume}
-                            onChange={handleChange}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={cargoVolumeM3}
+                            onChange={(e) => setCargoVolumeM3(e.target.value)}
                             className={inputClass}
+                            placeholder="Piemēram, 120"
                         />
                     </div>
 
                     <div>
                         <label className={labelClass}>Kravas vērtība (€)</label>
                         <input
-                            type="text"
-                            name="cargoValue"
-                            value={form.cargoValue}
-                            onChange={handleChange}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={cargoValue}
+                            onChange={(e) => setCargoValue(e.target.value)}
                             className={inputClass}
+                            placeholder="Piemēram, 25000"
                         />
-                    </div>
-                </div>
-            </section>
-
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Loģistikas nosacījumi</h2>
-
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div>
-                        <label className={labelClass}>Transporta veids</label>
-                        <select
-                            name="transportTypeId"
-                            value={form.transportTypeId}
-                            onChange={handleChange}
-                            className={inputClass}
-                        >
-                            <option value="">Izvēlies transporta veidu</option>
-                            {transportTypeOptions.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.name}
-                                </option>
-                            ))}
-                        </select>
                     </div>
 
                     <div>
                         <label className={labelClass}>Temperatūras režīms</label>
                         <select
-                            name="temperatureModeId"
-                            value={form.temperatureModeId}
-                            onChange={handleChange}
+                            value={temperatureModeId}
+                            onChange={(e) => setTemperatureModeId(e.target.value)}
                             className={inputClass}
                         >
-                            <option value="">Izvēlies temperatūras režīmu</option>
-                            {temperatureModeOptions.map((option) => (
+                            <option value="">Izvēlieties</option>
+                            {options.temperatureModes.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
                                 </option>
@@ -260,30 +532,12 @@ export default function OrderTemplateForm({ onCancel }: Props) {
                     <div>
                         <label className={labelClass}>Īpašie nosacījumi</label>
                         <select
-                            name="specialConditionId"
-                            value={form.specialConditionId}
-                            onChange={handleChange}
+                            value={specialConditionId}
+                            onChange={(e) => setSpecialConditionId(e.target.value)}
                             className={inputClass}
                         >
-                            <option value="">Izvēlies īpašo nosacījumu</option>
-                            {specialConditionOptions.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Muitas dokuments</label>
-                        <select
-                            name="customsDocumentId"
-                            value={form.customsDocumentId}
-                            onChange={handleChange}
-                            className={inputClass}
-                        >
-                            <option value="">Izvēlies muitas dokumentu</option>
-                            {customsDocumentOptions.map((option) => (
+                            <option value="">Izvēlieties</option>
+                            {options.specialConditions.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
                                 </option>
@@ -291,78 +545,394 @@ export default function OrderTemplateForm({ onCancel }: Props) {
                         </select>
                     </div>
                 </div>
-            </section>
+            </OrderTemplateFormSection>
 
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Maršruts un piegāde</h2>
-
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <OrderTemplateFormSection
+                title="Sākuma un gala punkti"
+                description="Norādiet uzdevuma sākuma un beigu lokācijas. Ostas students var izvēlēties pats, ja uzdevums to pieļauj."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
-                        <label className={labelClass}>Saņemšanas vieta</label>
-                        <input
-                            type="text"
-                            name="pickupLocation"
-                            value={form.pickupLocation}
-                            onChange={handleChange}
+                        <label className={labelClass}>Sākuma lokācija</label>
+                        <select
+                            value={startLocationId}
+                            onChange={(e) => setStartLocationId(e.target.value)}
                             className={inputClass}
-                        />
+                        >
+                            <option value="">Izvēlieties</option>
+                            {options.locations.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.name}
+                                    {option.city ? ` (${option.city})` : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
-                        <label className={labelClass}>Piegādes vieta</label>
-                        <input
-                            type="text"
-                            name="deliveryLocation"
-                            value={form.deliveryLocation}
-                            onChange={handleChange}
+                        <label className={labelClass}>Gala lokācija</label>
+                        <select
+                            value={endLocationId}
+                            onChange={(e) => setEndLocationId(e.target.value)}
                             className={inputClass}
-                        />
+                        >
+                            <option value="">Izvēlieties</option>
+                            {options.locations.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.name}
+                                    {option.city ? ` (${option.city})` : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
+                </div>
+            </OrderTemplateFormSection>
 
-                    <div className="md:col-span-2">
-                        <label className={labelClass}>Piegādes termiņš</label>
+            <OrderTemplateFormSection
+                title="Ierobežojumi"
+                description="Definējiet budžetu, termiņus un citus uzdevuma ierobežojumus."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label className={labelClass}>Termiņš</label>
                         <input
                             type="date"
-                            name="deadline"
-                            value={form.deadline}
-                            onChange={handleChange}
+                            value={deadlineDate}
+                            onChange={(e) => setDeadlineDate(e.target.value)}
                             className={inputClass}
                         />
                     </div>
-                </div>
-            </section>
 
-            <section className={sectionClass}>
-                <h2 className="text-[28px] font-semibold text-slate-900">Papildu piezīmes</h2>
+                    <div>
+                        <label className={labelClass}>Budžeta limits (€)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={budgetLimit}
+                            onChange={(e) => setBudgetLimit(e.target.value)}
+                            className={inputClass}
+                            placeholder="Piemēram, 15000"
+                        />
+                    </div>
 
-                <div className="mt-6">
-                    <label className={labelClass}>Komentāri / instrukcijas</label>
-                    <textarea
-                        name="notes"
-                        value={form.notes}
-                        onChange={handleChange}
-                        rows={5}
-                        className={inputClass}
-                    />
+                    <div>
+                        <label className={labelClass}>Maksimālais reisu skaits</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={maxTrips}
+                            onChange={(e) => setMaxTrips(e.target.value)}
+                            className={inputClass}
+                            placeholder="Piemēram, 2"
+                        />
+                    </div>
+
+                    <div className="flex items-end">
+                        <label className="inline-flex items-center gap-3 text-[14px] font-medium text-[#182219]">
+                            <input
+                                type="checkbox"
+                                checked={requiresRefuelPlanning}
+                                onChange={(e) =>
+                                    setRequiresRefuelPlanning(e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                            />
+                            Uzdevumā jāņem vērā uzpildes plānošana
+                        </label>
+                    </div>
                 </div>
-            </section>
+            </OrderTemplateFormSection>
+
+            <OrderTemplateFormSection
+                title="Resursu ierobežojumi (neobligāti)"
+                description="Šeit var ierobežot, kurus resursus students drīkst izmantot. Ja nekas nav izvēlēts, students var izmantot visus pieejamos resursus."
+            >
+                <div className="space-y-6">
+                    <div>
+                        <label className={labelClass}>Sauszemes transports</label>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {options.transportTemplates.map((item) => (
+                                <label
+                                    key={item.id}
+                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={transportTemplateIds.includes(item.id)}
+                                        onChange={() =>
+                                            toggleMultiSelect(
+                                                transportTemplateIds,
+                                                setTransportTemplateIds,
+                                                item.id
+                                            )
+                                        }
+                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                    />
+                                    <span className="text-[14px] text-[#182219]">
+                                        <span className="block font-semibold">{item.name}</span>
+                                        <span className="text-[#5b6b61]">
+                                            {item.type || 'Tips nav norādīts'}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Kuģi</label>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {options.ships.map((item) => (
+                                <label
+                                    key={item.id}
+                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={shipIds.includes(item.id)}
+                                        onChange={() =>
+                                            toggleMultiSelect(shipIds, setShipIds, item.id)
+                                        }
+                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                    />
+                                    <span className="text-[14px] text-[#182219]">
+                                        <span className="block font-semibold">{item.name}</span>
+                                        <span className="text-[#5b6b61]">
+                                            {item.cargo_type || 'Kravas tips nav norādīts'}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Ostas</label>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {options.ports.map((item) => (
+                                <label
+                                    key={item.id}
+                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={portIds.includes(item.id)}
+                                        onChange={() =>
+                                            toggleMultiSelect(portIds, setPortIds, item.id)
+                                        }
+                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                    />
+                                    <span className="text-[14px] text-[#182219]">
+                                        <span className="block font-semibold">{item.name}</span>
+                                        <span className="text-[#5b6b61]">
+                                            {item.country || 'Valsts nav norādīta'}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Sauszemes maršruti</label>
+                        <div className="mt-3 grid gap-3">
+                            {options.landRoutes.map((item) => (
+                                <label
+                                    key={item.id}
+                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={landRouteIds.includes(item.id)}
+                                        onChange={() =>
+                                            toggleMultiSelect(
+                                                landRouteIds,
+                                                setLandRouteIds,
+                                                item.id
+                                            )
+                                        }
+                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                    />
+                                    <span className="text-[14px] text-[#182219]">
+                                        <span className="block font-semibold">
+                                            {(item.fromLocation ?? item.from_location)?.name ?? '—'} →{' '}
+                                            {(item.toLocation ?? item.to_location)?.name ?? '—'}
+                                        </span>
+                                        <span className="text-[#5b6b61]">
+                                            {item.distance_km ?? '—'} km
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </OrderTemplateFormSection>
+
+            {(previewError || previewData) && (
+                <OrderTemplateFormSection
+                    title="Scenārija preview"
+                    description="Šis ir pasniedzēja priekšskatījums, lai saprastu, vai izvēlētie parametri veido loģisku uzdevumu."
+                >
+                    {previewError && (
+                        <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-[15px] text-[#991b1b]">
+                            {previewError}
+                        </div>
+                    )}
+
+                    {previewData && (
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                <PreviewCard
+                                    label="Maršruts"
+                                    value={`${previewData.route?.from ?? '—'} → ${previewData.route?.to ?? '—'}`}
+                                />
+                                <PreviewCard
+                                    label="Attālums"
+                                    value={`${previewData.route?.distance_km ?? '—'} km`}
+                                />
+                                <PreviewCard
+                                    label="Transports"
+                                    value={previewData.transport?.name ?? '—'}
+                                />
+                                <PreviewCard
+                                    label="Nepieciešamās vienības"
+                                    value={previewData.result?.required_vehicles ?? '—'}
+                                />
+                                <PreviewCard
+                                    label="Brauciena laiks"
+                                    value={`${previewData.result?.trip_time_hours ?? '—'} h`}
+                                />
+                                <PreviewCard
+                                    label="Pilna cikla laiks"
+                                    value={`${previewData.result?.cycle_time_hours ?? '—'} h`}
+                                />
+                                <PreviewCard
+                                    label="Izmaksas uz 1 transportu"
+                                    value={`${previewData.result?.base_cost_per_vehicle ?? '—'} €`}
+                                />
+                                <PreviewCard
+                                    label="Kopējās bāzes izmaksas"
+                                    value={`${previewData.result?.total_base_cost ?? '—'} €`}
+                                />
+                                <PreviewCard
+                                    label="Kopējās izmaksas"
+                                    value={`${previewData.result?.total_cost ?? '—'} €`}
+                                />
+                                <PreviewCard
+                                    label="Nepieciešama uzpilde"
+                                    value={previewData.result?.needs_refuel ? 'Jā' : 'Nē'}
+                                />
+                                <PreviewCard
+                                    label="Maršruts izpildāms"
+                                    value={
+                                        previewData.result?.can_complete_with_current_route_data
+                                            ? 'Jā'
+                                            : 'Nē'
+                                    }
+                                />
+                                <PreviewCard
+                                    label="Degviela uz 1 transportu"
+                                    value={`${previewData.result?.fuel_used_liters_per_vehicle ?? '—'} l`}
+                                />
+                            </div>
+
+                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
+                                <h3 className="text-[15px] font-semibold text-[#182219]">
+                                    Ieteicamā uzpildes vieta
+                                </h3>
+                                <p className="mt-2 text-[14px] leading-6 text-[#5b6b61]">
+                                    {previewData.fuel?.recommended_fuel_stop
+                                        ? `${previewData.fuel.recommended_fuel_stop.station_name ?? '—'} (${previewData.fuel.recommended_fuel_stop.distance_from_start_km} km no starta)`
+                                        : 'Pagaidām nav ieteicamas uzpildes vietas vai uzpilde nav nepieciešama.'}
+                                </p>
+                            </div>
+
+                            <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
+                                <h3 className="text-[15px] font-semibold text-[#182219]">
+                                    Pieejamās uzpildes pieturas maršrutā
+                                </h3>
+
+                                <div className="mt-3 space-y-3">
+                                    {previewData.fuel?.available_fuel_stops?.length ? (
+                                        previewData.fuel.available_fuel_stops.map((stop, index) => (
+                                            <div
+                                                key={`${stop.station_name}-${index}`}
+                                                className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3 text-[14px] text-[#5b6b61]"
+                                            >
+                                                <div className="font-semibold text-[#182219]">
+                                                    {stop.station_name ?? '—'}
+                                                </div>
+                                                <div className="mt-1">
+                                                    {stop.distance_from_start_km} km no starta
+                                                    {stop.station_city ? ` — ${stop.station_city}` : ''}
+                                                </div>
+                                                <div className="mt-1">
+                                                    Degviela: {stop.fuel_type ?? '—'}
+                                                    {stop.price_per_liter !== null &&
+                                                    stop.price_per_liter !== undefined
+                                                        ? ` — ${stop.price_per_liter} €/l`
+                                                        : ''}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3 text-[14px] text-[#5b6b61]">
+                                            Maršrutam nav piesaistītu uzpildes pieturu.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </OrderTemplateFormSection>
+            )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-[16px] font-medium text-slate-700 hover:bg-slate-50"
+                    className="rounded-xl border border-[#d9ded9] bg-white px-5 py-3 text-[16px] font-medium text-[#182219] hover:bg-[#f7f9f7]"
                 >
                     Atcelt
                 </button>
 
                 <button
-                    type="submit"
-                    className="rounded-xl bg-slate-900 px-5 py-3 text-[16px] font-medium text-white hover:bg-slate-800"
+                    type="button"
+                    onClick={handleTryScenario}
+                    disabled={isTryingScenario}
+                    className="rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[16px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:opacity-60"
                 >
-                    Saglabāt sagatavi
+                    {isTryingScenario ? 'Notiek aprēķins...' : 'Izmēģināt'}
+                </button>
+
+                <button
+                    type="submit"
+                    className="rounded-xl bg-[#166a4d] px-5 py-3 text-[16px] font-medium text-white hover:bg-[#135740]"
+                >
+                    {submitLabel}
                 </button>
             </div>
         </form>
+    );
+}
+
+function PreviewCard({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | number | null | undefined;
+}) {
+    return (
+        <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
+            <div className="text-[13px] font-medium uppercase tracking-wide text-[#7a877f]">
+                {label}
+            </div>
+            <div className="mt-2 text-[16px] font-semibold text-[#182219]">
+                {value !== null && value !== undefined && value !== '' ? value : '—'}
+            </div>
+        </div>
     );
 }

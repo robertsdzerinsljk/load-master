@@ -1,18 +1,39 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 
+type Props = {
+    submitLabel?: string;
+    initialData?: {
+        name?: string;
+        description?: string | null;
+    };
+    isEdit?: boolean;
+    id?: number;
+};
+
 export default function SpecialConditionForm({
     submitLabel = 'Saglabāt',
-}: {
-    submitLabel?: string;
-}) {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
+    initialData = {},
+    isEdit = false,
+    id,
+}: Props) {
+    const [name, setName] = useState(initialData.name || '');
+    const [description, setDescription] = useState(initialData.description || '');
     const [isShared, setIsShared] = useState(false);
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        console.log({ name, description, isShared });
+
+        const payload = {
+            name,
+            description,
+        };
+
+        if (isEdit && id) {
+            router.put(`/teacher/templates/special-conditions/${id}`, payload);
+        } else {
+            router.post('/teacher/templates/special-conditions', payload);
+        }
     };
 
     return (
@@ -30,6 +51,7 @@ export default function SpecialConditionForm({
                             <input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                required
                                 className="h-11 w-full rounded-xl border border-[#d5dbd6] bg-white px-3 text-[14px] outline-none focus:border-[#166a4d]"
                                 placeholder="piem., Drošības apsardze"
                             />
@@ -59,7 +81,7 @@ export default function SpecialConditionForm({
                             type="checkbox"
                             checked={isShared}
                             onChange={(e) => setIsShared(e.target.checked)}
-                            className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                            className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d]"
                         />
                         <span>Padarīt šo nosacījumu pieejamu studentiem</span>
                     </label>
@@ -72,10 +94,11 @@ export default function SpecialConditionForm({
                     >
                         {submitLabel}
                     </button>
+
                     <button
                         type="button"
                         onClick={() => router.visit('/teacher/templates/special-conditions')}
-                        className="rounded-xl border border-[#d5dbd6] bg-white px-5 py-3 text-[14px] font-medium text-[#162118] hover:bg-[#f3f5f3]"
+                        className="rounded-xl border border-[#d5dbd6] bg-white px-5 py-3 text-[14px]"
                     >
                         Atcelt
                     </button>

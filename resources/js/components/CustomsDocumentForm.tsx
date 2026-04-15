@@ -1,18 +1,39 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 
+type Props = {
+    submitLabel?: string;
+    initialData?: {
+        name?: string;
+        description?: string | null;
+    };
+    isEdit?: boolean;
+    id?: number;
+};
+
 export default function CustomsDocumentForm({
     submitLabel = 'Saglabāt',
-}: {
-    submitLabel?: string;
-}) {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
+    initialData = {},
+    isEdit = false,
+    id,
+}: Props) {
+    const [name, setName] = useState(initialData.name || '');
+    const [description, setDescription] = useState(initialData.description || '');
     const [isShared, setIsShared] = useState(false);
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        console.log({ name, description, isShared });
+
+        const payload = {
+            name,
+            description,
+        };
+
+        if (isEdit && id) {
+            router.put(`/teacher/templates/customs/${id}`, payload);
+        } else {
+            router.post('/teacher/templates/customs', payload);
+        }
     };
 
     return (
@@ -30,7 +51,8 @@ export default function CustomsDocumentForm({
                             <input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="h-11 w-full rounded-xl border border-[#d5dbd6] bg-white px-3 text-[14px] outline-none focus:border-[#166a4d]"
+                                required
+                                className="h-11 w-full rounded-xl border border-[#d5dbd6] px-3 text-[14px] outline-none focus:border-[#166a4d]"
                                 placeholder="piem., Eksporta deklarācija"
                             />
                         </div>
@@ -43,7 +65,7 @@ export default function CustomsDocumentForm({
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 rows={4}
-                                className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-3 text-[14px] outline-none focus:border-[#166a4d]"
+                                className="w-full rounded-xl border border-[#d5dbd6] px-3 py-3 text-[14px] outline-none focus:border-[#166a4d]"
                                 placeholder="Dokumentu komplekta apraksts"
                             />
                         </div>
@@ -59,23 +81,21 @@ export default function CustomsDocumentForm({
                             type="checkbox"
                             checked={isShared}
                             onChange={(e) => setIsShared(e.target.checked)}
-                            className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                            className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d]"
                         />
                         <span>Padarīt šo dokumentu komplektu pieejamu studentiem</span>
                     </label>
                 </div>
 
                 <div className="mt-8 flex items-center gap-3">
-                    <button
-                        type="submit"
-                        className="rounded-xl bg-[#166a4d] px-5 py-3 text-[14px] font-semibold text-white hover:bg-[#135740]"
-                    >
+                    <button className="rounded-xl bg-[#166a4d] px-5 py-3 text-[14px] font-semibold text-white">
                         {submitLabel}
                     </button>
+
                     <button
                         type="button"
                         onClick={() => router.visit('/teacher/templates/customs')}
-                        className="rounded-xl border border-[#d5dbd6] bg-white px-5 py-3 text-[14px] font-medium text-[#162118] hover:bg-[#f3f5f3]"
+                        className="rounded-xl border px-5 py-3 text-[14px]"
                     >
                         Atcelt
                     </button>

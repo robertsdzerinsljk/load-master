@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 
 type TemperaturePresetFormData = {
@@ -12,17 +12,53 @@ type TemperaturePresetFormData = {
 type TemperaturePresetFormProps = {
     submitLabel?: string;
     onSubmit?: (data: TemperaturePresetFormData) => void;
+    initialData?: {
+        name?: string;
+        description?: string | null;
+        range?: string | null;
+    };
+    isEdit?: boolean;
+    id?: number;
 };
+
+function parseRange(range?: string | null) {
+    if (!range) {
+        return { min_temp: '', max_temp: '' };
+    }
+
+    const normalized = range.replace(/\s+/g, ' ').trim();
+
+    if (normalized.includes('līdz')) {
+        const [min, max] = normalized.split('līdz').map((part) => part.trim());
+        return {
+            min_temp: min ?? '',
+            max_temp: max ?? '',
+        };
+    }
+
+    return {
+        min_temp: normalized,
+        max_temp: '',
+    };
+}
 
 export default function TemperaturePresetForm({
     submitLabel = 'Saglabāt',
     onSubmit,
+    initialData,
+    isEdit = false,
+    id,
 }: TemperaturePresetFormProps) {
+    const parsedRange = useMemo(
+        () => parseRange(initialData?.range),
+        [initialData?.range]
+    );
+
     const [form, setForm] = useState<TemperaturePresetFormData>({
-        name: '',
-        min_temp: '',
-        max_temp: '',
-        description: '',
+        name: initialData?.name ?? '',
+        min_temp: parsedRange.min_temp,
+        max_temp: parsedRange.max_temp,
+        description: initialData?.description ?? '',
         is_shared: false,
     });
 
@@ -42,8 +78,26 @@ export default function TemperaturePresetForm({
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        if (onSubmit) return onSubmit(form);
-        console.log(form);
+
+        if (onSubmit) {
+            return onSubmit(form);
+        }
+
+        const range = form.max_temp.trim()
+            ? `${form.min_temp.trim()} līdz ${form.max_temp.trim()}`
+            : form.min_temp.trim();
+
+        const payload = {
+            name: form.name,
+            description: form.description,
+            range,
+        };
+
+        if (isEdit && id) {
+            router.put(`/teacher/templates/temperature/${id}`, payload);
+        } else {
+            router.post('/teacher/templates/temperature', payload);
+        }
     };
 
     return (
@@ -61,6 +115,7 @@ export default function TemperaturePresetForm({
                                 value={form.name}
                                 onChange={handleChange}
                                 placeholder="piem., Dzesēta krava"
+                                required
                             />
                         </Field>
                     </div>
@@ -77,7 +132,7 @@ export default function TemperaturePresetForm({
                                 name="min_temp"
                                 value={form.min_temp}
                                 onChange={handleChange}
-                                placeholder="piem., +2"
+                                placeholder="piem., +2°C"
                             />
                         </Field>
 
@@ -87,7 +142,7 @@ export default function TemperaturePresetForm({
                                 name="max_temp"
                                 value={form.max_temp}
                                 onChange={handleChange}
-                                placeholder="piem., +8"
+                                placeholder="piem., +8°C"
                             />
                         </Field>
                     </div>
@@ -143,19 +198,50 @@ export default function TemperaturePresetForm({
 function Field({ children }: { children: React.ReactNode }) {
     return <div>{children}</div>;
 }
+
 function Label({ text }: { text: string }) {
     return <label className="mb-2 block text-[14px] font-medium text-[#162118]">{text}</label>;
 }
+
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-    return <input {...props} className="h-11 w-full rounded-xl border border-[#d5dbd6] bg-white px-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]" />;
+    return (
+        <input
+            {...props}
+            className="h-11 w-full rounded-xl border border-[#d5dbd6] bg-white px-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]"
+        />
+    );
 }
+
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-    return <textarea {...props} rows={4} className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]" />;
+    return (
+        <textarea
+            {...props}
+            rows={4}
+            className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]"
+        />
+    );
 }
-function Checkbox({ name, checked, onChange, label }: { name: string; checked: boolean; onChange: React.ChangeEventHandler<HTMLInputElement>; label: string }) {
+
+function Checkbox({
+    name,
+    checked,
+    onChange,
+    label,
+}: {
+    name: string;
+    checked: boolean;
+    onChange: React.ChangeEventHandler<HTMLInputElement>;
+    label: string;
+}) {
     return (
         <label className="flex items-center gap-2 text-[14px] text-[#162118]">
-            <input type="checkbox" name={name} checked={checked} onChange={onChange} className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]" />
+            <input
+                type="checkbox"
+                name={name}
+                checked={checked}
+                onChange={onChange}
+                className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+            />
             <span>{label}</span>
         </label>
     );

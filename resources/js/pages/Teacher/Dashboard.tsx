@@ -52,32 +52,43 @@ export default function TeacherDashboard() {
     ];
 
     const assignedTasks = [
-        {
-            id: 1,
-            title: 'Pārtikas piegāde uz Vāciju',
-            subtitle: 'Piešķirts studentam Jānis Bērziņš',
-            studentName: 'Jānis Bērziņš',
-            status: 'Procesā',
-            date: 'Termiņš: 18.04.2026',
-        },
-        {
-            id: 2,
-            title: 'Farmācijas krava uz Zviedriju',
-            subtitle: 'Piešķirts grupai LM-3',
-            studentName: 'LM-3 grupa',
-            status: 'Iesniegts',
-            date: 'Termiņš: 15.04.2026',
-        },
-        {
-            id: 3,
-            title: 'Rūpniecības iekārtu imports',
-            subtitle: 'Piešķirts studentam Elīna Kalniņa',
-            studentName: 'Elīna Kalniņa',
-            status: 'Nav sākts',
-            date: 'Termiņš: 20.04.2026',
-        },
-    ];
-
+    {
+        id: 1,
+        title: 'Pārtikas piegāde uz Vāciju',
+        subtitle: 'Piešķirts studentam Jānis Bērziņš',
+        studentName: 'Jānis Bērziņš',
+        status: 'Procesā',
+        date: 'Termiņš: 18.04.2026',
+        progress: 55,
+    },
+    {
+        id: 2,
+        title: 'Farmācijas krava uz Zviedriju',
+        subtitle: 'Piešķirts grupai LM-3',
+        studentName: 'LM-3 grupa',
+        status: 'Iesniegts',
+        date: 'Termiņš: 15.04.2026',
+        progress: 100,
+    },
+    {
+        id: 3,
+        title: 'Rūpniecības iekārtu imports',
+        subtitle: 'Piešķirts studentam Elīna Kalniņa',
+        studentName: 'Elīna Kalniņa',
+        status: 'Nav sākts',
+        date: 'Termiņš: 20.04.2026',
+        progress: 0,
+    },
+    {
+        id: 4,
+        title: 'Bīstamās kravas piegāde',
+        subtitle: 'Piešķirts studentam Mārtiņš Liepa',
+        studentName: 'Mārtiņš Liepa',
+        status: 'Nokavēts',
+        date: 'Termiņš: 10.04.2026',
+        progress: 35,
+    },
+];
     return (
         <>
             <Head title="Pasūtījumi un uzdevumi" />
