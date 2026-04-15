@@ -34,8 +34,8 @@ export default function TeacherLayout({
                 <div className="flex-1 px-2 py-4">
                     <div className="space-y-2">
                         <SidebarNavItem
-                            label="Izveidot pasūtījumu"
-                            href="/teacher/create-order"
+                            label="Izveidot uzdevumu"
+                            href="/teacher/templates/order-templates/create"
                             icon={CirclePlus}
                             active={active === 'create'}
                         />

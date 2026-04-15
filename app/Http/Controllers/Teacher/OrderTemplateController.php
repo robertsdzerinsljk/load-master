@@ -51,26 +51,28 @@ class OrderTemplateController extends Controller
         return redirect()->route('teacher.templates.order-templates.show', $template->id);
     }
 
-    public function show($id)
-    {
-        $template = OrderTemplate::with([
+    public function show(int $id)
+{
+    $template = \App\Models\OrderTemplate::query()
+        ->with([
+            'temperatureMode',
+            'specialCondition',
             'startLocation',
             'endLocation',
             'startPort',
             'endPort',
-            'temperatureMode',
-            'specialCondition',
             'transportTemplates',
             'ships',
             'ports',
             'landRoutes.fromLocation',
             'landRoutes.toLocation',
-        ])->findOrFail($id);
+        ])
+        ->findOrFail($id);
 
-        return Inertia::render('Teacher/Templates/OrderTemplates/Show', [
-            'template' => $template,
-        ]);
-    }
+    return \Inertia\Inertia::render('Teacher/Templates/OrderTemplates/Show', [
+        'template' => $template,
+    ]);
+}
 
     public function edit($id)
     {
@@ -146,44 +148,86 @@ class OrderTemplateController extends Controller
 
     return response()->json($result);
 }
-public function previewSaved($id, LandTransportCalculator $calculator)
+public function previewSaved(int $id)
 {
-    $template = OrderTemplate::with([
-        'transportTemplates',
-        'landRoutes.fromLocation',
-        'landRoutes.toLocation',
-        'landRoutes.fuelStops.fuelStation.location',
-    ])->findOrFail($id);
+    $template = \App\Models\OrderTemplate::query()
+        ->with([
+            'transportTemplates',
+            'landRoutes.fromLocation',
+            'landRoutes.toLocation',
+        ])
+        ->findOrFail($id);
 
-    $cargoAmountContainers = (int) ($template->cargo_amount_containers ?? 0);
     $transport = $template->transportTemplates->first();
     $route = $template->landRoutes->first();
 
-    if ($cargoAmountContainers <= 0) {
+    if (!$transport || !$route) {
         return response()->json([
-            'message' => 'Preview nav iespējams, jo sagatavē nav norādīts konteineru skaits lielāks par 0.',
+            'message' => 'Sagatavei trūkst transports vai maršruts preview aprēķinam.',
         ], 422);
     }
 
-    if (!$transport) {
-        return response()->json([
-            'message' => 'Preview nav iespējams, jo sagatavei nav piesaistīts neviens sauszemes transports.',
-        ], 422);
-    }
+    $distanceKm = (float) ($route->distance_km ?? 0);
+    $containerCount = (int) ($template->cargo_amount_containers ?? 0);
+    $capacity = max(1, (int) ($transport->capacity_containers ?? 1));
+    $avgSpeed = (float) ($transport->avg_speed_kmh ?? 60);
+    $costPerKm = (float) ($transport->cost_per_km ?? 1);
+    $fuelPer100 = (float) ($transport->fuel_consumption_per_100km ?? 0);
+    $maxRangeKm = (float) ($transport->max_range_km ?? 0);
+    $loadingMinutes = (float) ($transport->loading_time_minutes ?? 0);
+    $unloadingMinutes = (float) ($transport->unloading_time_minutes ?? 0);
 
-    if (!$route) {
-        return response()->json([
-            'message' => 'Preview nav iespējams, jo sagatavei nav piesaistīts neviens sauszemes maršruts.',
-        ], 422);
-    }
+    $requiredVehicles = max(1, (int) ceil($containerCount / $capacity));
+    $tripTimeHours = $avgSpeed > 0 ? round($distanceKm / $avgSpeed, 2) : 0;
+    $cycleTimeHours = round($tripTimeHours + (($loadingMinutes + $unloadingMinutes) / 60), 2);
 
-    $result = $calculator->calculate(
-        $route,
-        $transport,
-        $cargoAmountContainers
-    );
+    $baseCostPerVehicle = round($distanceKm * $costPerKm, 2);
+    $totalBaseCost = round($baseCostPerVehicle * $requiredVehicles, 2);
 
-    return response()->json($result);
+    $fuelUsedPerVehicle = round(($distanceKm / 100) * $fuelPer100, 2);
+    $needsRefuel = $maxRangeKm > 0 ? $distanceKm > $maxRangeKm : false;
+
+    return response()->json([
+        'route' => [
+            'from' => optional($route->fromLocation)->name,
+            'to' => optional($route->toLocation)->name,
+            'distance_km' => $distanceKm,
+            'toll_cost' => 0,
+        ],
+        'transport' => [
+            'name' => $transport->name,
+            'type' => $transport->type,
+            'capacity_containers' => $transport->capacity_containers,
+            'avg_speed_kmh' => $transport->avg_speed_kmh,
+            'cost_per_km' => $transport->cost_per_km,
+            'fuel_consumption_per_100km' => $transport->fuel_consumption_per_100km,
+            'max_range_km' => $transport->max_range_km,
+            'loading_time_minutes' => $transport->loading_time_minutes,
+            'unloading_time_minutes' => $transport->unloading_time_minutes,
+        ],
+        'cargo' => [
+            'amount_containers' => $containerCount,
+        ],
+        'result' => [
+            'required_vehicles' => $requiredVehicles,
+            'trip_time_hours' => $tripTimeHours,
+            'cycle_time_hours' => $cycleTimeHours,
+            'transport_cost_per_vehicle' => $baseCostPerVehicle,
+            'base_cost_per_vehicle' => $baseCostPerVehicle,
+            'total_base_cost' => $totalBaseCost,
+            'fuel_used_liters_per_vehicle' => $fuelUsedPerVehicle,
+            'needs_refuel' => $needsRefuel,
+            'can_complete_with_current_route_data' => true,
+            'fuel_cost_per_vehicle' => null,
+            'total_fuel_cost' => null,
+            'total_cost' => $totalBaseCost,
+        ],
+        'fuel' => [
+            'available_fuel_stops' => [],
+            'recommended_fuel_stop' => null,
+        ],
+        'message' => 'Preview aprēķins izpildīts veiksmīgi.',
+    ]);
 }
     protected function validateTemplate(Request $request): array
     {

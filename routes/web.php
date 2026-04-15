@@ -13,7 +13,9 @@ use App\Http\Controllers\Teacher\RouteFuelStopController;
 use App\Http\Controllers\Teacher\FuelStationController;
 use App\Http\Controllers\Teacher\OrderTemplateController;
 use App\Http\Controllers\Student\SimulationAttemptController;
+use App\Http\Controllers\Teacher\AssignedTaskController;
 use App\Http\Controllers\Teacher\StudentController;
+use App\Http\Controllers\Teacher\TeacherDashboardController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -23,22 +25,12 @@ Route::get('/', [RoleSwitchController::class, 'index'])->name('role.select');
 Route::post('/switch-role/teacher', [RoleSwitchController::class, 'setTeacher'])->name('role.teacher');
 Route::post('/switch-role/student', [RoleSwitchController::class, 'setStudent'])->name('role.student');
 
-Route::get('/teacher', function () {
-    return Inertia::render('Teacher/Dashboard');
-})->name('teacher.dashboard');
-
-Route::get('/teacher/create-order', function () {
-    return Inertia::render('Teacher/CreateOrder');
-})->name('teacher.create-order');
-
+Route::get('/teacher', [TeacherDashboardController::class, 'index'])
+    ->name('teacher.dashboard');
 
 Route::get('/student/create-order', function () {
     return Inertia::render('Student/CreateOrder');
 })->name('student.create-order');
-
-Route::get('/teacher/students', function () {
-    return Inertia::render('Teacher/Students/Index');
-})->name('teacher.students');
 
 Route::get('/teacher/templates', function () {
     return Inertia::render('Teacher/Templates/Index');
@@ -306,6 +298,13 @@ Route::post('/teacher/students/assign-task', [StudentController::class, 'assignT
     ->name('teacher.students.assign-task');
 /*
 |--------------------------------------------------------------------------
+| Assigned tasks
+|--------------------------------------------------------------------------
+*/
+Route::get('/teacher/assigned-tasks/{id}', [AssignedTaskController::class, 'show'])
+    ->name('teacher.assigned-tasks.show');
+/*
+|--------------------------------------------------------------------------
 | Student: Simulation Attempts
 |--------------------------------------------------------------------------
 */
@@ -323,9 +322,3 @@ Route::prefix('student/simulator')->group(function () {
         ->name('student.simulator.attempt.submit');
 });
 
-
-Route::get('/teacher/assigned-tasks/{id}', function ($id) {
-    return Inertia::render('Teacher/AssignedTasks/Show', [
-        'id' => (int) $id,
-    ]);
-})->name('teacher.assigned-tasks.show');
