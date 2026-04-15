@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('assignments', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('order_template_id')->constrained('order_templates')->cascadeOnDelete();
+            $table->unsignedBigInteger('order_template_id')->nullable();
 
             $table->unsignedBigInteger('assigned_by')->nullable();
 
