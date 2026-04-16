@@ -34,7 +34,7 @@ class TeacherDashboardController extends Controller
 
         $assignedTasks = SimulationAttempt::query()
             ->with([
-                'user.class',
+                'user',
                 'orderTemplate',
             ])
             ->latest()
@@ -49,7 +49,7 @@ class TeacherDashboardController extends Controller
                     'updated_at' => optional($attempt->updated_at)?->format('Y-m-d H:i'),
                     'student_name' => $attempt->user?->name,
                     'student_email' => $attempt->user?->email,
-                    'student_class' => $attempt->user?->class?->name,
+                    'student_class' => null,
                     'template_id' => $attempt->orderTemplate?->id,
                     'template_title' => $attempt->orderTemplate?->title,
                     'deadline_date' => optional($attempt->orderTemplate?->deadline_date)?->format('Y-m-d'),
