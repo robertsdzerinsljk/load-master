@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -37,6 +37,9 @@ const slides = [
         text: 'Skolotāji veido uzdevumus, studenti tos risina digitālā simulatorā.',
     },
 ];
+
+const inputClassName =
+    'h-12 rounded-2xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 caret-slate-900 shadow-none focus-visible:border-[#1B6250] focus-visible:ring-[#1B6250]/20 dark:border-slate-300 dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-400';
 
 export default function Login({
     status,
@@ -144,7 +147,9 @@ export default function Login({
                                 <>
                                     <div className="grid gap-6">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="email">E-pasts</Label>
+                                            <Label htmlFor="email" className="text-slate-700">
+                                                E-pasts
+                                            </Label>
                                             <Input
                                                 id="email"
                                                 type="email"
@@ -154,18 +159,20 @@ export default function Login({
                                                 tabIndex={1}
                                                 autoComplete="email"
                                                 placeholder="teacher@test.com"
-                                                className="h-12 rounded-2xl"
+                                                className={inputClassName}
                                             />
                                             <InputError message={errors.email} />
                                         </div>
 
                                         <div className="grid gap-2">
                                             <div className="flex items-center">
-                                                <Label htmlFor="password">Parole</Label>
+                                                <Label htmlFor="password" className="text-slate-700">
+                                                    Parole
+                                                </Label>
                                                 {canResetPassword && (
                                                     <TextLink
                                                         href={request()}
-                                                        className="ml-auto text-sm"
+                                                        className="ml-auto text-sm text-slate-600 hover:text-[#1B6250]"
                                                         tabIndex={5}
                                                     >
                                                         Aizmirsi paroli?
@@ -180,7 +187,7 @@ export default function Login({
                                                 tabIndex={2}
                                                 autoComplete="current-password"
                                                 placeholder="Ievadi paroli"
-                                                className="h-12 rounded-2xl"
+                                                className={inputClassName}
                                             />
                                             <InputError message={errors.password} />
                                         </div>
@@ -191,14 +198,14 @@ export default function Login({
                                                 name="remember"
                                                 tabIndex={3}
                                             />
-                                            <Label htmlFor="remember">
+                                            <Label htmlFor="remember" className="text-slate-700">
                                                 Atcerēties mani
                                             </Label>
                                         </div>
 
                                         <Button
                                             type="submit"
-                                            className="mt-2 h-12 w-full rounded-2xl bg-[#1B6250] text-base hover:bg-[#1B6250]/90 focus-visible:outline-[#1B6250]/50 hover:cursor-pointer"
+                                            className="mt-2 h-12 w-full rounded-2xl bg-[#1B6250] text-base text-white hover:cursor-pointer hover:bg-[#1B6250]/90 focus-visible:outline-[#1B6250]/50"
                                             tabIndex={4}
                                             disabled={processing}
                                             data-test="login-button"
@@ -209,9 +216,13 @@ export default function Login({
                                     </div>
 
                                     {canRegister && (
-                                        <div className="text-center text-sm text-muted-foreground">
+                                        <div className="text-center text-sm text-slate-500">
                                             Vēl nav konta?{' '}
-                                            <TextLink href={register()} tabIndex={5}>
+                                            <TextLink
+                                                href={register()}
+                                                tabIndex={5}
+                                                className="text-slate-700 hover:text-[#1B6250]"
+                                            >
                                                 Reģistrēties
                                             </TextLink>
                                         </div>
