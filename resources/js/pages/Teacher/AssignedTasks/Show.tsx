@@ -1,8 +1,23 @@
-import { Head, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, ClipboardCheck, FileText, Truck } from 'lucide-react';
-import { useMemo, useState } from 'react';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import TeacherOrderTabs from '@/components/TeacherOrderTabs';
+import { Head, usePage } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    CalendarDays,
+    CheckCircle2,
+    ClipboardCheck,
+    Clock3,
+    FileText,
+    Package,
+    ShieldCheck,
+    Truck,
+    UserRound,
+    BookOpenText,
+    Thermometer,
+    TriangleAlert,
+    Box,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 type TeacherOrderTabKey = 'overview' | 'feedback' | 'delivery';
 
@@ -13,7 +28,10 @@ type AttemptPageProps = {
         current_step: string;
         submitted_at?: string | null;
         updated_at?: string | null;
-        preview_result?: any;
+        preview_result?: {
+            message?: string | null;
+            [key: string]: any;
+        } | null;
         student?: {
             id?: number | null;
             name?: string | null;
@@ -43,6 +61,49 @@ type AttemptPageProps = {
     };
 };
 
+function formatDate(value?: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('lv-LV', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date);
+}
+
+function formatShortDate(value?: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('lv-LV', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
+}
+
+function goBack() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.href = '/teacher';
+}
+
 function StatusBadge({ status }: { status: string }) {
     const labelMap: Record<string, string> = {
         in_progress: 'Procesā',
@@ -52,16 +113,16 @@ function StatusBadge({ status }: { status: string }) {
     };
 
     const styles: Record<string, string> = {
-        in_progress: 'bg-[#fff7ed] text-[#c2410c] border-[#fdba74]',
-        submitted: 'bg-[#ecfdf3] text-[#166534] border-[#bbf7d0]',
-        draft: 'bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb]',
-        reviewed: 'bg-[#dce7ff] text-[#3d67d6] border-[#bfd2ff]',
+        in_progress: 'border-amber-200 bg-amber-50 text-amber-700',
+        submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        draft: 'border-slate-200 bg-slate-100 text-slate-700',
+        reviewed: 'border-blue-200 bg-blue-50 text-blue-700',
     };
 
     return (
         <span
             className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
-                styles[status] ?? 'bg-[#f3f4f6] text-[#4b5563] border-[#e5e7eb]'
+                styles[status] ?? 'border-slate-200 bg-slate-100 text-slate-700'
             }`}
         >
             {labelMap[status] ?? status}
@@ -69,21 +130,55 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
+function SectionCard({
+    title,
+    description,
+    icon,
+    children,
+}: {
+    title: string;
+    description?: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+            <div className="flex items-start gap-4 border-b border-[#eef1ee] pb-5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#edf6f0] text-[#166a4d]">
+                    {icon}
+                </div>
+
+                <div>
+                    <h2 className="text-[22px] font-semibold tracking-tight text-[#182219]">
+                        {title}
+                    </h2>
+                    {description ? (
+                        <p className="mt-1 text-[15px] leading-7 text-[#5b6b61]">{description}</p>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="mt-5">{children}</div>
+        </section>
+    );
+}
+
 function InfoCard({
     label,
     value,
+    icon,
 }: {
     label: string;
     value: string;
+    icon: React.ReactNode;
 }) {
     return (
-        <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
-            <div className="text-[13px] font-medium uppercase tracking-wide text-[#7a877f]">
+        <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
+            <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                <span className="text-[#166a4d]">{icon}</span>
                 {label}
             </div>
-            <div className="mt-1 text-[16px] font-semibold text-[#182219]">
-                {value || '—'}
-            </div>
+            <div className="mt-2 text-[16px] font-semibold leading-6 text-[#182219]">{value}</div>
         </div>
     );
 }
@@ -96,16 +191,18 @@ function ValidationRow({
     value: 'Jā' | 'Nē' | 'Daļēji';
 }) {
     const styles: Record<string, string> = {
-        Jā: 'bg-[#ecfdf3] text-[#166534] border-[#bbf7d0]',
-        Nē: 'bg-[#fef2f2] text-[#b91c1c] border-[#fecaca]',
-        Daļēji: 'bg-[#fff7ed] text-[#c2410c] border-[#fdba74]',
+        Jā: 'border-green-200 bg-green-50 text-green-700',
+        Nē: 'border-red-200 bg-red-50 text-red-700',
+        Daļēji: 'border-amber-200 bg-amber-50 text-amber-700',
     };
 
     return (
-        <div className="flex items-center justify-between rounded-xl border border-[#d9ded9] bg-white px-4 py-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#e4e9e4] bg-white px-4 py-4">
             <span className="text-[15px] font-medium text-[#182219]">{label}</span>
             <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${styles[value]}`}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
+                    styles[value]
+                }`}
             >
                 {value}
             </span>
@@ -121,287 +218,314 @@ export default function TeacherAssignedTaskShow() {
     const [feedbackSaved, setFeedbackSaved] = useState(false);
 
     const title = attempt.template?.title || 'Piešķirtais uzdevums';
+
     const studentLabel = useMemo(() => {
         const name = attempt.student?.name || 'Nezināms students';
-        const className = attempt.student?.class_name ? ` — ${attempt.student.class_name}` : '';
+        const className = attempt.student?.class_name ? ` • ${attempt.student.class_name}` : '';
         return `${name}${className}`;
     }, [attempt.student]);
 
-    const summary = attempt.template?.description || attempt.template?.student_brief || 'Apraksts nav pievienots.';
+    const summary =
+        attempt.template?.description ||
+        attempt.template?.student_brief ||
+        'Apraksts nav pievienots.';
 
     const transportRequirements = attempt.template?.transport_names?.length
         ? attempt.template.transport_names.join(', ')
         : 'Nav norādīts';
 
     const customsDocuments = attempt.template?.special_condition || 'Nav norādīts';
-
     const temperatureRequirements = attempt.template?.temperature_mode || 'Nav norādīts';
 
     const deliveryQuantityMatch = attempt.derived?.delivery_quantity_match || 'Daļēji';
     const deliveryTypeMatch = attempt.derived?.delivery_type_match || 'Daļēji';
     const deliveryQualityMatch = attempt.derived?.delivery_quality_match || 'Daļēji';
 
-    const deliveryNotes = attempt.preview_result?.message
-        || (attempt.status === 'submitted'
+    const deliveryNotes =
+        attempt.preview_result?.message ||
+        (attempt.status === 'submitted'
             ? 'Students ir iesniedzis risinājumu. Var veikt pārskatīšanu.'
             : 'Students vēl turpina darbu pie uzdevuma.');
+
+    const cargoName = attempt.template?.cargo_name || 'Nav norādīts';
+    const cargoType = attempt.template?.cargo_type || 'Nav norādīts';
+
+    const quantityLabel = [
+        attempt.template?.cargo_amount_containers
+            ? `${attempt.template.cargo_amount_containers} konteineri`
+            : null,
+        attempt.template?.cargo_amount_tons ? `${attempt.template.cargo_amount_tons} t` : null,
+    ]
+        .filter(Boolean)
+        .join(' • ') || 'Nav norādīts';
 
     return (
         <>
             <Head title="Piešķirtā uzdevuma detaļas" />
 
             <TeacherLayout active="orders">
-                <button
-                    type="button"
-                    onClick={() => router.visit('/teacher/templates/order-templates')}
-                    className="inline-flex items-center gap-2 text-[14px] text-[#5f6f65] transition hover:text-[#182219]"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Atpakaļ
-                </button>
+                <div className="space-y-6">
+                    <button
+                        type="button"
+                        onClick={goBack}
+                        className="inline-flex items-center gap-2 text-[14px] font-medium text-[#5f6f65] transition hover:text-[#182219]"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Atpakaļ
+                    </button>
 
-                <div className="mt-4 flex flex-col gap-4 rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <h1 className="text-[28px] font-semibold leading-tight text-[#182219]">
-                                {title}
-                            </h1>
-                            <StatusBadge status={attempt.status} />
+                    <section className="relative overflow-hidden rounded-[30px] border border-[#d9ded9] bg-white p-6 shadow-sm md:p-8">
+                        <div className="absolute right-0 top-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
+                        <div className="absolute bottom-0 right-16 hidden h-24 w-24 rounded-full bg-[#f6faf7] blur-2xl lg:block" />
+
+                        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="max-w-4xl">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf6f0] text-[#166a4d]">
+                                        <ClipboardCheck className="h-6 w-6" />
+                                    </div>
+
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-[#182219] md:text-[34px]">
+                                                {title}
+                                            </h1>
+                                            <StatusBadge status={attempt.status} />
+                                        </div>
+
+                                        <p className="mt-2 max-w-3xl text-[15px] leading-7 text-[#5b6b61]">
+                                            {summary}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    <InfoCard
+                                        label="Students"
+                                        value={studentLabel}
+                                        icon={<UserRound className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Solis"
+                                        value={attempt.current_step || 'Nav norādīts'}
+                                        icon={<CheckCircle2 className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Iesniegts"
+                                        value={formatDate(attempt.submitted_at)}
+                                        icon={<CalendarDays className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Atjaunots"
+                                        value={formatDate(attempt.updated_at)}
+                                        icon={<Clock3 className="h-4 w-4" />}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid min-w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[320px] xl:max-w-[360px] xl:grid-cols-1">
+                                <div className="rounded-2xl border border-[#e3ebe5] bg-[#f8fbf9] p-5">
+                                    <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                        <Package className="h-4 w-4 text-[#166a4d]" />
+                                        Krava
+                                    </div>
+                                    <div className="mt-2 text-[18px] font-semibold text-[#182219]">
+                                        {cargoName}
+                                    </div>
+                                    <div className="mt-1 text-[14px] text-[#5b6b61]">
+                                        {cargoType} • {quantityLabel}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-[#e3ebe5] bg-[#f8fbf9] p-5">
+                                    <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                        <Truck className="h-4 w-4 text-[#166a4d]" />
+                                        Pārvadājums
+                                    </div>
+                                    <div className="mt-2 text-[16px] font-semibold text-[#182219]">
+                                        {transportRequirements}
+                                    </div>
+                                    <div className="mt-1 text-[14px] text-[#5b6b61]">
+                                        Temperatūra: {temperatureRequirements}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    </section>
 
-                        <p className="mt-2 text-[16px] text-[#5b6b61]">{studentLabel}</p>
-                        <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#5b6b61]">
-                            {summary}
-                        </p>
+                    <div className="rounded-[24px] border border-[#d9ded9] bg-white p-2 shadow-sm">
+                        <TeacherOrderTabs active={activeTab} onChange={setActiveTab} />
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('feedback')}
-                            className="rounded-xl border border-[#d9ded9] bg-white px-4 py-2 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                        >
-                            Pievienot atsauksmi
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('delivery')}
-                            className="rounded-xl bg-[#166a4d] px-4 py-2 text-[15px] font-medium text-white transition hover:bg-[#135740]"
-                        >
-                            Pārbaudīt izpildi
-                        </button>
-                    </div>
-                </div>
-
-                <div className="mt-6">
-                    <TeacherOrderTabs active={activeTab} onChange={setActiveTab} />
-                </div>
-
-                {activeTab === 'overview' && (
-                    <div className="mt-6 grid max-w-6xl grid-cols-1 gap-6 xl:grid-cols-3">
-                        <div className="space-y-6 xl:col-span-2">
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <FileText className="h-5 w-5 text-[#166a4d]" />
-                                    <h2 className="text-[22px] font-semibold text-[#182219]">
-                                        Uzdevuma informācija
-                                    </h2>
+                    {activeTab === 'overview' && (
+                        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                            <SectionCard
+                                title="Uzdevuma pārskats"
+                                description="Galvenā informācija par piešķirto uzdevumu un studenta izpildes kontekstu."
+                                icon={<BookOpenText className="h-5 w-5" />}
+                            >
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <InfoCard
+                                        label="Kravas nosaukums"
+                                        value={cargoName}
+                                        icon={<Box className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Kravas veids"
+                                        value={cargoType}
+                                        icon={<Package className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Daudzums"
+                                        value={quantityLabel}
+                                        icon={<Package className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Termiņš"
+                                        value={formatShortDate(attempt.template?.deadline_date)}
+                                        icon={<CalendarDays className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Temperatūras režīms"
+                                        value={temperatureRequirements}
+                                        icon={<Thermometer className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Speciālie nosacījumi"
+                                        value={customsDocuments}
+                                        icon={<ShieldCheck className="h-4 w-4" />}
+                                    />
                                 </div>
 
-                                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <InfoCard label="Students" value={attempt.student?.name || '—'} />
-                                    <InfoCard label="E-pasts" value={attempt.student?.email || '—'} />
-                                    <InfoCard label="Grupa / klase" value={attempt.student?.class_name || '—'} />
-                                    <InfoCard label="Kravas nosaukums" value={attempt.template?.cargo_name || '—'} />
-                                    <InfoCard label="Kravas veids" value={attempt.template?.cargo_type || '—'} />
-                                    <InfoCard label="Daudzums (konteineri)" value={String(attempt.template?.cargo_amount_containers ?? '—')} />
-                                    <InfoCard label="Daudzums (tonnas)" value={String(attempt.template?.cargo_amount_tons ?? '—')} />
-                                    <InfoCard label="Temperatūras prasības" value={temperatureRequirements} />
-                                    <InfoCard label="Termiņš" value={attempt.template?.deadline_date || '—'} />
-                                    <InfoCard label="Prioritāte" value={attempt.template?.priority || '—'} />
-                                    <InfoCard label="Speciālais transports" value={transportRequirements} />
-                                    <InfoCard label="Īpašie nosacījumi" value={customsDocuments} />
+                                <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5">
+                                    <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                        <FileText className="h-4 w-4 text-[#166a4d]" />
+                                        Studenta uzdevuma apraksts
+                                    </div>
+                                    <p className="mt-3 text-[15px] leading-7 text-[#425247]">
+                                        {summary}
+                                    </p>
                                 </div>
-                            </section>
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Izpildes statuss"
+                                description="Ātrs pārskats par iesnieguma stāvokli un sistēmas ģenerēto paziņojumu."
+                                icon={<CheckCircle2 className="h-5 w-5" />}
+                            >
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5">
+                                        <div className="text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                            Statuss
+                                        </div>
+                                        <div className="mt-3">
+                                            <StatusBadge status={attempt.status} />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5">
+                                        <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                            <TriangleAlert className="h-4 w-4 text-[#166a4d]" />
+                                            Sistēmas piezīme
+                                        </div>
+                                        <p className="mt-3 text-[15px] leading-7 text-[#425247]">
+                                            {deliveryNotes}
+                                        </p>
+                                    </div>
+                                </div>
+                            </SectionCard>
                         </div>
+                    )}
 
-                        <div className="space-y-6">
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <ClipboardCheck className="h-5 w-5 text-[#166a4d]" />
-                                    <h2 className="text-[22px] font-semibold text-[#182219]">
-                                        Ātrais kopsavilkums
-                                    </h2>
-                                </div>
-
-                                <div className="mt-5 space-y-4 text-[15px] text-[#5b6b61]">
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Students:</span>{' '}
-                                        {studentLabel}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Krava:</span>{' '}
-                                        {attempt.template?.cargo_type || '—'}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Prioritāte:</span>{' '}
-                                        {attempt.template?.priority || '—'}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Termiņš:</span>{' '}
-                                        {attempt.template?.deadline_date || '—'}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Statuss:</span>{' '}
-                                        {attempt.status}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Pašreizējais solis:</span>{' '}
-                                        {attempt.current_step}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-[#182219]">Iesniegts:</span>{' '}
-                                        {attempt.submitted_at || 'Vēl nav'}
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <Truck className="h-5 w-5 text-[#166a4d]" />
-                                    <h2 className="text-[22px] font-semibold text-[#182219]">
-                                        Ātrās darbības
-                                    </h2>
-                                </div>
-
-                                <div className="mt-4 space-y-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('feedback')}
-                                        className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-left text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                                    >
-                                        Rakstīt atsauksmi
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('delivery')}
-                                        className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-left text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                                    >
-                                        Pārbaudīt piegādi
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => router.visit(`/teacher/templates/order-templates/${attempt.template?.id}`)}
-                                        className="w-full rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-left text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                                    >
-                                        Atvērt uzdevuma sagatavi
-                                    </button>
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'feedback' && (
-                    <div className="mt-6 grid max-w-6xl grid-cols-1 gap-6 xl:grid-cols-3">
-                        <div className="xl:col-span-2">
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Pasniedzēja atsauksme
-                                </h2>
-
-                                <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                                    Šeit vari ierakstīt komentārus par studenta risinājumu.
-                                </p>
-
-                                <div className="mt-5">
+                    {activeTab === 'feedback' && (
+                        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_0.7fr]">
+                            <SectionCard
+                                title="Pasniedzēja atsauksme"
+                                description="Šeit vari pierakstīt komentārus par studenta risinājumu. Šī ir galvenā vieta atsauksmju ievadei."
+                                icon={<FileText className="h-5 w-5" />}
+                            >
+                                <div>
                                     <label className="mb-2 block text-[14px] font-medium text-[#182219]">
                                         Atsauksmes teksts
                                     </label>
 
                                     <textarea
-                                        rows={8}
+                                        rows={10}
                                         value={feedback}
-                                        onChange={(e) => setFeedback(e.target.value)}
-                                        placeholder="Ievadiet savu atsauksmi..."
-                                        className="w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]"
+                                        onChange={(e) => {
+                                            setFeedback(e.target.value);
+                                            if (feedbackSaved) {
+                                                setFeedbackSaved(false);
+                                            }
+                                        }}
+                                        placeholder="Ieraksti komentāru par studenta pieeju, kļūdām, stiprajām pusēm vai ieteikumiem uzlabojumiem..."
+                                        className="w-full rounded-2xl border border-[#d9ded9] bg-white px-4 py-3 text-[15px] text-[#182219] outline-none transition placeholder:text-[#97a39b] focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
+                                    />
+
+                                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFeedbackSaved(true)}
+                                            className="rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                        >
+                                            Saglabāt atsauksmi
+                                        </button>
+
+                                        {feedbackSaved ? (
+                                            <span className="text-[14px] font-medium text-[#166a4d]">
+                                                Atsauksme saglabāta lokāli šajā skatā.
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Atsauksmes konteksts"
+                                description="Svarīgākā informācija, ko redzēt rakstot komentāru."
+                                icon={<ClipboardCheck className="h-5 w-5" />}
+                            >
+                                <div className="space-y-4">
+                                    <InfoCard
+                                        label="Students"
+                                        value={studentLabel}
+                                        icon={<UserRound className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Uzdevums"
+                                        value={title}
+                                        icon={<ClipboardCheck className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Statuss"
+                                        value={
+                                            {
+                                                in_progress: 'Procesā',
+                                                submitted: 'Iesniegts',
+                                                draft: 'Melnraksts',
+                                                reviewed: 'Pārskatīts',
+                                            }[attempt.status] ?? attempt.status
+                                        }
+                                        icon={<CheckCircle2 className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Pēdējais atjauninājums"
+                                        value={formatDate(attempt.updated_at)}
+                                        icon={<Clock3 className="h-4 w-4" />}
                                     />
                                 </div>
-
-                                <div className="mt-4 flex flex-wrap items-center gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFeedbackSaved(true);
-                                            setTimeout(() => setFeedbackSaved(false), 2500);
-                                        }}
-                                        className="rounded-xl border border-[#d5dbd6] bg-white px-5 py-3 text-[14px] font-medium text-[#162118] transition hover:bg-[#f3f5f3]"
-                                    >
-                                        Saglabāt atsauksmi
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[14px] font-semibold text-white transition hover:bg-[#135740]"
-                                    >
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        Atzīmēt kā pārskatītu
-                                    </button>
-                                </div>
-
-                                {feedbackSaved && (
-                                    <div className="mt-4 rounded-xl border border-[#bbf7d0] bg-[#ecfdf3] px-4 py-3 text-[14px] text-[#166534]">
-                                        Atsauksme saglabāta lokāli. Nākamajā solī pieslēgsim DB saglabāšanu.
-                                    </div>
-                                )}
-                            </section>
+                            </SectionCard>
                         </div>
+                    )}
 
-                        <div>
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Konteksts
-                                </h2>
-
-                                <div className="mt-4 space-y-3 text-[15px] text-[#5b6b61]">
-                                    <p>
-                                        <span className="font-semibold text-[#182219]">Students:</span>{' '}
-                                        {studentLabel}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-[#182219]">Krava:</span>{' '}
-                                        {attempt.template?.cargo_type || '—'}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-[#182219]">Statuss:</span>{' '}
-                                        {attempt.status}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-[#182219]">Termiņš:</span>{' '}
-                                        {attempt.template?.deadline_date || '—'}
-                                    </p>
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'delivery' && (
-                    <div className="mt-6 grid max-w-6xl grid-cols-1 gap-6 xl:grid-cols-3">
-                        <div className="xl:col-span-2">
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Piegādes validācija
-                                </h2>
-
-                                <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                                    Šeit tiek parādīts vienkāršots validācijas pārskats no attempt datiem.
-                                </p>
-
-                                <div className="mt-5 space-y-3">
+                    {activeTab === 'delivery' && (
+                        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_0.9fr]">
+                            <SectionCard
+                                title="Piegādes validācija"
+                                description="Vienkāršots pārskats par to, vai iesniegtais risinājums atbilst galvenajiem uzdevuma kritērijiem."
+                                icon={<Truck className="h-5 w-5" />}
+                            >
+                                <div className="space-y-3">
                                     <ValidationRow
                                         label="Daudzums atbilst"
                                         value={deliveryQuantityMatch}
@@ -415,39 +539,22 @@ export default function TeacherAssignedTaskShow() {
                                         value={deliveryQualityMatch}
                                     />
                                 </div>
+                            </SectionCard>
 
-                                <div className="mt-5 rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-                                    <div className="text-[13px] font-medium uppercase tracking-wide text-[#7a877f]">
-                                        Piezīmes
-                                    </div>
-                                    <div className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
+                            <SectionCard
+                                title="Piegādes piezīme"
+                                description="Sistēmas vai pasniedzēja īss skaidrojums par piegādes rezultātu."
+                                icon={<ShieldCheck className="h-5 w-5" />}
+                            >
+                                <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5">
+                                    <p className="text-[15px] leading-7 text-[#425247]">
                                         {deliveryNotes}
-                                    </div>
-                                </div>
-                            </section>
-                        </div>
-
-                        <div>
-                            <section className="rounded-xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Validācijas kopsavilkums
-                                </h2>
-
-                                <div className="mt-4 space-y-3 text-[15px] text-[#5b6b61]">
-                                    <p>
-                                        Current step: <strong>{attempt.current_step}</strong>
-                                    </p>
-                                    <p>
-                                        Last update: <strong>{attempt.updated_at || '—'}</strong>
-                                    </p>
-                                    <p>
-                                        Preview result: <strong>{attempt.preview_result ? 'Ir aprēķināts' : 'Nav aprēķināts'}</strong>
                                     </p>
                                 </div>
-                            </section>
+                            </SectionCard>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </TeacherLayout>
         </>
     );

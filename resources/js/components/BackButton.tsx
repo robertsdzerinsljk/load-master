@@ -1,29 +1,33 @@
-import { router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 
 type BackButtonProps = {
-    href?: string;
     label?: string;
+    fallbackHref?: string;
+    className?: string;
 };
 
 export default function BackButton({
-    href,
     label = 'Atpakaļ',
+    fallbackHref = '/teacher',
+    className = '',
 }: BackButtonProps) {
-    const handleClick = () => {
-        if (href) {
-            router.visit(href);
+    const handleBack = () => {
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+            window.history.back();
             return;
         }
 
-        window.history.back();
+        window.location.href = fallbackHref;
     };
 
     return (
         <button
             type="button"
-            onClick={handleClick}
-            className="inline-flex items-center gap-2 text-[14px] text-[#5f6f65] transition hover:text-[#182219]"
+            onClick={handleBack}
+            className={[
+                'inline-flex items-center gap-2 rounded-xl px-1 py-1 text-[14px] font-medium text-[#5f6f65] transition hover:text-[#182219]',
+                className,
+            ].join(' ')}
         >
             <ArrowLeft className="h-4 w-4" />
             {label}

@@ -101,7 +101,7 @@ export default function TeacherTemplatesIndex() {
                             href="/teacher/templates/fuel-stations"
                         />
                         <TemplateCard
-                            icon={<Fuel className="h-5 w-5" />}
+                            icon={<MapPin className="h-5 w-5" />}
                             title="Maršruta uzpildes pieturas"
                             description="Piesaistiet uzpildes vietas konkrētiem sauszemes maršrutiem un norādiet attālumu no maršruta sākuma."
                             href="/teacher/templates/route-fuel-stops"
