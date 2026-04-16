@@ -1,96 +1,176 @@
 import StudentLayout from '@/layouts/StudentLayout';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
-type NamedItem = {
-    id: number;
-    name: string;
-    type?: string | null;
-};
+import FuelPlanningStep from '@/components/student/simulator/FuelPlanningStep';
+import IntroStep from '@/components/student/simulator/IntroStep';
+import PortSelectionStep from '@/components/student/simulator/PortSelectionStep';
+import PreviewStep from '@/components/student/simulator/PreviewStep';
+import RouteBuilderStep from '@/components/student/simulator/RouteBuilderStep';
+import ShipSelectionStep from '@/components/student/simulator/ShipSelectionStep';
+import SimulatorHeader from '@/components/student/simulator/SimulatorHeader';
+import SimulatorProgress from '@/components/student/simulator/SimulatorProgress';
+import SimulatorSummary from '@/components/student/simulator/SimulatorSummary';
+import TransportStep from '@/components/student/simulator/TransportStep';
 
-type RouteItem = {
-    id: number;
-    distance_km?: string | number | null;
-    fromLocation?: { name: string } | null;
-    toLocation?: { name: string } | null;
-    from_location?: { name: string } | null;
-    to_location?: { name: string } | null;
-};
+import {
+    Attempt,
+    PageProps,
+    simulatorSteps,
+} from '@/components/student/simulator/types';
 
-type Template = {
-    id: number;
-    title: string;
-    student_brief?: string | null;
-    cargo_name?: string | null;
-    cargo_type?: string | null;
-    cargo_amount_containers?: string | number | null;
-    transportTemplates?: NamedItem[];
-    transport_templates?: NamedItem[];
-    landRoutes?: RouteItem[];
-    land_routes?: RouteItem[];
-};
-
-type Attempt = {
-    id: number;
-    status: string;
-    current_step: string;
-    selected_transport_template_id?: number | null;
-    selected_land_route_id?: number | null;
-    selected_vehicle_count?: number | null;
-    preview_result?: any;
-};
-
-type PageProps = {
-    template: Template;
-    attempt: Attempt;
-};
-
-const steps = [
-    { key: 'intro', label: 'Uzdevums' },
-    { key: 'transport', label: 'Transports' },
-    { key: 'route', label: 'Maršruts' },
-    { key: 'simulation', label: 'Simulācija' },
-    { key: 'submit', label: 'Iesniegšana' },
-];
+function getCsrfToken() {
+    return (
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
+}
 
 export default function StudentSimulatorShow() {
     const page = usePage<PageProps>();
     const template = page.props.template;
     const initialAttempt = page.props.attempt;
 
-    const [attempt, setAttempt] = useState(initialAttempt);
+    const [attempt, setAttempt] = useState<Attempt>(initialAttempt);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
 
     const [selectedTransportId, setSelectedTransportId] = useState<string>(
         String(initialAttempt.selected_transport_template_id ?? '')
     );
-    const [selectedRouteId, setSelectedRouteId] = useState<string>(
-        String(initialAttempt.selected_land_route_id ?? '')
+    const [vehicleCount, setVehicleCount] = useState<number>(
+        initialAttempt.selected_vehicle_count ?? 1
+    );
+    const [selectedPortId, setSelectedPortId] = useState<string>(
+        String(initialAttempt.selected_port_id ?? '')
+    );
+    const [selectedShipId, setSelectedShipId] = useState<string>(
+        String(initialAttempt.selected_ship_id ?? '')
     );
 
     const transports = template.transportTemplates ?? template.transport_templates ?? [];
-    const routes = template.landRoutes ?? template.land_routes ?? [];
+    const availableSegments = template.landRoutes ?? template.land_routes ?? [];
+    const availableFuelStations = template.fuelStations ?? template.fuel_stations ?? [];
+    const availablePorts = template.ports ?? [];
+    const availableShips = template.ships ?? [];
+    const selectedSegments = attempt.ordered_route_segments ?? [];
+    const selectedFuelStations = attempt.ordered_fuel_stations ?? [];
 
     const currentStepIndex = useMemo(() => {
-        const idx = steps.findIndex((step) => step.key === attempt.current_step);
+        const idx = simulatorSteps.findIndex((step) => step.key === attempt.current_step);
         return idx >= 0 ? idx : 0;
     }, [attempt.current_step]);
 
-    const nextStep = async (step: string) => {
+    const selectedTransport = useMemo(
+        () => transports.find((item) => String(item.id) === selectedTransportId) ?? null,
+        [transports, selectedTransportId]
+    );
+
+    const requiresFuelPlanning = !!template.requires_refuel_planning;
+    const canPreview =
+        !!selectedTransportId &&
+        vehicleCount > 0 &&
+        selectedSegments.length > 0 &&
+        !!selectedPortId &&
+        !!selectedShipId;
+
+    const canSubmit =
+        !!attempt.preview_result && attempt.preview_result?.result?.is_valid === true;
+
+    const validateStepTransition = (targetStep: string): string | null => {
+        if (targetStep === 'intro' || targetStep === 'transport') {
+            return null;
+        }
+
+        if (targetStep === 'route') {
+            if (!selectedTransportId || vehicleCount < 1) {
+                return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
+            }
+            return null;
+        }
+
+        if (targetStep === 'fuel') {
+            if (!selectedTransportId || vehicleCount < 1) {
+                return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
+            }
+
+            if (!selectedSegments.length) {
+                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            }
+
+            return null;
+        }
+
+        if (targetStep === 'port') {
+            if (!selectedSegments.length) {
+                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            }
+
+            if (requiresFuelPlanning && !selectedFuelStations.length) {
+                return 'Šim uzdevumam nepieciešams izvēlēties vismaz vienu degvielas pieturu.';
+            }
+
+            return null;
+        }
+
+        if (targetStep === 'ship') {
+            if (!selectedPortId) {
+                return 'Vispirms izvēlies ostu.';
+            }
+
+            return null;
+        }
+
+        if (targetStep === 'simulation') {
+            if (!selectedShipId) {
+                return 'Vispirms izvēlies kuģi.';
+            }
+
+            return null;
+        }
+
+        if (targetStep === 'submit') {
+            if (!attempt.preview_result) {
+                return 'Vispirms aprēķini preview rezultātu.';
+            }
+
+            if (attempt.preview_result?.result?.is_valid === false) {
+                return 'Risinājumu nevar iesniegt, kamēr tajā ir kritiskas problēmas.';
+            }
+
+            return null;
+        }
+
+        return null;
+    };
+
+    const saveStep = async (step: string) => {
+        const validationError = validateStepTransition(step);
+
+        if (validationError) {
+            setMessage(validationError);
+            return;
+        }
+
         setLoading(true);
         setMessage(null);
 
-        const payload: any = {
+        const payload: Record<string, unknown> = {
             current_step: step,
+            selected_vehicle_count: vehicleCount,
         };
 
         if (selectedTransportId) {
             payload.selected_transport_template_id = Number(selectedTransportId);
         }
 
-        if (selectedRouteId) {
-            payload.selected_land_route_id = Number(selectedRouteId);
+        if (selectedPortId) {
+            payload.selected_port_id = Number(selectedPortId);
+        }
+
+        if (selectedShipId) {
+            payload.selected_ship_id = Number(selectedShipId);
         }
 
         try {
@@ -100,6 +180,7 @@ export default function StudentSimulatorShow() {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCsrfToken(),
                 },
                 body: JSON.stringify(payload),
                 credentials: 'same-origin',
@@ -108,17 +189,203 @@ export default function StudentSimulatorShow() {
             const data = await response.json();
 
             if (!response.ok) {
-                setMessage(data.message || 'Neizdevās atjaunināt attempt.');
+                setMessage(data.message || 'Neizdevās saglabāt simulatora progresu.');
                 return;
             }
 
             setAttempt(data.attempt);
-            setMessage('Solis saglabāts.');
-        } catch {
+            setMessage(null);
+        } catch (error) {
+            console.error(error);
             setMessage('Servera kļūda.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const addRouteSegment = async (segmentId: number) => {
+        setLoading(true);
+        setMessage(null);
+
+        try {
+            const response = await fetch(
+                `/student/simulator/attempt/${attempt.id}/route-segments`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                    },
+                    body: JSON.stringify({
+                        land_route_id: segmentId,
+                    }),
+                    credentials: 'same-origin',
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setMessage(data.message || 'Neizdevās pievienot segmentu.');
+                return;
+            }
+
+            setAttempt(data.attempt);
+            setMessage(null);
+        } catch (error) {
+            console.error(error);
+            setMessage('Servera kļūda.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const removeRouteSegment = async (segmentId: number) => {
+        setLoading(true);
+        setMessage(null);
+
+        try {
+            const response = await fetch(
+                `/student/simulator/attempt/${attempt.id}/route-segments/${segmentId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setMessage(data.message || 'Neizdevās noņemt segmentu.');
+                return;
+            }
+
+            setAttempt(data.attempt);
+            setMessage(null);
+        } catch (error) {
+            console.error(error);
+            setMessage('Servera kļūda.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const addFuelStation = async (stationId: number) => {
+        setLoading(true);
+        setMessage(null);
+
+        try {
+            const response = await fetch(
+                `/student/simulator/attempt/${attempt.id}/fuel-stations`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                    },
+                    body: JSON.stringify({
+                        fuel_station_id: stationId,
+                    }),
+                    credentials: 'same-origin',
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setMessage(data.message || 'Neizdevās pievienot degvielas pieturu.');
+                return;
+            }
+
+            setAttempt(data.attempt);
+            setMessage(null);
+        } catch (error) {
+            console.error(error);
+            setMessage('Servera kļūda.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const removeFuelStation = async (stationId: number) => {
+        setLoading(true);
+        setMessage(null);
+
+        try {
+            const response = await fetch(
+                `/student/simulator/attempt/${attempt.id}/fuel-stations/${stationId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                    },
+                    credentials: 'same-origin',
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setMessage(data.message || 'Neizdevās noņemt degvielas pieturu.');
+                return;
+            }
+
+            setAttempt(data.attempt);
+            setMessage(null);
+        } catch (error) {
+            console.error(error);
+            setMessage('Servera kļūda.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const goBackStep = async () => {
+        const stepOrder = ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'];
+        const currentIndex = stepOrder.indexOf(attempt.current_step);
+
+        if (currentIndex <= 0) return;
+
+        await saveStep(stepOrder[currentIndex - 1]);
+    };
+
+    const goToVisitedStep = async (stepKey: string, index: number) => {
+        const currentIndex = simulatorSteps.findIndex((step) => step.key === attempt.current_step);
+
+        if (index <= currentIndex) {
+            await saveStep(stepKey);
+            return;
+        }
+
+        const validationError = validateStepTransition(stepKey);
+
+        if (validationError) {
+            setMessage(validationError);
+            return;
+        }
+
+        await saveStep(stepKey);
+    };
+
+    const goNextStep = async () => {
+        const stepOrder = ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'];
+        const currentIndex = stepOrder.indexOf(attempt.current_step);
+        const nextStep = stepOrder[currentIndex + 1];
+
+        if (!nextStep) return;
+
+        await saveStep(nextStep);
     };
 
     const submitAttempt = async () => {
@@ -131,6 +398,7 @@ export default function StudentSimulatorShow() {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCsrfToken(),
                 },
                 credentials: 'same-origin',
             });
@@ -144,7 +412,8 @@ export default function StudentSimulatorShow() {
 
             setAttempt(data.attempt);
             setMessage('Risinājums iesniegts.');
-        } catch {
+        } catch (error) {
+            console.error(error);
             setMessage('Servera kļūda.');
         } finally {
             setLoading(false);
@@ -152,299 +421,140 @@ export default function StudentSimulatorShow() {
     };
 
     return (
-        <StudentLayout>
-            <Head title="Studenta simulators" />
+        <>
+            <Head title={template.title || 'Studenta simulators'} />
 
-            <div className="min-h-screen bg-[#f6f8f6] px-6 py-8">
-                <div className="mx-auto max-w-6xl space-y-6">
-                    <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                        <h1 className="text-[30px] font-semibold text-[#182219]">
-                            {template.title}
-                        </h1>
-                        <p className="mt-3 text-[16px] leading-7 text-[#5b6b61]">
-                            {template.student_brief || 'Nav uzdevuma apraksta.'}
-                        </p>
-                        <div className="mt-4 flex gap-3">
-                    <Link
-                        href="/student"
-                        className="rounded-xl border border-[#d9ded9] px-4 py-2 text-sm text-[#182219] hover:bg-[#f3f6f3]"
-                    >
-                        ← Atpakaļ
-                    </Link>
+            <StudentLayout>
+                <div className="space-y-6">
+                    <SimulatorHeader template={template} attempt={attempt} />
 
-                    <Link
-                        href="/logout"
-                        method="post"
-                        as="button"
-                        className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
-                    >
-                        Iziet
-                    </Link>
-                </div>
-                        <div className="mt-5 grid gap-4 md:grid-cols-3">
-                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-                                <div className="text-[13px] uppercase tracking-wide text-[#7a877f]">
-                                    Krava
-                                </div>
-                                <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                                    {template.cargo_name || template.cargo_type || '—'}
-                                </div>
-                            </div>
+                    <SimulatorProgress
+                        currentStepIndex={currentStepIndex}
+                        loading={loading}
+                        onStepClick={goToVisitedStep}
+                        onPrev={goBackStep}
+                        onNext={goNextStep}
+                    />
 
-                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-                                <div className="text-[13px] uppercase tracking-wide text-[#7a877f]">
-                                    Konteineri
-                                </div>
-                                <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                                    {template.cargo_amount_containers ?? '—'}
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-                                <div className="text-[13px] uppercase tracking-wide text-[#7a877f]">
-                                    Statuss
-                                </div>
-                                <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                                    {attempt.status}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                        <div className="flex flex-wrap items-center gap-3">
-                            {steps.map((step, index) => {
-                                const active = index <= currentStepIndex;
-
-                                return (
-                                    <div
-                                        key={step.key}
-                                        className={`rounded-full px-4 py-2 text-[14px] font-medium ${
-                                            active
-                                                ? 'bg-[#166a4d] text-white'
-                                                : 'bg-[#eef3ef] text-[#5b6b61]'
-                                        }`}
-                                    >
-                                        {step.label}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+                    <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
                         <div className="space-y-6">
-                            <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    1. Izvēlies transportu
-                                </h2>
+                            {attempt.current_step === 'intro' && (
+                                <IntroStep
+                                    template={template}
+                                    loading={loading}
+                                    onStart={() => saveStep('transport')}
+                                />
+                            )}
 
-                                <div className="mt-4 grid gap-3">
-                                    {transports.map((item) => (
-                                        <label
-                                            key={item.id}
-                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3"
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="transport"
-                                                value={item.id}
-                                                checked={selectedTransportId === String(item.id)}
-                                                onChange={(e) =>
-                                                    setSelectedTransportId(e.target.value)
-                                                }
-                                            />
-                                            <div>
-                                                <div className="font-semibold text-[#182219]">
-                                                    {item.name}
-                                                </div>
-                                                <div className="text-[14px] text-[#5b6b61]">
-                                                    {item.type || 'Tips nav norādīts'}
-                                                </div>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
+                            {attempt.current_step === 'transport' && (
+                                <TransportStep
+                                    transports={transports}
+                                    selectedTransportId={selectedTransportId}
+                                    setSelectedTransportId={setSelectedTransportId}
+                                    vehicleCount={vehicleCount}
+                                    setVehicleCount={setVehicleCount}
+                                    selectedTransport={selectedTransport}
+                                    loading={loading}
+                                    onSave={() => saveStep('route')}
+                                />
+                            )}
 
-                                <div className="mt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => nextStep('transport')}
-                                        disabled={loading}
-                                        className="rounded-xl bg-[#166a4d] px-5 py-3 text-white hover:bg-[#135740] disabled:opacity-60"
-                                    >
-                                        Saglabāt transportu
-                                    </button>
-                                </div>
-                            </div>
+                            {attempt.current_step === 'route' && (
+                                <RouteBuilderStep
+                                    availableSegments={availableSegments}
+                                    selectedSegments={selectedSegments}
+                                    loading={loading}
+                                    onAddSegment={addRouteSegment}
+                                    onRemoveSegment={removeRouteSegment}
+                                />
+                            )}
 
-                            <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    2. Izvēlies maršrutu
-                                </h2>
+                            {attempt.current_step === 'fuel' && (
+                                <FuelPlanningStep
+                                    availableStations={availableFuelStations}
+                                    selectedStations={selectedFuelStations}
+                                    loading={loading}
+                                    onAddStation={addFuelStation}
+                                    onRemoveStation={removeFuelStation}
+                                />
+                            )}
 
-                                <div className="mt-4 grid gap-3">
-                                    {routes.map((item) => (
-                                        <label
-                                            key={item.id}
-                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-[#f8faf8] px-4 py-3"
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="route"
-                                                value={item.id}
-                                                checked={selectedRouteId === String(item.id)}
-                                                onChange={(e) =>
-                                                    setSelectedRouteId(e.target.value)
-                                                }
-                                            />
-                                            <div>
-                                                <div className="font-semibold text-[#182219]">
-                                                    {(item.fromLocation ?? item.from_location)?.name ?? '—'} →{' '}
-                                                    {(item.toLocation ?? item.to_location)?.name ?? '—'}
-                                                </div>
-                                                <div className="text-[14px] text-[#5b6b61]">
-                                                    {item.distance_km ?? '—'} km
-                                                </div>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
+                            {attempt.current_step === 'port' && (
+                                <PortSelectionStep
+                                    ports={availablePorts}
+                                    selectedPortId={selectedPortId}
+                                    setSelectedPortId={setSelectedPortId}
+                                    loading={loading}
+                                />
+                            )}
 
-                                <div className="mt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => nextStep('route')}
-                                        disabled={loading}
-                                        className="rounded-xl bg-[#166a4d] px-5 py-3 text-white hover:bg-[#135740] disabled:opacity-60"
-                                    >
-                                        Saglabāt maršrutu
-                                    </button>
-                                </div>
-                            </div>
+                            {attempt.current_step === 'ship' && (
+                                <ShipSelectionStep
+                                    ships={availableShips}
+                                    selectedShipId={selectedShipId}
+                                    setSelectedShipId={setSelectedShipId}
+                                    loading={loading}
+                                />
+                            )}
 
-                            <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    3. Simulācijas preview
-                                </h2>
+                            {attempt.current_step === 'simulation' && (
+                                <PreviewStep
+                                    attempt={attempt}
+                                    loading={loading}
+                                    canPreview={canPreview}
+                                    onPreview={() => saveStep('simulation')}
+                                />
+                            )}
 
-                                <div className="mt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => nextStep('simulation')}
-                                        disabled={loading}
-                                        className="rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[#166a4d] hover:bg-[#f3faf6] disabled:opacity-60"
-                                    >
-                                        Aprēķināt preview
-                                    </button>
-                                </div>
-
-                                {attempt.preview_result && (
-                                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        <PreviewBox
-                                            label="Maršruts"
-                                            value={`${attempt.preview_result?.route?.from ?? '—'} → ${attempt.preview_result?.route?.to ?? '—'}`}
-                                        />
-                                        <PreviewBox
-                                            label="Attālums"
-                                            value={`${attempt.preview_result?.route?.distance_km ?? '—'} km`}
-                                        />
-                                        <PreviewBox
-                                            label="Nepieciešamie transporti"
-                                            value={attempt.preview_result?.result?.required_vehicles}
-                                        />
-                                        <PreviewBox
-                                            label="Brauciena laiks"
-                                            value={`${attempt.preview_result?.result?.trip_time_hours ?? '—'} h`}
-                                        />
-                                        <PreviewBox
-                                            label="Kopējās izmaksas"
-                                            value={`${attempt.preview_result?.result?.total_cost ?? '—'} €`}
-                                        />
-                                        <PreviewBox
-                                            label="Uzpilde"
-                                            value={
-                                                attempt.preview_result?.result?.needs_refuel
-                                                    ? 'Nepieciešama'
-                                                    : 'Nav nepieciešama'
-                                            }
-                                        />
+                            {attempt.current_step === 'submit' && (
+                                <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                                        Solis 8
                                     </div>
-                                )}
-                            </div>
-                        </div>
 
-                        <div className="space-y-6">
-                            <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Progres
-                                </h2>
+                                    <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
+                                        Gatavs iesniegšanai
+                                    </h2>
 
-                                <div className="mt-4 h-4 overflow-hidden rounded-full bg-[#eef3ef]">
-                                    <div
-                                        className="h-full rounded-full bg-[#166a4d] transition-all duration-500"
-                                        style={{
-                                            width: `${((currentStepIndex + 1) / steps.length) * 100}%`,
-                                        }}
-                                    />
-                                </div>
+                                    <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
+                                        Šis risinājums ir sagatavots iesniegšanai. Pārbaudi kopsavilkumu labajā pusē un
+                                        iesniedz gala variantu pārbaudei.
+                                    </p>
 
-                                <p className="mt-3 text-[14px] text-[#5b6b61]">
-                                    Pašlaik tu esi solī: <strong>{attempt.current_step}</strong>
-                                </p>
-                            </div>
+                                    <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
+                                        Kad iesniegsi risinājumu, tas parādīsies sadaļā “Mani mēģinājumi” ar gala statusu.
+                                    </div>
 
-                            <div className="rounded-2xl border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                <h2 className="text-[22px] font-semibold text-[#182219]">
-                                    Iesniegšana
-                                </h2>
-
-                                <p className="mt-3 text-[15px] leading-7 text-[#5b6b61]">
-                                    Kad esi pārliecināts par savu risinājumu, iesniedz to pārbaudei.
-                                </p>
-
-                                <div className="mt-4">
-                                    <button
-                                        type="button"
-                                        onClick={submitAttempt}
-                                        disabled={loading || attempt.status === 'submitted'}
-                                        className="rounded-xl bg-[#166a4d] px-5 py-3 text-white hover:bg-[#135740] disabled:opacity-60"
-                                    >
-                                        {attempt.status === 'submitted'
-                                            ? 'Jau iesniegts'
-                                            : 'Iesniegt risinājumu'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {message && (
-                                <div className="rounded-2xl border border-[#d9ded9] bg-white p-4 text-[14px] text-[#182219] shadow-sm">
-                                    {message}
-                                </div>
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={submitAttempt}
+                                            disabled={loading || attempt.status === 'submitted' || !canSubmit}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {attempt.status === 'submitted'
+                                                ? 'Risinājums jau ir iesniegts'
+                                                : 'Iesniegt risinājumu'}
+                                        </button>
+                                    </div>
+                                </section>
                             )}
                         </div>
+
+                        <div className="space-y-6">
+                            <SimulatorSummary template={template} attempt={attempt} />
+
+                            {message ? (
+                                <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                                    <div className="text-[14px] font-medium text-amber-800">
+                                        {message}
+                                    </div>
+                                </section>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </StudentLayout>
-    );
-}
-
-function PreviewBox({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | number | null | undefined;
-}) {
-    return (
-        <div className="rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-            <div className="text-[13px] uppercase tracking-wide text-[#7a877f]">
-                {label}
-            </div>
-            <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                {value !== null && value !== undefined && value !== '' ? value : '—'}
-            </div>
-        </div>
+            </StudentLayout>
+        </>
     );
 }

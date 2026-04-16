@@ -3,23 +3,48 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Port extends Model
 {
     protected $fillable = [
         'name',
         'country',
-        'max_draft_m',
-        'city_distance_km',
-        'loading_rate_containers_per_hour',
-        'loading_rate_tons_per_hour',
-        'notes',
+        'city',
+        'location_id',
+        'depth_m',
+        'max_depth_m',
+        'draft_limit_m',
     ];
 
-    protected $casts = [
-        'max_draft_m' => 'decimal:2',
-        'city_distance_km' => 'decimal:2',
-        'loading_rate_containers_per_hour' => 'decimal:2',
-        'loading_rate_tons_per_hour' => 'decimal:2',
+    protected $appends = [
+        'location_name',
+        'depth_value',
     ];
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function getLocationNameAttribute(): ?string
+    {
+        if ($this->location?->name) {
+            return $this->location->name;
+        }
+
+        if (!empty($this->city) && !empty($this->country)) {
+            return "{$this->city}, {$this->country}";
+        }
+
+        return $this->city ?? $this->country ?? null;
+    }
+
+    public function getDepthValueAttribute()
+    {
+        return $this->depth_m
+            ?? $this->max_depth_m
+            ?? $this->draft_limit_m
+            ?? null;
+    }
 }

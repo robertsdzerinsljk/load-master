@@ -46,14 +46,14 @@ class OrderTemplate extends Model
         'deadline_date' => 'date',
     ];
 
-    public function temperatureMode(): BelongsTo
-    {
-        return $this->belongsTo(TemperatureMode::class);
-    }
+    public function temperatureMode()
+{
+    return $this->belongsTo(TemperatureMode::class, 'temperature_mode_id');
+}
 
     public function specialCondition(): BelongsTo
     {
-        return $this->belongsTo(SpecialCondition::class);
+        return $this->belongsTo(SpecialCondition::class, 'special_condition_id');
     }
 
     public function startLocation(): BelongsTo
@@ -84,21 +84,15 @@ class OrderTemplate extends Model
         );
     }
 
-    public function ships(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Ship::class,
-            'order_template_ships'
-        );
-    }
+    public function ships()
+{
+    return $this->belongsToMany(Ship::class, 'order_template_ships');
+}
 
-    public function ports(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Port::class,
-            'order_template_ports'
-        );
-    }
+    public function ports()
+{
+    return $this->belongsToMany(Port::class, 'order_template_ports');
+}
 
     public function landRoutes(): BelongsToMany
     {
@@ -117,5 +111,9 @@ class OrderTemplate extends Model
 public function simulationAttempts(): HasMany
 {
     return $this->hasMany(SimulationAttempt::class);
+}
+public function fuelStations()
+{
+    return $this->belongsToMany(FuelStation::class, 'order_template_fuel_station');
 }
 }

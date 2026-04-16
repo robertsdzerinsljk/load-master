@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class FuelStation extends Model
 {
@@ -15,8 +14,9 @@ class FuelStation extends Model
         'notes',
     ];
 
-    protected $casts = [
-        'price_per_liter' => 'decimal:2',
+    protected $appends = [
+        'display_name',
+        'location_name',
     ];
 
     public function location(): BelongsTo
@@ -24,8 +24,18 @@ class FuelStation extends Model
         return $this->belongsTo(Location::class);
     }
 
-    public function routeFuelStops(): HasMany
+    public function getDisplayNameAttribute(): string
     {
-        return $this->hasMany(RouteFuelStop::class);
+        $fuelType = $this->fuel_type ? strtoupper($this->fuel_type) : 'Fuel station';
+        $locationName = $this->location?->name;
+
+        return $locationName
+            ? "{$fuelType} — {$locationName}"
+            : $fuelType;
+    }
+
+    public function getLocationNameAttribute(): ?string
+    {
+        return $this->location?->name;
     }
 }

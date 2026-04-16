@@ -8,24 +8,32 @@ class Ship extends Model
 {
     protected $fillable = [
         'name',
-        'cargo_type',
-        'capacity_containers',
-        'capacity_tons',
+        'ship_type',
         'draft_m',
-        'fuel_consumption_per_hour',
-        'speed_kmh',
-        'loading_capacity_containers_per_hour',
-        'loading_capacity_tons_per_hour',
-        'notes',
+        'draught_m',
+        'required_depth_m',
+        'capacity_containers',
+        'container_capacity',
+        'capacity_tons',
     ];
 
-    protected $casts = [
-        'capacity_containers' => 'integer',
-        'capacity_tons' => 'decimal:2',
-        'draft_m' => 'decimal:2',
-        'fuel_consumption_per_hour' => 'decimal:2',
-        'speed_kmh' => 'decimal:2',
-        'loading_capacity_containers_per_hour' => 'decimal:2',
-        'loading_capacity_tons_per_hour' => 'decimal:2',
+    protected $appends = [
+        'draft_value',
+        'capacity_containers_value',
     ];
+
+    public function getDraftValueAttribute()
+    {
+        return $this->draft_m
+            ?? $this->draught_m
+            ?? $this->required_depth_m
+            ?? null;
+    }
+
+    public function getCapacityContainersValueAttribute()
+    {
+        return $this->capacity_containers
+            ?? $this->container_capacity
+            ?? null;
+    }
 }

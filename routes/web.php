@@ -19,6 +19,7 @@ use App\Http\Controllers\Teacher\OrderTemplateController;
 use App\Http\Controllers\Teacher\AssignedTaskController;
 use App\Http\Controllers\Teacher\StudentController;
 use App\Http\Controllers\Student\SimulationAttemptController;
+use App\Http\Controllers\Student\AttemptController;
 
 Route::get('/', [RoleSwitchController::class, 'index'])->name('role.select');
 Route::post('/switch-role/teacher', [RoleSwitchController::class, 'setTeacher'])->name('role.teacher');
@@ -254,20 +255,45 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/teacher/assigned-tasks/{id}', [AssignedTaskController::class, 'show'])
         ->name('teacher.assigned-tasks.show');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Student dashboard + simulator
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/student', [SimulationAttemptController::class, 'indexTasks'])
-        ->name('student.dashboard');
+   /*
+|--------------------------------------------------------------------------
+| Student dashboard + simulator
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:student'])
+    ->prefix('student')
+    ->name('student.')
+    ->group(function () {
+        Route::get('/', [SimulationAttemptController::class, 'indexTasks'])
+            ->name('dashboard');
 
-    Route::prefix('student/simulator')->group(function () {
-        Route::get('/task/{orderTemplateId}', [SimulationAttemptController::class, 'showTask'])
-            ->name('student.simulator.task');
-        Route::post('/attempt/{attemptId}/step', [SimulationAttemptController::class, 'updateStep'])
-            ->name('student.simulator.attempt.step');
-        Route::post('/attempt/{attemptId}/submit', [SimulationAttemptController::class, 'submit'])
-            ->name('student.simulator.attempt.submit');
+        Route::get('/attempts', [AttemptController::class, 'index'])
+            ->name('attempts.index');
+
+        Route::prefix('simulator')->name('simulator.')->group(function () {
+            Route::get('/task/{orderTemplateId}', [SimulationAttemptController::class, 'showTask'])
+                ->name('task');
+
+            Route::get('/{id}', [SimulationAttemptController::class, 'start'])
+                ->name('start');
+
+            Route::post('/attempt/{attemptId}/step', [SimulationAttemptController::class, 'updateStep'])
+                ->name('attempt.step');
+
+            Route::post('/attempt/{attemptId}/submit', [SimulationAttemptController::class, 'submit'])
+                ->name('attempt.submit');
+
+            Route::post('/attempt/{attemptId}/route-segments', [SimulationAttemptController::class, 'addRouteSegment'])
+                ->name('attempt.route-segments.store');
+
+            Route::delete('/attempt/{attemptId}/route-segments/{segmentId}', [SimulationAttemptController::class, 'removeRouteSegment'])
+                ->name('attempt.route-segments.destroy');
+
+            Route::post('/attempt/{attemptId}/fuel-stations', [SimulationAttemptController::class, 'addFuelStation'])
+                ->name('attempt.fuel-stations.store');
+
+            Route::delete('/attempt/{attemptId}/fuel-stations/{stationId}', [SimulationAttemptController::class, 'removeFuelStation'])
+                ->name('attempt.fuel-stations.destroy');
+        });
     });
 });
