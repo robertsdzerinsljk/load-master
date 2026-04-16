@@ -15,7 +15,10 @@ return new class extends Migration
             $table->unsignedInteger('position');
             $table->timestamps();
 
-            $table->unique(['simulation_attempt_id', 'position']);
+            $table->unique(
+                ['simulation_attempt_id', 'position'],
+                'sim_attempt_route_pos_uq'
+            );
         });
     }
 
