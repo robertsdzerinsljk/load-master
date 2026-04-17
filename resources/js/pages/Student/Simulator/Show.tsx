@@ -27,12 +27,41 @@ function getCsrfToken() {
     );
 }
 
+type StudentSimulatorPageProps = PageProps & {
+    template: PageProps['template'];
+    attempt: Attempt;
+    availableSteps?: string[];
+};
+
+type TimelineEvent = {
+    type: string;
+    label: string;
+    start_at: string;
+    end_at: string;
+    duration_minutes: number;
+};
+
+type TimelineSummary = {
+    started_at?: string | null;
+    finished_at?: string | null;
+    total_minutes?: number | null;
+    total_hours?: number | null;
+    deadline_at?: string | null;
+    delay_minutes?: number | null;
+    is_within_deadline?: boolean;
+};
+
 export default function StudentSimulatorShow() {
-    const page = usePage<PageProps>();
+    const page = usePage<StudentSimulatorPageProps>();
     const template = page.props.template;
     const initialAttempt = page.props.attempt;
+    const initialAvailableSteps =
+        page.props.availableSteps && page.props.availableSteps.length
+            ? page.props.availableSteps
+            : ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'];
 
     const [attempt, setAttempt] = useState<Attempt>(initialAttempt);
+    const [availableSteps, setAvailableSteps] = useState<string[]>(initialAvailableSteps);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
 
@@ -57,45 +86,123 @@ export default function StudentSimulatorShow() {
     const selectedSegments = attempt.ordered_route_segments ?? [];
     const selectedFuelStations = attempt.ordered_fuel_stations ?? [];
 
+    const enabledStepDefs = useMemo(() => {
+        return simulatorSteps.filter((step) => availableSteps.includes(step.key));
+    }, [availableSteps]);
+
     const currentStepIndex = useMemo(() => {
-        const idx = simulatorSteps.findIndex((step) => step.key === attempt.current_step);
+        const idx = enabledStepDefs.findIndex((step) => step.key === attempt.current_step);
         return idx >= 0 ? idx : 0;
-    }, [attempt.current_step]);
+    }, [attempt.current_step, enabledStepDefs]);
+
+    const currentStepKey = useMemo(() => {
+        if (availableSteps.includes(attempt.current_step)) {
+            return attempt.current_step;
+        }
+
+        return availableSteps[0] ?? 'intro';
+    }, [attempt.current_step, availableSteps]);
 
     const selectedTransport = useMemo(
         () => transports.find((item) => String(item.id) === selectedTransportId) ?? null,
         [transports, selectedTransportId]
     );
 
-    const requiresFuelPlanning = !!template.requires_refuel_planning;
-    const canPreview =
-        !!selectedTransportId &&
-        vehicleCount > 0 &&
-        selectedSegments.length > 0 &&
-        !!selectedPortId &&
-        !!selectedShipId;
+    const timeline = (attempt.preview_result as any)?.timeline ?? null;
+    const timelineSummary: TimelineSummary | null = timeline?.summary ?? null;
+    const timelineEvents: TimelineEvent[] = Array.isArray(timeline?.events)
+        ? timeline.events
+        : [];
+
+    const hasStep = (stepKey: string) => availableSteps.includes(stepKey);
+
+    const getNextStep = (stepKey: string) => {
+        const currentIndex = availableSteps.indexOf(stepKey);
+
+        if (currentIndex === -1) {
+            return null;
+        }
+
+        return availableSteps[currentIndex + 1] ?? null;
+    };
+
+    const getPrevStep = (stepKey: string) => {
+        const currentIndex = availableSteps.indexOf(stepKey);
+
+        if (currentIndex <= 0) {
+            return null;
+        }
+
+        return availableSteps[currentIndex - 1] ?? null;
+    };
+
+    const requiresFuelPlanning = hasStep('fuel') && !!template.requires_refuel_planning;
+
+    const canPreview = useMemo(() => {
+        if (hasStep('transport')) {
+            if (!selectedTransportId || vehicleCount < 1) {
+                return false;
+            }
+        }
+
+        if (hasStep('route')) {
+            if (!selectedSegments.length) {
+                return false;
+            }
+        }
+
+        if (hasStep('port')) {
+            if (!selectedPortId) {
+                return false;
+            }
+        }
+
+        if (hasStep('ship')) {
+            if (!selectedShipId) {
+                return false;
+            }
+        }
+
+        return true;
+    }, [
+        availableSteps,
+        selectedTransportId,
+        vehicleCount,
+        selectedSegments.length,
+        selectedPortId,
+        selectedShipId,
+    ]);
 
     const canSubmit =
         !!attempt.preview_result && attempt.preview_result?.result?.is_valid === true;
 
     const validateStepTransition = (targetStep: string): string | null => {
-        if (targetStep === 'intro' || targetStep === 'transport') {
+        if (!hasStep(targetStep)) {
+            return 'Šis solis šim scenārijam nav pieejams.';
+        }
+
+        if (targetStep === 'intro') {
+            return null;
+        }
+
+        if (targetStep === 'transport') {
             return null;
         }
 
         if (targetStep === 'route') {
-            if (!selectedTransportId || vehicleCount < 1) {
+            if (hasStep('transport') && (!selectedTransportId || vehicleCount < 1)) {
                 return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
             }
+
             return null;
         }
 
         if (targetStep === 'fuel') {
-            if (!selectedTransportId || vehicleCount < 1) {
+            if (hasStep('transport') && (!selectedTransportId || vehicleCount < 1)) {
                 return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
             }
 
-            if (!selectedSegments.length) {
+            if (hasStep('route') && !selectedSegments.length) {
                 return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
             }
 
@@ -103,7 +210,7 @@ export default function StudentSimulatorShow() {
         }
 
         if (targetStep === 'port') {
-            if (!selectedSegments.length) {
+            if (hasStep('route') && !selectedSegments.length) {
                 return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
             }
 
@@ -115,7 +222,7 @@ export default function StudentSimulatorShow() {
         }
 
         if (targetStep === 'ship') {
-            if (!selectedPortId) {
+            if (hasStep('port') && !selectedPortId) {
                 return 'Vispirms izvēlies ostu.';
             }
 
@@ -123,7 +230,23 @@ export default function StudentSimulatorShow() {
         }
 
         if (targetStep === 'simulation') {
-            if (!selectedShipId) {
+            if (hasStep('transport') && (!selectedTransportId || vehicleCount < 1)) {
+                return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
+            }
+
+            if (hasStep('route') && !selectedSegments.length) {
+                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            }
+
+            if (requiresFuelPlanning && !selectedFuelStations.length) {
+                return 'Šim uzdevumam nepieciešams izvēlēties vismaz vienu degvielas pieturu.';
+            }
+
+            if (hasStep('port') && !selectedPortId) {
+                return 'Vispirms izvēlies ostu.';
+            }
+
+            if (hasStep('ship') && !selectedShipId) {
                 return 'Vispirms izvēlies kuģi.';
             }
 
@@ -194,6 +317,11 @@ export default function StudentSimulatorShow() {
             }
 
             setAttempt(data.attempt);
+
+            if (Array.isArray(data.available_steps) && data.available_steps.length) {
+                setAvailableSteps(data.available_steps);
+            }
+
             setMessage(null);
         } catch (error) {
             console.error(error);
@@ -352,16 +480,19 @@ export default function StudentSimulatorShow() {
     };
 
     const goBackStep = async () => {
-        const stepOrder = ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'];
-        const currentIndex = stepOrder.indexOf(attempt.current_step);
+        const prevStep = getPrevStep(currentStepKey);
 
-        if (currentIndex <= 0) return;
+        if (!prevStep) {
+            return;
+        }
 
-        await saveStep(stepOrder[currentIndex - 1]);
+        await saveStep(prevStep);
     };
 
     const goToVisitedStep = async (stepKey: string, index: number) => {
-        const currentIndex = simulatorSteps.findIndex((step) => step.key === attempt.current_step);
+        const currentIndex = enabledStepDefs.findIndex(
+            (step) => step.key === currentStepKey
+        );
 
         if (index <= currentIndex) {
             await saveStep(stepKey);
@@ -379,11 +510,11 @@ export default function StudentSimulatorShow() {
     };
 
     const goNextStep = async () => {
-        const stepOrder = ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'];
-        const currentIndex = stepOrder.indexOf(attempt.current_step);
-        const nextStep = stepOrder[currentIndex + 1];
+        const nextStep = getNextStep(currentStepKey);
 
-        if (!nextStep) return;
+        if (!nextStep) {
+            return;
+        }
 
         await saveStep(nextStep);
     };
@@ -420,6 +551,9 @@ export default function StudentSimulatorShow() {
         }
     };
 
+    const introNextStep = getNextStep('intro') ?? 'intro';
+    const transportNextStep = getNextStep('transport') ?? 'transport';
+
     return (
         <>
             <Head title={template.title || 'Studenta simulators'} />
@@ -434,19 +568,20 @@ export default function StudentSimulatorShow() {
                         onStepClick={goToVisitedStep}
                         onPrev={goBackStep}
                         onNext={goNextStep}
+                        availableSteps={availableSteps}
                     />
 
                     <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
                         <div className="space-y-6">
-                            {attempt.current_step === 'intro' && (
+                            {currentStepKey === 'intro' && (
                                 <IntroStep
                                     template={template}
                                     loading={loading}
-                                    onStart={() => saveStep('transport')}
+                                    onStart={() => saveStep(introNextStep)}
                                 />
                             )}
 
-                            {attempt.current_step === 'transport' && (
+                            {currentStepKey === 'transport' && (
                                 <TransportStep
                                     transports={transports}
                                     selectedTransportId={selectedTransportId}
@@ -455,11 +590,11 @@ export default function StudentSimulatorShow() {
                                     setVehicleCount={setVehicleCount}
                                     selectedTransport={selectedTransport}
                                     loading={loading}
-                                    onSave={() => saveStep('route')}
+                                    onSave={() => saveStep(transportNextStep)}
                                 />
                             )}
 
-                            {attempt.current_step === 'route' && (
+                            {currentStepKey === 'route' && (
                                 <RouteBuilderStep
                                     availableSegments={availableSegments}
                                     selectedSegments={selectedSegments}
@@ -469,7 +604,7 @@ export default function StudentSimulatorShow() {
                                 />
                             )}
 
-                            {attempt.current_step === 'fuel' && (
+                            {currentStepKey === 'fuel' && (
                                 <FuelPlanningStep
                                     availableStations={availableFuelStations}
                                     selectedStations={selectedFuelStations}
@@ -479,7 +614,7 @@ export default function StudentSimulatorShow() {
                                 />
                             )}
 
-                            {attempt.current_step === 'port' && (
+                            {currentStepKey === 'port' && (
                                 <PortSelectionStep
                                     ports={availablePorts}
                                     selectedPortId={selectedPortId}
@@ -488,7 +623,7 @@ export default function StudentSimulatorShow() {
                                 />
                             )}
 
-                            {attempt.current_step === 'ship' && (
+                            {currentStepKey === 'ship' && (
                                 <ShipSelectionStep
                                     ships={availableShips}
                                     selectedShipId={selectedShipId}
@@ -497,19 +632,110 @@ export default function StudentSimulatorShow() {
                                 />
                             )}
 
-                            {attempt.current_step === 'simulation' && (
-                                <PreviewStep
-                                    attempt={attempt}
-                                    loading={loading}
-                                    canPreview={canPreview}
-                                    onPreview={() => saveStep('simulation')}
-                                />
+                            {currentStepKey === 'simulation' && (
+                                <div className="space-y-6">
+                                    <PreviewStep
+                                        attempt={attempt}
+                                        loading={loading}
+                                        canPreview={canPreview}
+                                        onPreview={() => saveStep('simulation')}
+                                    />
+
+                                    {timelineSummary ? (
+                                        <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                                                Timeline
+                                            </div>
+
+                                            <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
+                                                Laika aprēķina kopsavilkums
+                                            </h2>
+
+                                            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                                <TimelineStatCard
+                                                    label="Sākums"
+                                                    value={timelineSummary.started_at}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Beigas"
+                                                    value={timelineSummary.finished_at}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Kopējais laiks"
+                                                    value={`${timelineSummary.total_minutes ?? '—'} min`}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Kopējais laiks stundās"
+                                                    value={`${timelineSummary.total_hours ?? '—'} h`}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Deadline"
+                                                    value={
+                                                        timelineSummary.deadline_at ??
+                                                        'Nav norādīts'
+                                                    }
+                                                />
+                                                <TimelineStatCard
+                                                    label="Kavējums"
+                                                    value={`${
+                                                        timelineSummary.delay_minutes ?? 0
+                                                    } min`}
+                                                />
+                                            </div>
+
+                                            <div className="mt-6 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
+                                                {timelineSummary.is_within_deadline
+                                                    ? 'Maršruts un operāciju ķēde iekļaujas deadline ietvaros.'
+                                                    : 'Risinājums neiekļaujas deadline ietvaros.'}
+                                            </div>
+
+                                            {timelineEvents.length ? (
+                                                <div className="mt-6 space-y-3">
+                                                    <h3 className="text-[16px] font-semibold text-[#182219]">
+                                                        Timeline notikumi
+                                                    </h3>
+
+                                                    {timelineEvents.map((event, index) => (
+                                                        <div
+                                                            key={`${event.type}-${index}`}
+                                                            className="rounded-2xl border border-[#d9ded9] bg-white px-4 py-4"
+                                                        >
+                                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                                <div>
+                                                                    <div className="text-[15px] font-semibold text-[#182219]">
+                                                                        {index + 1}. {event.label}
+                                                                    </div>
+                                                                    <div className="mt-1 text-[13px] uppercase tracking-wide text-[#7a877f]">
+                                                                        {event.type}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid gap-2 text-[14px] text-[#4d5d53] md:text-right">
+                                                                    <div>
+                                                                        Sākums: {event.start_at}
+                                                                    </div>
+                                                                    <div>
+                                                                        Beigas: {event.end_at}
+                                                                    </div>
+                                                                    <div>
+                                                                        Ilgums:{' '}
+                                                                        {event.duration_minutes} min
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </section>
+                                    ) : null}
+                                </div>
                             )}
 
-                            {attempt.current_step === 'submit' && (
+                            {currentStepKey === 'submit' && (
                                 <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
                                     <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
-                                        Solis 8
+                                        Pēdējais solis
                                     </div>
 
                                     <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
@@ -517,19 +743,25 @@ export default function StudentSimulatorShow() {
                                     </h2>
 
                                     <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                                        Šis risinājums ir sagatavots iesniegšanai. Pārbaudi kopsavilkumu labajā pusē un
-                                        iesniedz gala variantu pārbaudei.
+                                        Šis risinājums ir sagatavots iesniegšanai. Pārbaudi
+                                        kopsavilkumu labajā pusē un iesniedz gala variantu
+                                        pārbaudei.
                                     </p>
 
                                     <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
-                                        Kad iesniegsi risinājumu, tas parādīsies sadaļā “Mani mēģinājumi” ar gala statusu.
+                                        Kad iesniegsi risinājumu, tas parādīsies sadaļā “Mani
+                                        mēģinājumi” ar gala statusu.
                                     </div>
 
                                     <div className="mt-6">
                                         <button
                                             type="button"
                                             onClick={submitAttempt}
-                                            disabled={loading || attempt.status === 'submitted' || !canSubmit}
+                                            disabled={
+                                                loading ||
+                                                attempt.status === 'submitted' ||
+                                                !canSubmit
+                                            }
                                             className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {attempt.status === 'submitted'
@@ -556,5 +788,24 @@ export default function StudentSimulatorShow() {
                 </div>
             </StudentLayout>
         </>
+    );
+}
+
+function TimelineStatCard({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | number | null | undefined;
+}) {
+    return (
+        <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] p-4">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#7a877f]">
+                {label}
+            </div>
+            <div className="mt-2 text-[15px] font-semibold text-[#182219]">
+                {value !== null && value !== undefined && value !== '' ? value : '—'}
+            </div>
+        </div>
     );
 }

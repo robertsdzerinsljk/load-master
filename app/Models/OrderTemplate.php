@@ -12,6 +12,7 @@ class OrderTemplate extends Model
     protected $fillable = [
         'title',
         'scenario_type',
+        'scenario_focus',
         'status',
         'description',
         'student_brief',
@@ -29,10 +30,14 @@ class OrderTemplate extends Model
         'start_port_id',
         'end_port_id',
         'deadline_date',
+        'scenario_start_at',
+        'deadline_at',
         'budget_limit',
         'requires_refuel_planning',
         'max_trips',
         'priority',
+        'step_config',
+        'scenario_config',
     ];
 
     protected $casts = [
@@ -44,12 +49,16 @@ class OrderTemplate extends Model
         'requires_refuel_planning' => 'boolean',
         'max_trips' => 'integer',
         'deadline_date' => 'date',
+        'scenario_start_at' => 'datetime',
+        'deadline_at' => 'datetime',
+        'step_config' => 'array',
+        'scenario_config' => 'array',
     ];
 
-    public function temperatureMode()
-{
-    return $this->belongsTo(TemperatureMode::class, 'temperature_mode_id');
-}
+    public function temperatureMode(): BelongsTo
+    {
+        return $this->belongsTo(TemperatureMode::class, 'temperature_mode_id');
+    }
 
     public function specialCondition(): BelongsTo
     {
@@ -84,15 +93,15 @@ class OrderTemplate extends Model
         );
     }
 
-    public function ships()
-{
-    return $this->belongsToMany(Ship::class, 'order_template_ships');
-}
+    public function ships(): BelongsToMany
+    {
+        return $this->belongsToMany(Ship::class, 'order_template_ships');
+    }
 
-    public function ports()
-{
-    return $this->belongsToMany(Port::class, 'order_template_ports');
-}
+    public function ports(): BelongsToMany
+    {
+        return $this->belongsToMany(Port::class, 'order_template_ports');
+    }
 
     public function landRoutes(): BelongsToMany
     {
@@ -101,19 +110,21 @@ class OrderTemplate extends Model
             'order_template_land_routes'
         );
     }
-    public function assignedStudents(): BelongsToMany
-{
-    return $this->belongsToMany(User::class, 'order_template_user')
-        ->withPivot('assigned_at')
-        ->withTimestamps();
-}
 
-public function simulationAttempts(): HasMany
-{
-    return $this->hasMany(SimulationAttempt::class);
-}
-public function fuelStations()
-{
-    return $this->belongsToMany(FuelStation::class, 'order_template_fuel_station');
-}
+    public function assignedStudents(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'order_template_user')
+            ->withPivot('assigned_at')
+            ->withTimestamps();
+    }
+
+    public function simulationAttempts(): HasMany
+    {
+        return $this->hasMany(SimulationAttempt::class);
+    }
+
+    public function fuelStations(): BelongsToMany
+    {
+        return $this->belongsToMany(FuelStation::class, 'order_template_fuel_station');
+    }
 }

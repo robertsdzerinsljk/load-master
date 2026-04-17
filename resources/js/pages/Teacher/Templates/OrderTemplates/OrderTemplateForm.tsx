@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import OrderTemplateFormSection from './OrderTemplateFormSection';
 
 type SimpleOption = {
@@ -67,6 +67,7 @@ type Options = {
     ships: ShipOption[];
     landRoutes: LandRouteOption[];
     scenarioTypes: ScenarioOption[];
+    scenarioFocuses?: ScenarioOption[];
     statusOptions: ScenarioOption[];
     priorityOptions: ScenarioOption[];
 };
@@ -74,6 +75,7 @@ type Options = {
 type InitialData = {
     title?: string;
     scenario_type?: string;
+    scenario_focus?: string | null;
     status?: string;
     description?: string | null;
     student_brief?: string | null;
@@ -88,7 +90,11 @@ type InitialData = {
     special_condition_id?: number | string | null;
     start_location_id?: number | string | null;
     end_location_id?: number | string | null;
+    start_port_id?: number | string | null;
+    end_port_id?: number | string | null;
     deadline_date?: string | null;
+    scenario_start_at?: string | null;
+    deadline_at?: string | null;
     budget_limit?: string | number | null;
     requires_refuel_planning?: boolean;
     max_trips?: string | number | null;
@@ -164,6 +170,102 @@ type Props = {
     onCancel?: () => void;
 };
 
+type ScenarioCapabilities = {
+    transport: boolean;
+    route: boolean;
+    fuel: boolean;
+    port: boolean;
+    ship: boolean;
+    startLocation: boolean;
+    endLocation: boolean;
+    startPort: boolean;
+    endPort: boolean;
+};
+
+function getScenarioCapabilities(type: string): ScenarioCapabilities {
+    switch (type) {
+        case 'land_transport':
+            return {
+                transport: true,
+                route: true,
+                fuel: true,
+                port: false,
+                ship: false,
+                startLocation: true,
+                endLocation: true,
+                startPort: false,
+                endPort: false,
+            };
+
+        case 'land_to_port':
+            return {
+                transport: true,
+                route: true,
+                fuel: true,
+                port: true,
+                ship: false,
+                startLocation: true,
+                endLocation: false,
+                startPort: false,
+                endPort: true,
+            };
+
+        case 'port_to_ship':
+            return {
+                transport: false,
+                route: false,
+                fuel: false,
+                port: true,
+                ship: true,
+                startLocation: false,
+                endLocation: false,
+                startPort: true,
+                endPort: false,
+            };
+
+        case 'full_chain':
+            return {
+                transport: true,
+                route: true,
+                fuel: true,
+                port: true,
+                ship: true,
+                startLocation: true,
+                endLocation: true,
+                startPort: true,
+                endPort: true,
+            };
+
+        default:
+            return {
+                transport: false,
+                route: false,
+                fuel: false,
+                port: false,
+                ship: false,
+                startLocation: false,
+                endLocation: false,
+                startPort: false,
+                endPort: false,
+            };
+    }
+}
+
+function getDefaultScenarioFocus(type: string): string {
+    switch (type) {
+        case 'land_transport':
+            return 'fuel';
+        case 'land_to_port':
+            return 'deadline';
+        case 'port_to_ship':
+            return 'compatibility';
+        case 'full_chain':
+            return 'general';
+        default:
+            return 'general';
+    }
+}
+
 export default function OrderTemplateForm({
     options,
     initialData = {},
@@ -173,7 +275,12 @@ export default function OrderTemplateForm({
     onCancel,
 }: Props) {
     const [title, setTitle] = useState(initialData.title ?? '');
-    const [scenarioType, setScenarioType] = useState(initialData.scenario_type ?? 'general');
+    const [scenarioType, setScenarioType] = useState(
+        initialData.scenario_type ?? 'land_transport'
+    );
+    const [scenarioFocus, setScenarioFocus] = useState(
+        initialData.scenario_focus ?? getDefaultScenarioFocus(initialData.scenario_type ?? 'land_transport')
+    );
     const [status, setStatus] = useState(initialData.status ?? 'draft');
     const [description, setDescription] = useState(initialData.description ?? '');
     const [studentBrief, setStudentBrief] = useState(initialData.student_brief ?? '');
@@ -205,9 +312,25 @@ export default function OrderTemplateForm({
     const [endLocationId, setEndLocationId] = useState(
         String(initialData.end_location_id ?? '')
     );
+    const [startPortId, setStartPortId] = useState(
+        String(initialData.start_port_id ?? '')
+    );
+    const [endPortId, setEndPortId] = useState(
+        String(initialData.end_port_id ?? '')
+    );
 
-    const [deadlineDate, setDeadlineDate] = useState(initialData.deadline_date ?? '');
-    const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?? ''));
+const [deadlineDate, setDeadlineDate] = useState(initialData.deadline_date ?? '');
+const [scenarioStartAt, setScenarioStartAt] = useState(
+    initialData.scenario_start_at
+        ? String(initialData.scenario_start_at).slice(0, 16)
+        : ''
+);
+const [deadlineAt, setDeadlineAt] = useState(
+    initialData.deadline_at
+        ? String(initialData.deadline_at).slice(0, 16)
+        : ''
+);
+const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?? ''));
     const [requiresRefuelPlanning, setRequiresRefuelPlanning] = useState(
         Boolean(initialData.requires_refuel_planning ?? false)
     );
@@ -236,6 +359,56 @@ export default function OrderTemplateForm({
 
     const labelClass = 'text-[14px] font-medium text-[#182219]';
 
+    const caps = useMemo(() => getScenarioCapabilities(scenarioType), [scenarioType]);
+
+    useEffect(() => {
+        setScenarioFocus((current) => {
+            if (current && current !== '') {
+                return current;
+            }
+
+            return getDefaultScenarioFocus(scenarioType);
+        });
+    }, [scenarioType]);
+
+    useEffect(() => {
+        if (!caps.transport) {
+            setTransportTemplateIds([]);
+        }
+
+        if (!caps.route) {
+            setLandRouteIds([]);
+        }
+
+        if (!caps.fuel) {
+            setRequiresRefuelPlanning(false);
+        }
+
+        if (!caps.port) {
+            setPortIds([]);
+        }
+
+        if (!caps.ship) {
+            setShipIds([]);
+        }
+
+        if (!caps.startLocation) {
+            setStartLocationId('');
+        }
+
+        if (!caps.endLocation) {
+            setEndLocationId('');
+        }
+
+        if (!caps.startPort) {
+            setStartPortId('');
+        }
+
+        if (!caps.endPort) {
+            setEndPortId('');
+        }
+    }, [caps]);
+
     const toggleMultiSelect = (
         current: number[],
         setFn: (value: number[]) => void,
@@ -252,6 +425,7 @@ export default function OrderTemplateForm({
     const buildPayload = () => ({
         title,
         scenario_type: scenarioType,
+        scenario_focus: scenarioFocus || getDefaultScenarioFocus(scenarioType),
         status,
         description: description || null,
         student_brief: studentBrief || null,
@@ -266,17 +440,28 @@ export default function OrderTemplateForm({
         temperature_mode_id: temperatureModeId === '' ? null : Number(temperatureModeId),
         special_condition_id:
             specialConditionId === '' ? null : Number(specialConditionId),
-        start_location_id: startLocationId === '' ? null : Number(startLocationId),
-        end_location_id: endLocationId === '' ? null : Number(endLocationId),
+
+        start_location_id:
+            caps.startLocation && startLocationId !== '' ? Number(startLocationId) : null,
+        end_location_id:
+            caps.endLocation && endLocationId !== '' ? Number(endLocationId) : null,
+        start_port_id:
+            caps.startPort && startPortId !== '' ? Number(startPortId) : null,
+        end_port_id:
+            caps.endPort && endPortId !== '' ? Number(endPortId) : null,
+
         deadline_date: deadlineDate || null,
+        scenario_start_at: scenarioStartAt || null,
+        deadline_at: deadlineAt || null,
         budget_limit: budgetLimit === '' ? null : Number(budgetLimit),
-        requires_refuel_planning: requiresRefuelPlanning,
+        requires_refuel_planning: caps.fuel ? requiresRefuelPlanning : false,
         max_trips: maxTrips === '' ? null : Number(maxTrips),
         priority: priority || null,
-        transport_template_ids: transportTemplateIds,
-        ship_ids: shipIds,
-        port_ids: portIds,
-        land_route_ids: landRouteIds,
+
+        transport_template_ids: caps.transport ? transportTemplateIds : [],
+        ship_ids: caps.ship ? shipIds : [],
+        port_ids: caps.port ? portIds : [],
+        land_route_ids: caps.route ? landRouteIds : [],
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -327,7 +512,7 @@ export default function OrderTemplateForm({
         <form onSubmit={handleSubmit} className="space-y-6">
             <OrderTemplateFormSection
                 title="Pamata informācija"
-                description="Definējiet uzdevuma fokusu, sarežģītību un galveno ideju. Scenārijs var ietvert gan sauszemes, gan ostu, gan kuģu loģiku."
+                description="Izvēlieties uzdevuma tipu un fokusu. No tipa būs atkarīgs, kuri lauki un resursi šim uzdevumam ir aktuāli."
             >
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
@@ -343,7 +528,7 @@ export default function OrderTemplateForm({
                     </div>
 
                     <div>
-                        <label className={labelClass}>Scenārija fokuss *</label>
+                        <label className={labelClass}>Scenārija tips *</label>
                         <select
                             value={scenarioType}
                             onChange={(e) => setScenarioType(e.target.value)}
@@ -351,6 +536,22 @@ export default function OrderTemplateForm({
                             required
                         >
                             {options.scenarioTypes.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Scenārija fokuss</label>
+                        <select
+                            value={scenarioFocus}
+                            onChange={(e) => setScenarioFocus(e.target.value)}
+                            className={inputClass}
+                        >
+                            <option value="">Izvēlieties</option>
+                            {(options.scenarioFocuses ?? []).map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
                                 </option>
@@ -547,46 +748,90 @@ export default function OrderTemplateForm({
                 </div>
             </OrderTemplateFormSection>
 
-            <OrderTemplateFormSection
-                title="Sākuma un gala punkti"
-                description="Norādiet uzdevuma sākuma un beigu lokācijas. Ostas students var izvēlēties pats, ja uzdevums to pieļauj."
-            >
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div>
-                        <label className={labelClass}>Sākuma lokācija</label>
-                        <select
-                            value={startLocationId}
-                            onChange={(e) => setStartLocationId(e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Izvēlieties</option>
-                            {options.locations.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.name}
-                                    {option.city ? ` (${option.city})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+            {(caps.startLocation || caps.endLocation || caps.startPort || caps.endPort) && (
+                <OrderTemplateFormSection
+                    title="Sākuma un gala punkti"
+                    description="Šeit tiek rādīti tikai tie sākuma un gala punkti, kas ir aktuāli izvēlētajam scenārija tipam."
+                >
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        {caps.startLocation && (
+                            <div>
+                                <label className={labelClass}>Sākuma lokācija</label>
+                                <select
+                                    value={startLocationId}
+                                    onChange={(e) => setStartLocationId(e.target.value)}
+                                    className={inputClass}
+                                >
+                                    <option value="">Izvēlieties</option>
+                                    {options.locations.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                            {option.city ? ` (${option.city})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
-                    <div>
-                        <label className={labelClass}>Gala lokācija</label>
-                        <select
-                            value={endLocationId}
-                            onChange={(e) => setEndLocationId(e.target.value)}
-                            className={inputClass}
-                        >
-                            <option value="">Izvēlieties</option>
-                            {options.locations.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.name}
-                                    {option.city ? ` (${option.city})` : ''}
-                                </option>
-                            ))}
-                        </select>
+                        {caps.endLocation && (
+                            <div>
+                                <label className={labelClass}>Gala lokācija</label>
+                                <select
+                                    value={endLocationId}
+                                    onChange={(e) => setEndLocationId(e.target.value)}
+                                    className={inputClass}
+                                >
+                                    <option value="">Izvēlieties</option>
+                                    {options.locations.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                            {option.city ? ` (${option.city})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {caps.startPort && (
+                            <div>
+                                <label className={labelClass}>Sākuma osta</label>
+                                <select
+                                    value={startPortId}
+                                    onChange={(e) => setStartPortId(e.target.value)}
+                                    className={inputClass}
+                                >
+                                    <option value="">Izvēlieties</option>
+                                    {options.ports.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                            {option.country ? ` (${option.country})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {caps.endPort && (
+                            <div>
+                                <label className={labelClass}>Gala osta</label>
+                                <select
+                                    value={endPortId}
+                                    onChange={(e) => setEndPortId(e.target.value)}
+                                    className={inputClass}
+                                >
+                                    <option value="">Izvēlieties</option>
+                                    {options.ports.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                            {option.country ? ` (${option.country})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
-                </div>
-            </OrderTemplateFormSection>
+                </OrderTemplateFormSection>
+            )}
 
             <OrderTemplateFormSection
                 title="Ierobežojumi"
@@ -602,7 +847,25 @@ export default function OrderTemplateForm({
                             className={inputClass}
                         />
                     </div>
+                    <div>
+                <label className={labelClass}>Scenārija sākuma datums/laiks</label>
+                <input
+                    type="datetime-local"
+                    value={scenarioStartAt}
+                    onChange={(e) => setScenarioStartAt(e.target.value)}
+                    className={inputClass}
+                />
+            </div>
 
+            <div>
+                <label className={labelClass}>Deadline datums/laiks</label>
+                <input
+                    type="datetime-local"
+                    value={deadlineAt}
+                    onChange={(e) => setDeadlineAt(e.target.value)}
+                    className={inputClass}
+                />
+            </div>
                     <div>
                         <label className={labelClass}>Budžeta limits (€)</label>
                         <input
@@ -628,147 +891,159 @@ export default function OrderTemplateForm({
                         />
                     </div>
 
-                    <div className="flex items-end">
-                        <label className="inline-flex items-center gap-3 text-[14px] font-medium text-[#182219]">
-                            <input
-                                type="checkbox"
-                                checked={requiresRefuelPlanning}
-                                onChange={(e) =>
-                                    setRequiresRefuelPlanning(e.target.checked)
-                                }
-                                className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-                            />
-                            Uzdevumā jāņem vērā uzpildes plānošana
-                        </label>
-                    </div>
+                    {caps.fuel && (
+                        <div className="flex items-end">
+                            <label className="inline-flex items-center gap-3 text-[14px] font-medium text-[#182219]">
+                                <input
+                                    type="checkbox"
+                                    checked={requiresRefuelPlanning}
+                                    onChange={(e) =>
+                                        setRequiresRefuelPlanning(e.target.checked)
+                                    }
+                                    className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                />
+                                Uzdevumā jāņem vērā uzpildes plānošana
+                            </label>
+                        </div>
+                    )}
                 </div>
             </OrderTemplateFormSection>
 
-            <OrderTemplateFormSection
-                title="Resursu ierobežojumi (neobligāti)"
-                description="Šeit var ierobežot, kurus resursus students drīkst izmantot. Ja nekas nav izvēlēts, students var izmantot visus pieejamos resursus."
-            >
-                <div className="space-y-6">
-                    <div>
-                        <label className={labelClass}>Sauszemes transports</label>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                            {options.transportTemplates.map((item) => (
-                                <label
-                                    key={item.id}
-                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={transportTemplateIds.includes(item.id)}
-                                        onChange={() =>
-                                            toggleMultiSelect(
-                                                transportTemplateIds,
-                                                setTransportTemplateIds,
-                                                item.id
-                                            )
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-                                    />
-                                    <span className="text-[14px] text-[#182219]">
-                                        <span className="block font-semibold">{item.name}</span>
-                                        <span className="text-[#5b6b61]">
-                                            {item.type || 'Tips nav norādīts'}
-                                        </span>
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
+            {(caps.transport || caps.route || caps.port || caps.ship) && (
+                <OrderTemplateFormSection
+                    title="Resursu ierobežojumi (neobligāti)"
+                    description="Tiek rādīti tikai tie resursi, kas ir aktuāli izvēlētajam scenārija tipam."
+                >
+                    <div className="space-y-6">
+                        {caps.transport && (
+                            <div>
+                                <label className={labelClass}>Sauszemes transports</label>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    {options.transportTemplates.map((item) => (
+                                        <label
+                                            key={item.id}
+                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={transportTemplateIds.includes(item.id)}
+                                                onChange={() =>
+                                                    toggleMultiSelect(
+                                                        transportTemplateIds,
+                                                        setTransportTemplateIds,
+                                                        item.id
+                                                    )
+                                                }
+                                                className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                            />
+                                            <span className="text-[14px] text-[#182219]">
+                                                <span className="block font-semibold">{item.name}</span>
+                                                <span className="text-[#5b6b61]">
+                                                    {item.type || 'Tips nav norādīts'}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                    <div>
-                        <label className={labelClass}>Kuģi</label>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                            {options.ships.map((item) => (
-                                <label
-                                    key={item.id}
-                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={shipIds.includes(item.id)}
-                                        onChange={() =>
-                                            toggleMultiSelect(shipIds, setShipIds, item.id)
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-                                    />
-                                    <span className="text-[14px] text-[#182219]">
-                                        <span className="block font-semibold">{item.name}</span>
-                                        <span className="text-[#5b6b61]">
-                                            {item.cargo_type || 'Kravas tips nav norādīts'}
-                                        </span>
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
+                        {caps.ship && (
+                            <div>
+                                <label className={labelClass}>Kuģi</label>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    {options.ships.map((item) => (
+                                        <label
+                                            key={item.id}
+                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={shipIds.includes(item.id)}
+                                                onChange={() =>
+                                                    toggleMultiSelect(shipIds, setShipIds, item.id)
+                                                }
+                                                className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                            />
+                                            <span className="text-[14px] text-[#182219]">
+                                                <span className="block font-semibold">{item.name}</span>
+                                                <span className="text-[#5b6b61]">
+                                                    {item.cargo_type || 'Kravas tips nav norādīts'}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                    <div>
-                        <label className={labelClass}>Ostas</label>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                            {options.ports.map((item) => (
-                                <label
-                                    key={item.id}
-                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={portIds.includes(item.id)}
-                                        onChange={() =>
-                                            toggleMultiSelect(portIds, setPortIds, item.id)
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-                                    />
-                                    <span className="text-[14px] text-[#182219]">
-                                        <span className="block font-semibold">{item.name}</span>
-                                        <span className="text-[#5b6b61]">
-                                            {item.country || 'Valsts nav norādīta'}
-                                        </span>
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
+                        {caps.port && (
+                            <div>
+                                <label className={labelClass}>Ostas</label>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    {options.ports.map((item) => (
+                                        <label
+                                            key={item.id}
+                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={portIds.includes(item.id)}
+                                                onChange={() =>
+                                                    toggleMultiSelect(portIds, setPortIds, item.id)
+                                                }
+                                                className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                            />
+                                            <span className="text-[14px] text-[#182219]">
+                                                <span className="block font-semibold">{item.name}</span>
+                                                <span className="text-[#5b6b61]">
+                                                    {item.country || 'Valsts nav norādīta'}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                    <div>
-                        <label className={labelClass}>Sauszemes maršruti</label>
-                        <div className="mt-3 grid gap-3">
-                            {options.landRoutes.map((item) => (
-                                <label
-                                    key={item.id}
-                                    className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={landRouteIds.includes(item.id)}
-                                        onChange={() =>
-                                            toggleMultiSelect(
-                                                landRouteIds,
-                                                setLandRouteIds,
-                                                item.id
-                                            )
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-                                    />
-                                    <span className="text-[14px] text-[#182219]">
-                                        <span className="block font-semibold">
-                                            {(item.fromLocation ?? item.from_location)?.name ?? '—'} →{' '}
-                                            {(item.toLocation ?? item.to_location)?.name ?? '—'}
-                                        </span>
-                                        <span className="text-[#5b6b61]">
-                                            {item.distance_km ?? '—'} km
-                                        </span>
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
+                        {caps.route && (
+                            <div>
+                                <label className={labelClass}>Sauszemes maršruti</label>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    {options.landRoutes.map((item) => (
+                                        <label
+                                            key={item.id}
+                                            className="flex items-start gap-3 rounded-xl border border-[#d9ded9] bg-white px-4 py-3"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={landRouteIds.includes(item.id)}
+                                                onChange={() =>
+                                                    toggleMultiSelect(
+                                                        landRouteIds,
+                                                        setLandRouteIds,
+                                                        item.id
+                                                    )
+                                                }
+                                                className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
+                                            />
+                                            <span className="text-[14px] text-[#182219]">
+                                                <span className="block font-semibold">
+                                                    {(item.fromLocation ?? item.from_location)?.name ?? '—'} →{' '}
+                                                    {(item.toLocation ?? item.to_location)?.name ?? '—'}
+                                                </span>
+                                                <span className="text-[#5b6b61]">
+                                                    {item.distance_km ?? '—'} km
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </div>
-            </OrderTemplateFormSection>
+                </OrderTemplateFormSection>
+            )}
 
             {(previewError || previewData) && (
                 <OrderTemplateFormSection

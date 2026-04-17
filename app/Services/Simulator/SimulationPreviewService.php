@@ -6,6 +6,11 @@ use App\Models\SimulationAttempt;
 
 class SimulationPreviewService
 {
+    public function __construct(
+        private readonly SimulationTimelineService $timelineService
+    ) {
+    }
+
     public function build(SimulationAttempt $attempt): array
     {
         $attempt->loadMissing([
@@ -29,7 +34,6 @@ class SimulationPreviewService
         $containerCount = (int) ($template->cargo_amount_containers ?? 0);
         $vehicleCount = max(1, (int) ($attempt->selected_vehicle_count ?? 1));
 
-        // TransportTemplate fallback uz tavas DB kolonnām
         $vehicleCapacity = (int) (
             $transport->capacity_containers
             ?? $transport->container_capacity
@@ -43,9 +47,7 @@ class SimulationPreviewService
         );
 
         $fuelPer100Km = (float) ($transport->fuel_consumption_per_100km ?? 28);
-
         $costPerKm = (float) ($transport->cost_per_km ?? 1.2);
-
         $maxRangeKm = (float) ($transport->max_range_km ?? 800);
 
         $totalDistanceKm = round(
@@ -100,7 +102,6 @@ class SimulationPreviewService
             $warnings[] = 'Pat ar izvēlēto degvielas pieturu skaitu maršruts ir pārāk garš starp uzpildēm.';
         }
 
-        // PORT + SHIP COMPATIBILITY
         $portDepth = (float) (
             $port->depth_value
             ?? $port->depth_m
@@ -146,10 +147,19 @@ class SimulationPreviewService
             $portShipCompatible = false;
         }
 
+        $timeline = $this->timelineService->build($attempt);
+        $delayMinutes = (int) ($timeline['summary']['delay_minutes'] ?? 0);
+        $isWithinDeadline = (bool) ($timeline['summary']['is_within_deadline'] ?? true);
+
+        if (!$isWithinDeadline) {
+            $warnings[] = "Piegāde nokavē termiņu par {$delayMinutes} minūtēm.";
+        }
+
         $isValid = $hasEnoughVehicles
             && $chainValid
             && (!$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
-            && $portShipCompatible;
+            && $portShipCompatible
+            && $isWithinDeadline;
 
         $score = 100;
 
@@ -171,6 +181,10 @@ class SimulationPreviewService
 
         if (!$portShipCompatible) {
             $score -= 25;
+        }
+
+        if (!$isWithinDeadline) {
+            $score -= min(30, (int) ceil($delayMinutes / 60) * 3);
         }
 
         $score = max(0, $score);
@@ -222,6 +236,7 @@ class SimulationPreviewService
             'cargo' => [
                 'containers' => $containerCount,
             ],
+            'timeline' => $timeline,
             'result' => [
                 'required_vehicles' => $requiredVehicles,
                 'selected_vehicles' => $vehicleCount,
@@ -232,6 +247,8 @@ class SimulationPreviewService
                 'is_valid' => $isValid,
                 'score' => $score,
                 'warnings' => $warnings,
+                'delay_minutes' => $delayMinutes,
+                'is_within_deadline' => $isWithinDeadline,
             ],
         ];
     }
