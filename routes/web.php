@@ -21,9 +21,16 @@ use App\Http\Controllers\Teacher\StudentController;
 use App\Http\Controllers\Student\SimulationAttemptController;
 use App\Http\Controllers\Student\AttemptController;
 
-Route::get('/', [RoleSwitchController::class, 'index'])->name('role.select');
-Route::post('/switch-role/teacher', [RoleSwitchController::class, 'setTeacher'])->name('role.teacher');
-Route::post('/switch-role/student', [RoleSwitchController::class, 'setStudent'])->name('role.student');
+Route::get('/', function () {
+    if (!auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    // adjust this to however you store the user role
+    return auth()->user()->role === 'teacher'
+        ? redirect()->route('teacher.dashboard')
+        : redirect()->route('student.dashboard');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/teacher', [TeacherDashboardController::class, 'index'])
