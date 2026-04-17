@@ -5,15 +5,27 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\OrderTemplate;
 use App\Models\SimulationAttempt;
+use App\Models\TransportTemplate;
+use App\Models\LandRoute;
 use App\Services\Simulator\SimulationPreviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SimulationAttemptController extends Controller
 {
+    private const STEP_ORDER = [
+        'intro',
+        'transport',
+        'route',
+        'fuel',
+        'port',
+        'ship',
+        'simulation',
+        'submit',
+    ];
+
     public function __construct(
         private readonly SimulationPreviewService $previewService
     ) {
@@ -45,6 +57,14 @@ class SimulationAttemptController extends Controller
             ]
         );
 
+        $availableSteps = $this->resolveAvailableSteps($template);
+        $firstStep = $availableSteps[0] ?? 'intro';
+
+        if (!in_array($attempt->current_step, $availableSteps, true)) {
+            $attempt->current_step = $firstStep;
+            $attempt->save();
+        }
+
         return redirect("/student/simulator/{$attempt->id}");
     }
 
@@ -53,28 +73,36 @@ class SimulationAttemptController extends Controller
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
             ->with([
-    'orderTemplate.transportTemplates',
-    'orderTemplate.landRoutes.fromLocation',
-    'orderTemplate.landRoutes.toLocation',
-    'orderTemplate.fuelStations.location',
-    'orderTemplate.ports.location',
-    'orderTemplate.ships',
-    'orderTemplate.startLocation',
-    'orderTemplate.endLocation',
-    'orderTemplate.temperatureMode',
-    'orderTemplate.specialCondition',
-    'selectedTransportTemplate',
-    'selectedPort.location',
-    'selectedShip',
-    'routeSegments.fromLocation',
-    'routeSegments.toLocation',
-    'fuelStations.location',
-])
+                'orderTemplate.transportTemplates',
+                'orderTemplate.landRoutes.fromLocation',
+                'orderTemplate.landRoutes.toLocation',
+                'orderTemplate.fuelStations.location',
+                'orderTemplate.ports.location',
+                'orderTemplate.ships',
+                'orderTemplate.startLocation',
+                'orderTemplate.endLocation',
+                'orderTemplate.temperatureMode',
+                'orderTemplate.specialCondition',
+                'selectedTransportTemplate',
+                'selectedPort.location',
+                'selectedShip',
+                'routeSegments.fromLocation',
+                'routeSegments.toLocation',
+                'fuelStations.location',
+            ])
             ->findOrFail($id);
+
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
+        if (!in_array($attempt->current_step, $availableSteps, true)) {
+            $attempt->current_step = $availableSteps[0] ?? 'intro';
+            $attempt->save();
+        }
 
         return Inertia::render('Student/Simulator/Show', [
             'template' => $attempt->orderTemplate,
             'attempt' => $attempt,
+            'availableSteps' => $availableSteps,
         ]);
     }
 
@@ -90,18 +118,26 @@ class SimulationAttemptController extends Controller
                 'fuelStations.location',
                 'selectedPort',
                 'selectedShip',
-                
             ])
             ->findOrFail($attemptId);
 
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
         $validated = $request->validate([
-            'current_step' => ['required', 'string', 'in:intro,transport,route,fuel,port,ship,simulation,submit'],
+            'current_step' => ['required', 'string', 'in:' . implode(',', self::STEP_ORDER)],
             'selected_transport_template_id' => ['nullable', 'integer', 'exists:transport_templates,id'],
             'selected_vehicle_count' => ['nullable', 'integer', 'min:1', 'max:10000'],
-
             'selected_port_id' => ['nullable', 'integer', 'exists:ports,id'],
             'selected_ship_id' => ['nullable', 'integer', 'exists:ships,id'],
         ]);
+
+        $requestedStep = $validated['current_step'];
+
+        if (!in_array($requestedStep, $availableSteps, true)) {
+            return response()->json([
+                'message' => 'Šis solis šim scenārijam nav pieejams.',
+            ], 422);
+        }
 
         if (array_key_exists('selected_transport_template_id', $validated)) {
             $attempt->selected_transport_template_id = $validated['selected_transport_template_id'];
@@ -111,46 +147,43 @@ class SimulationAttemptController extends Controller
             $attempt->selected_vehicle_count = $validated['selected_vehicle_count'];
         }
 
-        $requestedStep = $validated['current_step'];
+        if (array_key_exists('selected_port_id', $validated)) {
+            $attempt->selected_port_id = $validated['selected_port_id'];
+        }
 
-        if ($requestedStep === 'route' && !$attempt->selected_transport_template_id) {
+        if (array_key_exists('selected_ship_id', $validated)) {
+            $attempt->selected_ship_id = $validated['selected_ship_id'];
+        }
+
+        if ($requestedStep === 'route' && in_array('transport', $availableSteps, true) && !$attempt->selected_transport_template_id) {
             return response()->json([
                 'message' => 'Vispirms izvēlies transportu.',
             ], 422);
         }
 
-        if ($requestedStep === 'fuel' && $attempt->routeSegments->count() === 0) {
+        if ($requestedStep === 'fuel' && in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
             return response()->json([
                 'message' => 'Vispirms izveido maršrutu.',
             ], 422);
         }
 
         if ($requestedStep === 'simulation') {
-            if (
-                !$attempt->selected_transport_template_id ||
-                !$attempt->selected_vehicle_count ||
-                $attempt->routeSegments->count() === 0
-            ) {
-                return response()->json([
-                    'message' => 'Lai aprēķinātu preview, jāizvēlas transports, transportu skaits un jāizveido maršruts.',
-                ], 422);
-            }
-        if (array_key_exists('selected_port_id', $validated)) {
-                $attempt->selected_port_id = $validated['selected_port_id'];
-            }
+            $errors = $this->validateSimulationRequirements($attempt, $availableSteps);
 
-            if (array_key_exists('selected_ship_id', $validated)) {
-                $attempt->selected_ship_id = $validated['selected_ship_id'];
+            if (!empty($errors)) {
+                return response()->json([
+                    'message' => implode(' ', $errors),
+                ], 422);
             }
 
             $preview = $this->previewService->build($attempt);
 
             $attempt->preview_result = $preview;
-            $attempt->total_cost = $preview['result']['total_cost'];
-            $attempt->total_time_hours = $preview['result']['trip_time_hours'];
-            $attempt->total_fuel_liters = $preview['result']['fuel_needed_liters'];
-            $attempt->is_valid = $preview['result']['is_valid'];
-            $attempt->score = $preview['result']['score'];
+            $attempt->total_cost = $preview['result']['total_cost'] ?? null;
+            $attempt->total_time_hours = $preview['result']['trip_time_hours'] ?? null;
+            $attempt->total_fuel_liters = $preview['result']['fuel_needed_liters'] ?? null;
+            $attempt->is_valid = $preview['result']['is_valid'] ?? null;
+            $attempt->score = $preview['result']['score'] ?? null;
         }
 
         if ($requestedStep === 'submit' && empty($attempt->preview_result)) {
@@ -163,14 +196,18 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         $attempt->load([
-    'routeSegments.fromLocation',
-    'routeSegments.toLocation',
-    'fuelStations.location',
-]);
+            'selectedTransportTemplate',
+            'selectedPort.location',
+            'selectedShip',
+            'routeSegments.fromLocation',
+            'routeSegments.toLocation',
+            'fuelStations.location',
+        ]);
 
         return response()->json([
             'message' => 'Solis saglabāts.',
             'attempt' => $attempt,
+            'available_steps' => $availableSteps,
         ]);
     }
 
@@ -178,8 +215,16 @@ class SimulationAttemptController extends Controller
     {
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
-            ->with('routeSegments')
+            ->with(['routeSegments', 'orderTemplate'])
             ->findOrFail($attemptId);
+
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
+        if (!in_array('route', $availableSteps, true)) {
+            return response()->json([
+                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'land_route_id' => ['required', 'integer', 'exists:land_routes,id'],
@@ -206,8 +251,16 @@ class SimulationAttemptController extends Controller
     {
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
-            ->with('routeSegments')
+            ->with(['routeSegments', 'orderTemplate'])
             ->findOrFail($attemptId);
+
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
+        if (!in_array('route', $availableSteps, true)) {
+            return response()->json([
+                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
+            ], 422);
+        }
 
         $attempt->routeSegments()->detach($segmentId);
 
@@ -234,8 +287,16 @@ class SimulationAttemptController extends Controller
     {
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
-            ->with('fuelStations')
+            ->with(['fuelStations', 'orderTemplate'])
             ->findOrFail($attemptId);
+
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
+        if (!in_array('fuel', $availableSteps, true)) {
+            return response()->json([
+                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
+            ], 422);
+        }
 
         $validated = $request->validate([
             'fuel_station_id' => ['required', 'integer', 'exists:fuel_stations,id'],
@@ -259,8 +320,16 @@ class SimulationAttemptController extends Controller
     {
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
-            ->with('fuelStations')
+            ->with(['fuelStations', 'orderTemplate'])
             ->findOrFail($attemptId);
+
+        $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
+
+        if (!in_array('fuel', $availableSteps, true)) {
+            return response()->json([
+                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
+            ], 422);
+        }
 
         $attempt->fuelStations()->detach($stationId);
 
@@ -288,18 +357,68 @@ class SimulationAttemptController extends Controller
 
         if (empty($attempt->preview_result)) {
             return response()->json([
-                'message' => 'Pirms iesniegšanas nepieciešams aprēķināt preview.',
+                'message' => 'Pirms iesniegšanas nepieciešams preview aprēķins.',
             ], 422);
         }
 
         $attempt->status = 'submitted';
+        $attempt->submitted_at = now();
         $attempt->current_step = 'submit';
-        $attempt->submitted_at = Carbon::now();
         $attempt->save();
 
         return response()->json([
-            'message' => 'Risinājums iesniegts.',
+            'message' => 'Mēģinājums iesniegts.',
             'attempt' => $attempt,
         ]);
+    }
+
+    private function resolveAvailableSteps(OrderTemplate $template): array
+    {
+        $config = $template->step_config ?? [];
+
+        if (!is_array($config) || empty($config)) {
+            return self::STEP_ORDER;
+        }
+
+        $enabled = [];
+
+        foreach (self::STEP_ORDER as $step) {
+            if (($config[$step] ?? false) === true) {
+                $enabled[] = $step;
+            }
+        }
+
+        if (empty($enabled)) {
+            return self::STEP_ORDER;
+        }
+
+        return $enabled;
+    }
+
+    private function validateSimulationRequirements(SimulationAttempt $attempt, array $availableSteps): array
+    {
+        $errors = [];
+
+        if (in_array('transport', $availableSteps, true) && !$attempt->selected_transport_template_id) {
+            $errors[] = 'Jāizvēlas transports.';
+        }
+
+        if (in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
+            $errors[] = 'Jāizveido maršruts.';
+        }
+
+        if (in_array('port', $availableSteps, true) && !$attempt->selected_port_id) {
+            $errors[] = 'Jāizvēlas osta.';
+        }
+
+        if (in_array('ship', $availableSteps, true) && !$attempt->selected_ship_id) {
+            $errors[] = 'Jāizvēlas kuģis.';
+        }
+
+        if (in_array('transport', $availableSteps, true) && !$attempt->selected_vehicle_count) {
+            $errors[] = 'Jānorāda transportu skaits.';
+        }
+
+        return $errors;
     }
 }

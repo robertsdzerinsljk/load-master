@@ -3,7 +3,9 @@ export type NamedItem = {
     name: string;
     type?: string | null;
     container_capacity?: number | string | null;
+    capacity_containers?: number | string | null;
     average_speed_kmh?: number | string | null;
+    avg_speed_kmh?: number | string | null;
     fuel_consumption_per_100km?: number | string | null;
     cost_per_km?: number | string | null;
     max_range_km?: number | string | null;
@@ -11,7 +13,8 @@ export type NamedItem = {
 
 export type FuelStationItem = {
     id: number;
-    name: string;
+    name?: string | null;
+    display_name?: string | null;
     location_name?: string | null;
     fuel_type?: string | null;
     price_per_liter?: number | string | null;
@@ -23,10 +26,10 @@ export type FuelStationItem = {
 export type RouteItem = {
     id: number;
     distance_km?: string | number | null;
-    fromLocation?: { name: string } | null;
-    toLocation?: { name: string } | null;
-    from_location?: { name: string } | null;
-    to_location?: { name: string } | null;
+    fromLocation?: { id?: number; name: string } | null;
+    toLocation?: { id?: number; name: string } | null;
+    from_location?: { id?: number; name: string } | null;
+    to_location?: { id?: number; name: string } | null;
     pivot?: {
         position?: number;
     };
@@ -35,23 +38,53 @@ export type RouteItem = {
 export type PortItem = {
     id: number;
     name: string;
+    country?: string | null;
     location_name?: string | null;
     depth_m?: number | string | null;
+    depth_value?: number | string | null;
+    max_depth_m?: number | string | null;
+    draft_limit_m?: number | string | null;
 };
 
 export type ShipItem = {
     id: number;
     name: string;
     ship_type?: string | null;
+    cargo_type?: string | null;
     draft_m?: number | string | null;
+    draft_value?: number | string | null;
+    draught_m?: number | string | null;
+    required_depth_m?: number | string | null;
     capacity_containers?: number | string | null;
+    capacity_containers_value?: number | string | null;
+    container_capacity?: number | string | null;
     capacity_tons?: number | string | null;
+};
+
+export type TimelineEvent = {
+    type: string;
+    label: string;
+    start_at: string;
+    end_at: string;
+    duration_minutes: number;
+    meta?: Record<string, unknown>;
+};
+
+export type TimelineSummary = {
+    started_at?: string | null;
+    finished_at?: string | null;
+    total_minutes?: number | null;
+    total_hours?: number | null;
+    deadline_at?: string | null;
+    delay_minutes?: number | null;
+    is_within_deadline?: boolean;
 };
 
 export type Template = {
     id: number;
     title: string;
     scenario_type?: string | null;
+    scenario_focus?: string | null;
     status?: string | null;
     description?: string | null;
     student_brief?: string | null;
@@ -66,15 +99,31 @@ export type Template = {
 
     budget_limit?: string | number | null;
     deadline_date?: string | null;
+    scenario_start_at?: string | null;
+    deadline_at?: string | null;
     requires_refuel_planning?: boolean | number | null;
     max_trips?: string | number | null;
     priority?: string | null;
+
+    step_config?: Record<string, boolean> | null;
+    scenario_config?: Record<string, unknown> | null;
 
     startLocation?: {
         id: number;
         name: string;
     } | null;
+
     endLocation?: {
+        id: number;
+        name: string;
+    } | null;
+
+    startPort?: {
+        id: number;
+        name: string;
+    } | null;
+
+    endPort?: {
         id: number;
         name: string;
     } | null;
@@ -100,6 +149,10 @@ export type Template = {
 };
 
 export type PreviewResult = {
+    transport?: {
+        id?: number;
+        name?: string;
+    };
     route?: {
         segments_count?: number;
         distance_km?: number | string;
@@ -135,6 +188,13 @@ export type PreviewResult = {
         draft_m?: number | string | null;
         capacity_containers?: number | string | null;
     };
+    cargo?: {
+        containers?: number | string | null;
+    };
+    timeline?: {
+        events?: TimelineEvent[];
+        summary?: TimelineSummary;
+    };
     result?: {
         required_vehicles?: number;
         selected_vehicles?: number;
@@ -145,6 +205,8 @@ export type PreviewResult = {
         is_valid?: boolean;
         score?: number | string;
         warnings?: string[];
+        delay_minutes?: number;
+        is_within_deadline?: boolean;
     };
 };
 
@@ -156,6 +218,11 @@ export type Attempt = {
     selected_vehicle_count?: number | null;
     selected_port_id?: number | null;
     selected_ship_id?: number | null;
+    total_cost?: number | string | null;
+    total_time_hours?: number | string | null;
+    total_fuel_liters?: number | string | null;
+    is_valid?: boolean | null;
+    score?: number | string | null;
     preview_result?: PreviewResult | null;
     ordered_route_segments?: RouteItem[];
     ordered_fuel_stations?: FuelStationItem[];
