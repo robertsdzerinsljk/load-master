@@ -30,9 +30,22 @@ class SimulationTimelineService
 
         $config = is_array($template->scenario_config) ? $template->scenario_config : [];
         $timing = is_array($config['timing'] ?? null) ? $config['timing'] : [];
+        $availability = is_array($config['availability'] ?? null) ? $config['availability'] : [];
 
         $containerCount = (int) ($template->cargo_amount_containers ?? 0);
         $vehicleCount = max(1, (int) ($attempt->selected_vehicle_count ?? 1));
+
+            $vehicleCapacity = (int) (
+            $transport->capacity_containers
+            ?? $transport->container_capacity
+            ?? 0
+        );
+
+        $capacityPerTrip = max(1, $vehicleCapacity * $vehicleCount);
+
+        $requiredTrips = $capacityPerTrip > 0
+            ? (int) ceil($containerCount / $capacityPerTrip)
+            : 1;
 
         $avgSpeed = (float) (
             $transport->avg_speed_kmh
@@ -44,6 +57,11 @@ class SimulationTimelineService
         $defaultFuelStopMinutes = (int) ($timing['fuel_stop_minutes'] ?? 20);
         $defaultPortProcessingMinutes = (int) ($timing['port_processing_minutes'] ?? 60);
         $defaultShipLoadingMinutes = (int) ($timing['ship_loading_minutes'] ?? 90);
+
+        $portQueueMinutes = (int) ($availability['port_queue_minutes'] ?? 0);
+        $shipReadyAt = !empty($availability['ship_ready_at'])
+            ? Carbon::parse($availability['ship_ready_at'])
+            : null;
 
         $events = [];
 
@@ -70,8 +88,11 @@ class SimulationTimelineService
             $current = $current->copy()->addMinutes($loadingMinutes);
         }
 
+        for ($trip = 1; $trip <= $requiredTrips; $trip++) {
+
         foreach ($segments as $index => $segment) {
             $distanceKm = (float) ($segment->distance_km ?? 0);
+
             $driveMinutes = $avgSpeed > 0
                 ? (int) ceil(($distanceKm / $avgSpeed) * 60)
                 : 0;
@@ -81,13 +102,13 @@ class SimulationTimelineService
 
             $events[] = $this->makeEvent(
                 type: 'drive',
-                label: "Brauciens {$from} → {$to}",
+                label: "Reiss {$trip}: {$from} → {$to}",
                 start: $current,
                 durationMinutes: $driveMinutes,
                 meta: [
+                    'trip' => $trip,
                     'distance_km' => $distanceKm,
                     'avg_speed_kmh' => $avgSpeed,
-                    'segment_position' => $index + 1,
                 ]
             );
 
@@ -99,17 +120,51 @@ class SimulationTimelineService
 
                 $events[] = $this->makeEvent(
                     type: 'fuel_stop',
-                    label: "Uzpilde: {$stationName}",
+                    label: "Reiss {$trip}: Uzpilde {$stationName}",
                     start: $current,
                     durationMinutes: $defaultFuelStopMinutes,
                     meta: [
+                        'trip' => $trip,
                         'station_id' => $station->id,
-                        'station_name' => $stationName,
                     ]
                 );
 
                 $current = $current->copy()->addMinutes($defaultFuelStopMinutes);
             }
+        }
+
+        // 🔁 RETURN TRIP (optional realism)
+        if ($trip < $requiredTrips) {
+            $events[] = $this->makeEvent(
+                type: 'return',
+                label: "Atgriešanās uz sākuma punktu (Reiss {$trip})",
+                start: $current,
+                durationMinutes: (int) ceil($segments->sum('distance_km') / $avgSpeed * 60),
+                meta: [
+                    'trip' => $trip,
+                ]
+            );
+
+            $current = $current->copy()->addMinutes(
+                (int) ceil($segments->sum('distance_km') / $avgSpeed * 60)
+            );
+        }
+    }
+
+        if ($port && $portQueueMinutes > 0) {
+            $events[] = $this->makeEvent(
+                type: 'waiting',
+                label: "Gaidīšana ostas rindā: {$port->name}",
+                start: $current,
+                durationMinutes: $portQueueMinutes,
+                meta: [
+                    'reason' => 'port_queue',
+                    'port_id' => $port->id,
+                    'port_name' => $port->name,
+                ]
+            );
+
+            $current = $current->copy()->addMinutes($portQueueMinutes);
         }
 
         if ($port) {
@@ -125,6 +180,25 @@ class SimulationTimelineService
             );
 
             $current = $current->copy()->addMinutes($defaultPortProcessingMinutes);
+        }
+
+        if ($ship && $shipReadyAt && $current->lessThan($shipReadyAt)) {
+            $waitMinutes = $current->diffInMinutes($shipReadyAt);
+
+            $events[] = $this->makeEvent(
+                type: 'waiting',
+                label: "Gaidīšana līdz kuģis gatavs: {$ship->name}",
+                start: $current,
+                durationMinutes: $waitMinutes,
+                meta: [
+                    'reason' => 'ship_ready_window',
+                    'ship_id' => $ship->id,
+                    'ship_name' => $ship->name,
+                    'ready_at' => $shipReadyAt->toDateTimeString(),
+                ]
+            );
+
+            $current = $shipReadyAt->copy();
         }
 
         if ($ship) {

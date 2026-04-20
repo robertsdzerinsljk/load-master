@@ -13,6 +13,7 @@ class OrderTemplate extends Model
         'title',
         'scenario_type',
         'scenario_focus',
+        'evaluation_mode',
         'status',
         'description',
         'student_brief',

@@ -68,6 +68,7 @@ type Options = {
     landRoutes: LandRouteOption[];
     scenarioTypes: ScenarioOption[];
     scenarioFocuses?: ScenarioOption[];
+    evaluationModes: ScenarioOption[];
     statusOptions: ScenarioOption[];
     priorityOptions: ScenarioOption[];
 };
@@ -76,6 +77,7 @@ type InitialData = {
     title?: string;
     scenario_type?: string;
     scenario_focus?: string | null;
+    evaluation_mode?: string | null;
     status?: string;
     description?: string | null;
     student_brief?: string | null;
@@ -99,6 +101,18 @@ type InitialData = {
     requires_refuel_planning?: boolean;
     max_trips?: string | number | null;
     priority?: string | null;
+    scenario_config?: {
+        timing?: {
+            loading_fixed_minutes?: number | string | null;
+            fuel_stop_minutes?: number | string | null;
+            port_processing_minutes?: number | string | null;
+            ship_loading_minutes?: number | string | null;
+        } | null;
+        availability?: {
+            port_queue_minutes?: number | string | null;
+            ship_ready_at?: string | null;
+        } | null;
+    } | null;
     transportTemplates?: Array<{ id: number }>;
     transport_templates?: Array<{ id: number }>;
     ships?: Array<{ id: number }>;
@@ -158,7 +172,6 @@ type PreviewResponse = {
             price_per_liter?: number | null;
         } | null;
     };
-    message?: string;
 };
 
 type Props = {
@@ -281,6 +294,9 @@ export default function OrderTemplateForm({
     const [scenarioFocus, setScenarioFocus] = useState(
         initialData.scenario_focus ?? getDefaultScenarioFocus(initialData.scenario_type ?? 'land_transport')
     );
+    const [evaluationMode, setEvaluationMode] = useState(
+        initialData.evaluation_mode ?? 'practice'
+    );
     const [status, setStatus] = useState(initialData.status ?? 'draft');
     const [description, setDescription] = useState(initialData.description ?? '');
     const [studentBrief, setStudentBrief] = useState(initialData.student_brief ?? '');
@@ -336,6 +352,28 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
     );
     const [maxTrips, setMaxTrips] = useState(String(initialData.max_trips ?? ''));
     const [priority, setPriority] = useState(initialData.priority ?? '');
+
+    const [timingLoadingFixedMinutes, setTimingLoadingFixedMinutes] = useState(
+    String(initialData.scenario_config?.timing?.loading_fixed_minutes ?? 45)
+    );
+    const [timingFuelStopMinutes, setTimingFuelStopMinutes] = useState(
+        String(initialData.scenario_config?.timing?.fuel_stop_minutes ?? 20)
+    );
+    const [timingPortProcessingMinutes, setTimingPortProcessingMinutes] = useState(
+        String(initialData.scenario_config?.timing?.port_processing_minutes ?? 60)
+    );
+    const [timingShipLoadingMinutes, setTimingShipLoadingMinutes] = useState(
+        String(initialData.scenario_config?.timing?.ship_loading_minutes ?? 90)
+    );
+
+    const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
+    String(initialData.scenario_config?.availability?.port_queue_minutes ?? 0)
+    );
+    const [waitingShipReadyAt, setWaitingShipReadyAt] = useState(
+        initialData.scenario_config?.availability?.ship_ready_at
+            ? String(initialData.scenario_config.availability.ship_ready_at).slice(0, 16)
+            : ''
+    );
 
     const [transportTemplateIds, setTransportTemplateIds] = useState<number[]>(
         (initialData.transportTemplates ?? initialData.transport_templates ?? []).map((item) => item.id)
@@ -426,6 +464,7 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
         title,
         scenario_type: scenarioType,
         scenario_focus: scenarioFocus || getDefaultScenarioFocus(scenarioType),
+        evaluation_mode: evaluationMode,
         status,
         description: description || null,
         student_brief: studentBrief || null,
@@ -457,6 +496,19 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
         requires_refuel_planning: caps.fuel ? requiresRefuelPlanning : false,
         max_trips: maxTrips === '' ? null : Number(maxTrips),
         priority: priority || null,
+
+        timing_loading_fixed_minutes:
+            timingLoadingFixedMinutes === '' ? null : Number(timingLoadingFixedMinutes),
+        timing_fuel_stop_minutes:
+            timingFuelStopMinutes === '' ? null : Number(timingFuelStopMinutes),
+        timing_port_processing_minutes:
+            timingPortProcessingMinutes === '' ? null : Number(timingPortProcessingMinutes),
+        timing_ship_loading_minutes:
+            timingShipLoadingMinutes === '' ? null : Number(timingShipLoadingMinutes),        
+
+        waiting_port_queue_minutes:
+            waitingPortQueueMinutes === '' ? null : Number(waitingPortQueueMinutes),
+        waiting_ship_ready_at: waitingShipReadyAt || null,
 
         transport_template_ids: caps.transport ? transportTemplateIds : [],
         ship_ids: caps.ship ? shipIds : [],
@@ -558,7 +610,21 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
                             ))}
                         </select>
                     </div>
-
+                        <div>
+                            <label className={labelClass}>Režīms *</label>
+                            <select
+                                value={evaluationMode}
+                                onChange={(e) => setEvaluationMode(e.target.value)}
+                                className={inputClass}
+                                required
+                            >
+                                {options.evaluationModes.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     <div>
                         <label className={labelClass}>Statuss *</label>
                         <select
@@ -856,6 +922,95 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
                     className={inputClass}
                 />
             </div>
+
+            <OrderTemplateFormSection
+                title="Timeline parametri"
+                description="Šie laiki ietekmē simulatora notikumu ķēdi, preview rezultātu un deadline aprēķinu."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label className={labelClass}>Sākotnējā iekraušana (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingLoadingFixedMinutes}
+                            onChange={(e) => setTimingLoadingFixedMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="45"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Degvielas pieturas ilgums (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingFuelStopMinutes}
+                            onChange={(e) => setTimingFuelStopMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="20"
+                            disabled={!caps.fuel}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Ostas apstrāde (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingPortProcessingMinutes}
+                            onChange={(e) => setTimingPortProcessingMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="60"
+                            disabled={!caps.port}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Iekraušana kuģī (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingShipLoadingMinutes}
+                            onChange={(e) => setTimingShipLoadingMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="90"
+                            disabled={!caps.ship}
+                        />
+                    </div>
+                </div>
+            </OrderTemplateFormSection>
+            
+            <OrderTemplateFormSection
+                title="Waiting notikumi"
+                description="Šie parametri ļauj simulēt gaidīšanu ostā vai gaidīšanu līdz kuģis kļūst pieejams."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label className={labelClass}>Ostas rindas ilgums (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={waitingPortQueueMinutes}
+                            onChange={(e) => setWaitingPortQueueMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="0"
+                            disabled={!caps.port}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Kuģis gatavs no</label>
+                        <input
+                            type="datetime-local"
+                            value={waitingShipReadyAt}
+                            onChange={(e) => setWaitingShipReadyAt(e.target.value)}
+                            className={inputClass}
+                            disabled={!caps.ship}
+                        />
+                    </div>
+                </div>
+            </OrderTemplateFormSection>
 
             <div>
                 <label className={labelClass}>Deadline datums/laiks</label>

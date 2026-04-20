@@ -85,6 +85,7 @@ export type Template = {
     title: string;
     scenario_type?: string | null;
     scenario_focus?: string | null;
+    evaluation_mode?: string | null;
     status?: string | null;
     description?: string | null;
     student_brief?: string | null;
@@ -198,6 +199,9 @@ export type PreviewResult = {
     result?: {
         required_vehicles?: number;
         selected_vehicles?: number;
+        vehicle_capacity?: number;
+        capacity_per_trip?: number;
+        required_trips?: number;
         trip_time_hours?: number | string;
         total_cost?: number | string;
         fuel_needed_liters?: number | string;
@@ -218,6 +222,11 @@ export type Attempt = {
     selected_vehicle_count?: number | null;
     selected_port_id?: number | null;
     selected_ship_id?: number | null;
+
+    selectedTransportTemplate?: NamedItem | null;
+    selectedPort?: PortItem | null;
+    selectedShip?: ShipItem | null;
+
     total_cost?: number | string | null;
     total_time_hours?: number | string | null;
     total_fuel_liters?: number | string | null;

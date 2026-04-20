@@ -40,6 +40,9 @@ class SimulationPreviewService
             ?? 1
         );
 
+        $capacityPerTrip = max(1, $vehicleCapacity * $vehicleCount);
+        $requiredTrips = (int) ceil($containerCount / $capacityPerTrip);
+
         $avgSpeed = (float) (
             $transport->avg_speed_kmh
             ?? $transport->average_speed_kmh
@@ -166,6 +169,9 @@ class SimulationPreviewService
         if (!$hasEnoughVehicles) {
             $score -= 40;
         }
+        if ($requiredTrips > 1) {
+        $score -= min(25, ($requiredTrips - 1) * 2);
+        }
 
         if (!$chainValid) {
             $score -= 30;
@@ -188,7 +194,11 @@ class SimulationPreviewService
         }
 
         $score = max(0, $score);
+        $isExamMode = ($template->evaluation_mode ?? 'practice') === 'exam';
 
+        if ($isExamMode) {
+            $warnings = [];
+        }
         return [
             'transport' => [
                 'id' => $transport?->id,
@@ -240,6 +250,9 @@ class SimulationPreviewService
             'result' => [
                 'required_vehicles' => $requiredVehicles,
                 'selected_vehicles' => $vehicleCount,
+                'vehicle_capacity' => $vehicleCapacity,
+                'capacity_per_trip' => $capacityPerTrip,
+                'required_trips' => $requiredTrips,
                 'trip_time_hours' => $tripTimeHours,
                 'fuel_needed_liters' => $fuelNeededLiters,
                 'total_cost' => $totalCost,

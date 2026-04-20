@@ -55,6 +55,7 @@ export default function StudentSimulatorShow() {
     const page = usePage<StudentSimulatorPageProps>();
     const template = page.props.template;
     const initialAttempt = page.props.attempt;
+    const isExamMode = template.evaluation_mode === 'exam';
     const initialAvailableSteps =
         page.props.availableSteps && page.props.availableSteps.length
             ? page.props.availableSteps
@@ -113,6 +114,18 @@ export default function StudentSimulatorShow() {
     const timelineEvents: TimelineEvent[] = Array.isArray(timeline?.events)
         ? timeline.events
         : [];
+
+    const MAX_TIMELINE_EVENTS = 20;
+    const visibleTimelineEvents = timelineEvents.slice(0, MAX_TIMELINE_EVENTS);
+    const hiddenTimelineCount =
+        timelineEvents.length > MAX_TIMELINE_EVENTS
+            ? timelineEvents.length - MAX_TIMELINE_EVENTS
+            : 0;
+    {hiddenTimelineCount > 0 ? (
+    <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] px-4 py-4 text-[14px] text-[#4d5d53]">
+        Timeline ir saīsināts priekšskatījumam. Vēl paslēpti {hiddenTimelineCount} notikumi.
+    </div>
+    ) : null}
 
     const hasStep = (stepKey: string) => availableSteps.includes(stepKey);
 
@@ -681,6 +694,18 @@ export default function StudentSimulatorShow() {
                                                         timelineSummary.delay_minutes ?? 0
                                                     } min`}
                                                 />
+                                                <TimelineStatCard
+                                                    label="Nepieciešamie reisi"
+                                                    value={attempt.preview_result?.result?.required_trips ?? '—'}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Kapacitāte vienā reisā"
+                                                    value={attempt.preview_result?.result?.capacity_per_trip ?? '—'}
+                                                />
+                                                <TimelineStatCard
+                                                    label="Transporta kapacitāte"
+                                                    value={attempt.preview_result?.result?.vehicle_capacity ?? '—'}
+                                                />
                                             </div>
 
                                             <div className="mt-6 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
@@ -691,11 +716,17 @@ export default function StudentSimulatorShow() {
 
                                             {timelineEvents.length ? (
                                                 <div className="mt-6 space-y-3">
-                                                    <h3 className="text-[16px] font-semibold text-[#182219]">
-                                                        Timeline notikumi
-                                                    </h3>
+                                                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                                        <h3 className="text-[16px] font-semibold text-[#182219]">
+                                                            Timeline notikumi
+                                                        </h3>
 
-                                                    {timelineEvents.map((event, index) => (
+                                                        <div className="text-[13px] text-[#5b6b61]">
+                                                            Parādīti {visibleTimelineEvents.length} no {timelineEvents.length} notikumiem
+                                                        </div>
+                                                    </div>
+
+                                                    {visibleTimelineEvents.map((event, index) => (
                                                         <div
                                                             key={`${event.type}-${index}`}
                                                             className="rounded-2xl border border-[#d9ded9] bg-white px-4 py-4"

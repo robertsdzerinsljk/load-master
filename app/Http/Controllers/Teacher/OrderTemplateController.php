@@ -239,6 +239,7 @@ class OrderTemplateController extends Controller
             'title' => 'required|string|max:255',
             'scenario_type' => 'required|string|max:100',
             'scenario_focus' => 'nullable|string|max:100',
+            'evaluation_mode' => 'required|in:practice,exam',
             'status' => 'required|string|max:100',
 
             'description' => 'nullable|string',
@@ -268,6 +269,14 @@ class OrderTemplateController extends Controller
             'max_trips' => 'nullable|integer|min:0',
             'priority' => 'nullable|string|max:100',
 
+            'timing_loading_fixed_minutes' => 'nullable|integer|min:0|max:100000',
+            'timing_fuel_stop_minutes' => 'nullable|integer|min:0|max:100000',
+            'timing_port_processing_minutes' => 'nullable|integer|min:0|max:100000',
+            'timing_ship_loading_minutes' => 'nullable|integer|min:0|max:100000',
+
+            'waiting_port_queue_minutes' => 'nullable|integer|min:0|max:100000',
+            'waiting_ship_ready_at' => 'nullable|date',
+
             'transport_template_ids' => 'nullable|array',
             'transport_template_ids.*' => 'integer|exists:transport_templates,id',
 
@@ -291,6 +300,7 @@ class OrderTemplateController extends Controller
             'title' => $validated['title'],
             'scenario_type' => $scenarioType,
             'scenario_focus' => $scenarioFocus,
+            'evaluation_mode' => $validated['evaluation_mode'] ?? 'practice',
             'status' => $validated['status'],
 
             'description' => $validated['description'] ?? null,
@@ -321,7 +331,7 @@ class OrderTemplateController extends Controller
             'priority' => $validated['priority'] ?? null,
 
             'step_config' => $this->buildStepConfig($scenarioType),
-            'scenario_config' => $this->buildScenarioConfig($scenarioType),
+            'scenario_config' => $this->buildScenarioConfig($scenarioType, $validated),
         ];
     }
 
@@ -378,6 +388,10 @@ class OrderTemplateController extends Controller
                 ['value' => 'cost', 'label' => 'Izmaksas'],
                 ['value' => 'fuel', 'label' => 'Degviela'],
                 ['value' => 'compatibility', 'label' => 'Saderība'],
+            ],
+            'evaluationModes' => [
+                ['value' => 'practice', 'label' => 'Mācību režīms'],
+                ['value' => 'exam', 'label' => 'Pārbaudes darbs'],
             ],
             'statusOptions' => [
                 ['value' => 'draft', 'label' => 'Melnraksts'],
@@ -439,52 +453,85 @@ class OrderTemplateController extends Controller
         };
     }
 
-    private function buildScenarioConfig(string $type): array
-    {
-        return match ($type) {
-            'land_transport' => [
-                'mode' => 'land',
-                'student_choices' => [
-                    'transport' => true,
-                    'route' => true,
-                    'fuel' => true,
-                    'port' => false,
-                    'ship' => false,
-                ],
+    private function buildScenarioConfig(string $type, array $validated = []): array
+{
+    $timing = [
+        'loading_fixed_minutes' => isset($validated['timing_loading_fixed_minutes'])
+            ? (int) $validated['timing_loading_fixed_minutes']
+            : 45,
+        'fuel_stop_minutes' => isset($validated['timing_fuel_stop_minutes'])
+            ? (int) $validated['timing_fuel_stop_minutes']
+            : 20,
+        'port_processing_minutes' => isset($validated['timing_port_processing_minutes'])
+            ? (int) $validated['timing_port_processing_minutes']
+            : 60,
+        'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
+            ? (int) $validated['timing_ship_loading_minutes']
+            : 90,
+    ];
+
+    $availability = [
+        'port_queue_minutes' => isset($validated['waiting_port_queue_minutes'])
+            ? (int) $validated['waiting_port_queue_minutes']
+            : 0,
+        'ship_ready_at' => $validated['waiting_ship_ready_at'] ?? null,
+    ];
+
+    return match ($type) {
+        'land_transport' => [
+            'mode' => 'land',
+            'student_choices' => [
+                'transport' => true,
+                'route' => true,
+                'fuel' => true,
+                'port' => false,
+                'ship' => false,
             ],
-            'land_to_port' => [
-                'mode' => 'land_port',
-                'student_choices' => [
-                    'transport' => true,
-                    'route' => true,
-                    'fuel' => true,
-                    'port' => true,
-                    'ship' => false,
-                ],
+            'timing' => $timing,
+            'availability' => $availability,
+        ],
+        'land_to_port' => [
+            'mode' => 'land_port',
+            'student_choices' => [
+                'transport' => true,
+                'route' => true,
+                'fuel' => true,
+                'port' => true,
+                'ship' => false,
             ],
-            'port_to_ship' => [
-                'mode' => 'port_ship',
-                'student_choices' => [
-                    'transport' => false,
-                    'route' => false,
-                    'fuel' => false,
-                    'port' => true,
-                    'ship' => true,
-                ],
+            'timing' => $timing,
+            'availability' => $availability,
+        ],
+        'port_to_ship' => [
+            'mode' => 'port_ship',
+            'student_choices' => [
+                'transport' => false,
+                'route' => false,
+                'fuel' => false,
+                'port' => true,
+                'ship' => true,
             ],
-            'full_chain' => [
-                'mode' => 'full',
-                'student_choices' => [
-                    'transport' => true,
-                    'route' => true,
-                    'fuel' => true,
-                    'port' => true,
-                    'ship' => true,
-                ],
+            'timing' => $timing,
+            'availability' => $availability,
+        ],
+        'full_chain' => [
+            'mode' => 'full',
+            'student_choices' => [
+                'transport' => true,
+                'route' => true,
+                'fuel' => true,
+                'port' => true,
+                'ship' => true,
             ],
-            default => [],
-        };
-    }
+            'timing' => $timing,
+            'availability' => $availability,
+        ],
+        default => [
+            'timing' => $timing,
+            'availability' => $availability,
+        ],
+    };
+}
 
     private function defaultScenarioFocus(string $type): string
     {
