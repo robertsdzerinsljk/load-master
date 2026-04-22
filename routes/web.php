@@ -262,6 +262,51 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/teacher/assigned-tasks/{id}', [AssignedTaskController::class, 'show'])
         ->name('teacher.assigned-tasks.show');
 
+    Route::get('/teacher/attempts/{attempt}', [TeacherDashboardController::class, 'showAttempt'])
+    ->name('teacher.attempts.show');
+    Route::post('/teacher/assigned-tasks/{attempt}/feedback', [AssignedTaskController::class, 'saveFeedback'])
+    ->name('teacher.assigned-tasks.feedback');
+
+    Route::prefix('teacher/simulator')
+        ->name('teacher.simulator.')
+        ->group(function () {
+            Route::get('/template/{orderTemplateId}', [SimulationAttemptController::class, 'showTeacherTask'])
+                ->name('task');
+
+            Route::post('/template/{orderTemplateId}/fresh', [SimulationAttemptController::class, 'startFreshTeacherTask'])
+                ->name('task.fresh');
+
+            Route::get('/{id}', [SimulationAttemptController::class, 'startTeacher'])
+                ->name('start');
+
+            Route::post('/attempt/{attemptId}/step', [SimulationAttemptController::class, 'updateStep'])
+                ->name('attempt.step');
+
+            Route::post('/attempt/{attemptId}/draft', [SimulationAttemptController::class, 'saveDraft'])
+                ->name('attempt.draft');
+
+            Route::post('/attempt/{attemptId}/submit', [SimulationAttemptController::class, 'submit'])
+                ->name('attempt.submit');
+
+            Route::post('/attempt/{attemptId}/route-segments', [SimulationAttemptController::class, 'addRouteSegment'])
+                ->name('attempt.route-segments.store');
+
+            Route::post('/attempt/{attemptId}/route-segments/{segmentId}/move', [SimulationAttemptController::class, 'moveRouteSegment'])
+                ->name('attempt.route-segments.move');
+
+            Route::delete('/attempt/{attemptId}/route-segments/{segmentId}', [SimulationAttemptController::class, 'removeRouteSegment'])
+                ->name('attempt.route-segments.destroy');
+
+            Route::post('/attempt/{attemptId}/fuel-stations', [SimulationAttemptController::class, 'addFuelStation'])
+                ->name('attempt.fuel-stations.store');
+
+            Route::post('/attempt/{attemptId}/fuel-stations/{stationId}/move', [SimulationAttemptController::class, 'moveFuelStation'])
+                ->name('attempt.fuel-stations.move');
+
+            Route::delete('/attempt/{attemptId}/fuel-stations/{stationId}', [SimulationAttemptController::class, 'removeFuelStation'])
+                ->name('attempt.fuel-stations.destroy');
+        });
+
    /*
 |--------------------------------------------------------------------------
 | Student dashboard + simulator
@@ -287,17 +332,26 @@ Route::middleware(['auth', 'role:student'])
             Route::post('/attempt/{attemptId}/step', [SimulationAttemptController::class, 'updateStep'])
                 ->name('attempt.step');
 
+            Route::post('/attempt/{attemptId}/draft', [SimulationAttemptController::class, 'saveDraft'])
+                ->name('attempt.draft');
+
             Route::post('/attempt/{attemptId}/submit', [SimulationAttemptController::class, 'submit'])
                 ->name('attempt.submit');
 
             Route::post('/attempt/{attemptId}/route-segments', [SimulationAttemptController::class, 'addRouteSegment'])
                 ->name('attempt.route-segments.store');
 
+            Route::post('/attempt/{attemptId}/route-segments/{segmentId}/move', [SimulationAttemptController::class, 'moveRouteSegment'])
+                ->name('attempt.route-segments.move');
+
             Route::delete('/attempt/{attemptId}/route-segments/{segmentId}', [SimulationAttemptController::class, 'removeRouteSegment'])
                 ->name('attempt.route-segments.destroy');
 
             Route::post('/attempt/{attemptId}/fuel-stations', [SimulationAttemptController::class, 'addFuelStation'])
                 ->name('attempt.fuel-stations.store');
+
+            Route::post('/attempt/{attemptId}/fuel-stations/{stationId}/move', [SimulationAttemptController::class, 'moveFuelStation'])
+                ->name('attempt.fuel-stations.move');
 
             Route::delete('/attempt/{attemptId}/fuel-stations/{stationId}', [SimulationAttemptController::class, 'removeFuelStation'])
                 ->name('attempt.fuel-stations.destroy');

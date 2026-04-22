@@ -81,14 +81,8 @@ export default function SimulatorSummary({ template, attempt }: Props) {
                         label="Kuģis"
                         value={attempt.selectedShip?.name ?? preview?.ship?.name ?? '—'}
                     />
-                    <SummaryRow
-                        label="Maršruta segmenti"
-                        value={formatValue(routeSegments.length)}
-                    />
-                    <SummaryRow
-                        label="Degvielas pieturas"
-                        value={formatValue(fuelStops.length)}
-                    />
+                    <SummaryRow label="Maršruta segmenti" value={formatValue(routeSegments.length)} />
+                    <SummaryRow label="Degvielas pieturas" value={formatValue(fuelStops.length)} />
                 </SummaryBlock>
 
                 {routeSegments.length > 0 ? (
@@ -134,13 +128,25 @@ export default function SimulatorSummary({ template, attempt }: Props) {
                 {preview ? (
                     <SummaryBlock title="Preview rezultāts">
                         <SummaryRow
-                            label="Validitāte"
-                            value={result?.is_valid ? 'Derīgs risinājums' : 'Ir problēmas'}
+                            label="Preview statuss"
+                            value={
+                                isExamMode
+                                    ? result?.is_valid
+                                        ? 'Gatavs iesniegšanai'
+                                        : 'Vēl nav gatavs iesniegšanai'
+                                    : result?.is_valid
+                                    ? 'Derīgs risinājums'
+                                    : 'Ir problēmas'
+                            }
                         />
-                        <SummaryRow
-                            label="Score"
-                            value={formatValue(result?.score)}
-                        />
+
+                        {!isExamMode ? (
+                            <SummaryRow
+                                label="Score"
+                                value={formatValue(result?.score)}
+                            />
+                        ) : null}
+
                         <SummaryRow
                             label="Kopējās izmaksas"
                             value={formatValue(result?.total_cost, ' €')}
@@ -153,22 +159,34 @@ export default function SimulatorSummary({ template, attempt }: Props) {
                             label="Brauciena laiks"
                             value={formatValue(result?.trip_time_hours, ' h')}
                         />
-                        <SummaryRow
-                            label="Nepieciešamie transporti"
-                            value={formatValue(result?.required_vehicles)}
-                        />
-                        <SummaryRow
-                            label="Nepieciešamie reisi"
-                            value={formatValue(result?.required_trips)}
-                        />
-                        <SummaryRow
-                            label="Kapacitāte vienā reisā"
-                            value={formatValue(result?.capacity_per_trip)}
-                        />
-                        <SummaryRow
-                            label="Kavējums"
-                            value={formatValue(result?.delay_minutes, ' min')}
-                        />
+
+                        {!isExamMode ? (
+                            <SummaryRow
+                                label="Nepieciešamie transporti"
+                                value={formatValue(result?.required_vehicles)}
+                            />
+                        ) : null}
+
+                        {!isExamMode ? (
+                            <SummaryRow
+                                label="Nepieciešamie reisi"
+                                value={formatValue(result?.required_trips)}
+                            />
+                        ) : null}
+
+                        {!isExamMode ? (
+                            <SummaryRow
+                                label="Kapacitāte vienā reisā"
+                                value={formatValue(result?.capacity_per_trip)}
+                            />
+                        ) : null}
+
+                        {!isExamMode ? (
+                            <SummaryRow
+                                label="Kavējums"
+                                value={formatValue(result?.delay_minutes, ' min')}
+                            />
+                        ) : null}
                     </SummaryBlock>
                 ) : null}
 
@@ -189,8 +207,7 @@ export default function SimulatorSummary({ template, attempt }: Props) {
 
                 {isExamMode ? (
                     <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] px-4 py-4 text-[13px] leading-6 text-[#5b6b61]">
-                        Pārbaudes darba režīmā detalizēti brīdinājumi un palīdzības
-                        norādes netiek rādītas.
+                        Pārbaudes darba režīmā detalizēti brīdinājumi, score skaidrojumi un optimizācijas norādes netiek rādītas.
                     </div>
                 ) : null}
             </div>

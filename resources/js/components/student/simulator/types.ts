@@ -196,6 +196,11 @@ export type PreviewResult = {
         events?: TimelineEvent[];
         summary?: TimelineSummary;
     };
+    hints?: {
+        critical?: string[];
+        optimization?: string[];
+        info?: string[];
+    };
     result?: {
         required_vehicles?: number;
         selected_vehicles?: number;
@@ -208,6 +213,24 @@ export type PreviewResult = {
         needs_refuel?: boolean;
         is_valid?: boolean;
         score?: number | string;
+
+        score_breakdown?: {
+            base_score?: number;
+            final_score?: number;
+            penalties?: Array<{
+                key: string;
+                label: string;
+                category: string;
+                amount: number;
+                details?: string;
+            }>;
+        };
+        scoring?: {
+            time_weight?: number;
+            cost_weight?: number;
+            compatibility_weight?: number;
+            trips_weight?: number;
+        };
         warnings?: string[];
         delay_minutes?: number;
         is_within_deadline?: boolean;
@@ -242,6 +265,19 @@ export type PageProps = {
     attempt: Attempt;
 };
 
+export type SimulatorStepStatusTone =
+    | 'neutral'
+    | 'info'
+    | 'success'
+    | 'warning'
+    | 'danger';
+
+export type SimulatorStepStatus = {
+    label: string;
+    tone: SimulatorStepStatusTone;
+    detail?: string;
+};
+
 export const simulatorSteps = [
     { key: 'intro', label: 'Uzdevuma pārskats' },
     { key: 'transport', label: 'Transporta izvēle' },
@@ -259,6 +295,8 @@ export function getStatusLabel(status?: string | null) {
         submitted: 'Iesniegts',
         reviewed: 'Pārskatīts',
         draft: 'Melnraksts',
+        teacher_testing: 'Testēšana',
+        teacher_test_submitted: 'Tests iesniegts',
     };
 
     if (!status) return 'Procesā';

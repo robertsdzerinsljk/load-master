@@ -62,6 +62,7 @@ class TeacherDashboardController extends Controller
             'templates_count' => OrderTemplate::query()->count(),
             'attempts_in_progress' => SimulationAttempt::query()->where('status', 'in_progress')->count(),
             'attempts_submitted' => SimulationAttempt::query()->where('status', 'submitted')->count(),
+            'attempts_reviewed' => SimulationAttempt::where('status', 'reviewed')->count(),
         ];
 
         return Inertia::render('Teacher/Dashboard', [
@@ -70,4 +71,21 @@ class TeacherDashboardController extends Controller
             'assignedTasks' => $assignedTasks,
         ]);
     }
+    public function showAttempt(\App\Models\SimulationAttempt $attempt)
+{
+    $attempt->load([
+        'orderTemplate',
+        'selectedTransportTemplate',
+        'selectedPort',
+        'selectedShip',
+        'routeSegments.fromLocation',
+        'routeSegments.toLocation',
+        'fuelStations.location',
+    ]);
+
+    return \Inertia\Inertia::render('Teacher/Attempts/Show', [
+        'attempt' => $attempt,
+        'template' => $attempt->orderTemplate,
+    ]);
+}
 }

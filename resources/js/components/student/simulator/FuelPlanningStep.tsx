@@ -1,13 +1,15 @@
-import { Fuel, MapPin, Plus, Tag, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Fuel, MapPin, Plus, Tag, Trash2 } from 'lucide-react';
 import { FuelStationItem } from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
+    stepNumber?: number;
     availableStations: FuelStationItem[];
     selectedStations: FuelStationItem[];
     loading: boolean;
     onAddStation: (stationId: number) => void;
     onRemoveStation: (stationId: number) => void;
+    onMoveStation: (stationId: number, direction: 'up' | 'down') => void;
 };
 
 function fuelTypeLabel(value?: string | null) {
@@ -56,18 +58,20 @@ function FuelMetaCard({
 }
 
 export default function FuelPlanningStep({
+    stepNumber = 4,
     availableStations,
     selectedStations,
     loading,
     onAddStation,
     onRemoveStation,
+    onMoveStation,
 }: Props) {
     return (
         <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
             <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
                     <Fuel className="h-3.5 w-3.5" />
-                    4. solis
+                    {stepNumber}. solis
                 </div>
 
                 <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
@@ -75,7 +79,7 @@ export default function FuelPlanningStep({
                 </h2>
 
                 <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                    Izvēlies degvielas pieturas, kuras plāno izmantot maršruta izpildes laikā.
+                    Izvēlies degvielas pieturas un sakārto tās secībā, kādā plāno izmantot maršrutā.
                 </p>
             </div>
 
@@ -154,15 +158,39 @@ export default function FuelPlanningStep({
                                             <FuelMetaCard station={station} />
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveStation(station.id)}
-                                            disabled={loading}
-                                            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-60"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            Dzēst
-                                        </button>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMoveStation(station.id, 'up')}
+                                                    disabled={loading || index === 0}
+                                                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
+                                                >
+                                                    <ArrowUp className="h-4 w-4" />
+                                                    Augstāk
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMoveStation(station.id, 'down')}
+                                                    disabled={loading || index === selectedStations.length - 1}
+                                                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
+                                                >
+                                                    <ArrowDown className="h-4 w-4" />
+                                                    Zemāk
+                                                </button>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => onRemoveStation(station.id)}
+                                                disabled={loading}
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-60"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Dzēst
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -178,9 +206,10 @@ export default function FuelPlanningStep({
                         <div className="mt-2 text-[15px] font-semibold text-[#182219]">
                             Izvēlētās pieturas: {selectedStations.length}
                         </div>
+                        <div className="mt-2 text-[13px] leading-6 text-[#5b6b61]">
+                            Pieturu secība ietekmē to, kā preview aprēķins sadala maršrutu starp uzpildēm.
+                        </div>
                     </div>
-
-                    
                 </div>
             </div>
         </section>

@@ -14,17 +14,21 @@ import { Attempt } from './types';
 import { EmptyBlock, PreviewBox } from './ui';
 
 type Props = {
+    stepNumber?: number;
     attempt: Attempt;
     loading: boolean;
     canPreview: boolean;
     onPreview: () => void;
+    isExamMode: boolean;
 };
 
 export default function PreviewStep({
+    stepNumber = 5,
     attempt,
     loading,
     canPreview,
     onPreview,
+    isExamMode,
 }: Props) {
     const preview = attempt.preview_result;
 
@@ -33,7 +37,7 @@ export default function PreviewStep({
             <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
                     <Sparkles className="h-3.5 w-3.5" />
-                    5. solis
+                    {stepNumber}. solis
                 </div>
 
                 <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
@@ -41,7 +45,7 @@ export default function PreviewStep({
                 </h2>
 
                 <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                    Aprēķini starprezultātu, lai redzētu, vai izvēlētais risinājums ir loģisks pirms iesniegšanas.
+                    Aprēķini starprezultātu, lai pārbaudītu plānu pirms iesniegšanas.
                 </p>
             </div>
 
@@ -57,7 +61,9 @@ export default function PreviewStep({
                 </button>
 
                 <span className="text-[14px] text-[#6f7b74]">
-                    Preview pieejams pēc transporta, transportu skaita, maršruta un degvielas plāna.
+                    {isExamMode
+                        ? 'Preview pieejams pēc visu nepieciešamo izvēļu saglabāšanas.'
+                        : 'Preview pieejams pēc transporta, transportu skaita, maršruta un degvielas plāna.'}
                 </span>
             </div>
 
@@ -89,21 +95,31 @@ export default function PreviewStep({
                             value={preview.fuel?.stops_count}
                             icon={<Fuel className="h-4 w-4" />}
                         />
-                        <PreviewBox
-                            label="Aptuvenais posms starp uzpildēm"
-                            value={`${preview.fuel?.approx_leg_distance_km ?? '—'} km`}
-                            icon={<Fuel className="h-4 w-4" />}
-                        />
-                        <PreviewBox
-                            label="Nepieciešamie transporti"
-                            value={preview.result?.required_vehicles}
-                            icon={<Truck className="h-4 w-4" />}
-                        />
-                        <PreviewBox
-                            label="Izvēlētie transporti"
-                            value={preview.result?.selected_vehicles}
-                            icon={<Truck className="h-4 w-4" />}
-                        />
+
+                        {!isExamMode ? (
+                            <PreviewBox
+                                label="Aptuvenais posms starp uzpildēm"
+                                value={`${preview.fuel?.approx_leg_distance_km ?? '—'} km`}
+                                icon={<Fuel className="h-4 w-4" />}
+                            />
+                        ) : null}
+
+                        {!isExamMode ? (
+                            <PreviewBox
+                                label="Nepieciešamie transporti"
+                                value={preview.result?.required_vehicles}
+                                icon={<Truck className="h-4 w-4" />}
+                            />
+                        ) : null}
+
+                        {!isExamMode ? (
+                            <PreviewBox
+                                label="Izvēlētie transporti"
+                                value={preview.result?.selected_vehicles}
+                                icon={<Truck className="h-4 w-4" />}
+                            />
+                        ) : null}
+
                         <PreviewBox
                             label="Brauciena laiks"
                             value={`${preview.result?.trip_time_hours ?? '—'} h`}
@@ -119,12 +135,21 @@ export default function PreviewStep({
                             value={`${preview.result?.fuel_needed_liters ?? '—'} L`}
                             icon={<Fuel className="h-4 w-4" />}
                         />
-                        <PreviewBox
-                            label="Punkti"
-                            value={preview.result?.score}
-                            icon={<CheckCircle2 className="h-4 w-4" />}
-                        />
+
+                        {!isExamMode ? (
+                            <PreviewBox
+                                label="Punkti"
+                                value={preview.result?.score}
+                                icon={<CheckCircle2 className="h-4 w-4" />}
+                            />
+                        ) : null}
                     </div>
+
+                    {isExamMode ? (
+                        <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
+                            Pārbaudes darba režīmā preview parāda tikai pamata kopsavilkumu. Detalizēta diagnostika un norādes netiek rādītas.
+                        </div>
+                    ) : null}
 
                     {preview.fuel?.stops?.length ? (
                         <div className="rounded-2xl border border-[#d9ded9] bg-[#f8faf8] p-4">
@@ -134,23 +159,23 @@ export default function PreviewStep({
 
                             <div className="mt-3 space-y-2">
                                 {preview.fuel.stops.map((stop, index) => (
-                            <div
-                                key={`${stop.id}-${index}`}
-                                className="rounded-xl border border-[#e4e9e4] bg-white px-3 py-3 text-[14px] text-[#182219]"
-                            >
-                                <div className="font-semibold">
-                                    {index + 1}. {stop.name}
-                                </div>
-                                {stop.location_name ? (
-                                    <div className="mt-1 text-[#5b6b61]">{stop.location_name}</div>
-                                ) : null}
-                            </div>
-                        ))}
+                                    <div
+                                        key={`${stop.id}-${index}`}
+                                        className="rounded-xl border border-[#e4e9e4] bg-white px-3 py-3 text-[14px] text-[#182219]"
+                                    >
+                                        <div className="font-semibold">
+                                            {index + 1}. {stop.name}
+                                        </div>
+                                        {stop.location_name ? (
+                                            <div className="mt-1 text-[#5b6b61]">{stop.location_name}</div>
+                                        ) : null}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ) : null}
 
-                    {preview.result?.warnings?.length ? (
+                    {!isExamMode && preview.result?.warnings?.length ? (
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                             <div className="text-[13px] font-semibold uppercase tracking-[0.18em] text-amber-700">
                                 Brīdinājumi

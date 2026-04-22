@@ -1,21 +1,25 @@
-import { Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
 import { RouteItem, routeName } from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
+    stepNumber?: number;
     availableSegments: RouteItem[];
     selectedSegments: RouteItem[];
     loading: boolean;
     onAddSegment: (segmentId: number) => void;
     onRemoveSegment: (segmentId: number) => void;
+    onMoveSegment: (segmentId: number, direction: 'up' | 'down') => void;
 };
 
 export default function RouteBuilderStep({
+    stepNumber = 3,
     availableSegments,
     selectedSegments,
     loading,
     onAddSegment,
     onRemoveSegment,
+    onMoveSegment,
 }: Props) {
     const totalDistance = selectedSegments.reduce((sum, segment) => {
         return sum + Number(segment.distance_km ?? 0);
@@ -26,7 +30,7 @@ export default function RouteBuilderStep({
             <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
                     <RouteIcon className="h-3.5 w-3.5" />
-                    3. solis
+                    {stepNumber}. solis
                 </div>
 
                 <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
@@ -34,7 +38,7 @@ export default function RouteBuilderStep({
                 </h2>
 
                 <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                    Izvēlies maršruta segmentus un saliec tos secībā, lai izveidotu pilnu piegādes ķēdi.
+                    Izvēlies maršruta segmentus un sakārto tos pareizajā secībā, lai izveidotu pilnu piegādes ķēdi.
                 </p>
             </div>
 
@@ -104,15 +108,39 @@ export default function RouteBuilderStep({
                                             </div>
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveSegment(segment.id)}
-                                            disabled={loading}
-                                            className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-60"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            Dzēst
-                                        </button>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMoveSegment(segment.id, 'up')}
+                                                    disabled={loading || index === 0}
+                                                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
+                                                >
+                                                    <ArrowUp className="h-4 w-4" />
+                                                    Augstāk
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMoveSegment(segment.id, 'down')}
+                                                    disabled={loading || index === selectedSegments.length - 1}
+                                                    className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
+                                                >
+                                                    <ArrowDown className="h-4 w-4" />
+                                                    Zemāk
+                                                </button>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => onRemoveSegment(segment.id)}
+                                                disabled={loading}
+                                                className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-60"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Dzēst
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -131,9 +159,10 @@ export default function RouteBuilderStep({
                         <div className="mt-1 text-[15px] font-semibold text-[#182219]">
                             Kopējais attālums: {totalDistance} km
                         </div>
+                        <div className="mt-2 text-[13px] leading-6 text-[#5b6b61]">
+                            Segmentu secība ietekmē preview rezultātu un timeline aprēķinus.
+                        </div>
                     </div>
-
-                    
                 </div>
             </div>
         </section>

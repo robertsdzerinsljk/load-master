@@ -20,6 +20,12 @@ import { useMemo, useState } from 'react';
 type Template = {
     id: number;
     title: string;
+    readiness?: {
+        status: 'ready' | 'warning' | 'blocked';
+        headline: string;
+        summary: string;
+        has_critical_issues: boolean;
+    };
 };
 
 type Student = {
@@ -128,6 +134,9 @@ function StudentCard({
 }) {
     const groupName = getStudentGroupName(student);
     const assignedTasks = student.assignedOrderTemplates ?? [];
+    const selectedTemplateData =
+        templates.find((template) => String(template.id) === selectedTemplate) ?? null;
+    const readiness = selectedTemplateData?.readiness;
 
     return (
         <div className="rounded-[26px] border border-[#d9ded9] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -201,11 +210,26 @@ function StudentCard({
                         <button
                             type="button"
                             onClick={onAssign}
-                            disabled={loadingStudentId === student.id}
+                            disabled={loadingStudentId === student.id || readiness?.has_critical_issues}
                             className="mt-3 w-full rounded-xl bg-[#166a4d] px-4 py-3 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {loadingStudentId === student.id ? 'Piešķir...' : 'Piešķirt'}
                         </button>
+
+                        {readiness ? (
+                            <div
+                                className={`mt-3 rounded-xl border px-4 py-3 text-[13px] leading-6 ${
+                                    readiness.status === 'blocked'
+                                        ? 'border-red-200 bg-red-50 text-red-800'
+                                        : readiness.status === 'warning'
+                                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                }`}
+                            >
+                                <div className="font-semibold">{readiness.headline}</div>
+                                <div className="mt-1">{readiness.summary}</div>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             </div>

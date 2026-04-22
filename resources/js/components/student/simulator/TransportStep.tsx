@@ -3,6 +3,7 @@ import { NamedItem } from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
+    stepNumber?: number;
     transports: NamedItem[];
     selectedTransportId: string;
     setSelectedTransportId: (value: string) => void;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function TransportStep({
+    stepNumber = 1,
     transports,
     selectedTransportId,
     setSelectedTransportId,
@@ -28,7 +30,7 @@ export default function TransportStep({
             <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
                     <Truck className="h-3.5 w-3.5" />
-                    1. solis
+                    {stepNumber}. solis
                 </div>
                 <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
                     Transporta izvēle

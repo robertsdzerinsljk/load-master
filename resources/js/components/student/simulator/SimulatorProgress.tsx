@@ -1,8 +1,11 @@
 import { simulatorSteps } from './types';
+import type { SimulatorStepStatus } from './types';
 
 type Props = {
     currentStepIndex: number;
     loading?: boolean;
+    highlightStep?: string | null;
+    stepStatuses?: Record<string, SimulatorStepStatus | undefined>;
     onStepClick?: (stepKey: string, index: number) => void;
     onPrev?: () => void;
     onNext?: () => void;
@@ -12,6 +15,8 @@ type Props = {
 export default function SimulatorProgress({
     currentStepIndex,
     loading,
+    highlightStep,
+    stepStatuses,
     onStepClick,
     onPrev,
     onNext,
@@ -28,6 +33,67 @@ export default function SimulatorProgress({
         totalSteps > 1
             ? Math.round((currentStepIndex / (totalSteps - 1)) * 100)
             : 0;
+
+    const getStepCardClasses = ({
+        isActive,
+        isCompleted,
+        isHighlighted,
+        status,
+    }: {
+        isActive: boolean;
+        isCompleted: boolean;
+        isHighlighted: boolean;
+        status?: SimulatorStepStatus;
+    }) => {
+        if (isHighlighted) {
+            return 'border-red-400 bg-red-50 shadow-[0_0_0_4px_rgba(239,68,68,0.12)]';
+        }
+
+        if (status?.tone === 'danger') {
+            return isActive
+                ? 'border-red-400 bg-red-50'
+                : 'border-red-200 bg-red-50';
+        }
+
+        if (status?.tone === 'warning') {
+            return isActive
+                ? 'border-amber-300 bg-amber-50'
+                : 'border-amber-200 bg-amber-50';
+        }
+
+        if (status?.tone === 'success') {
+            return isActive
+                ? 'border-[#166a4d] bg-[#e9f5ef]'
+                : isCompleted
+                ? 'border-[#cfe3d8] bg-[#f4faf7]'
+                : 'border-[#d7e5db] bg-[#f6faf7]';
+        }
+
+        if (status?.tone === 'info') {
+            return 'border-sky-200 bg-sky-50';
+        }
+
+        return isActive
+            ? 'border-[#166a4d] bg-[#e9f5ef]'
+            : isCompleted
+            ? 'border-[#cfe3d8] bg-[#f4faf7]'
+            : 'border-[#d9ded9] bg-white';
+    };
+
+    const getStatusBadgeClasses = (tone?: SimulatorStepStatus['tone']) => {
+        switch (tone) {
+            case 'danger':
+                return 'border-red-200 bg-red-100 text-red-800';
+            case 'warning':
+                return 'border-amber-200 bg-amber-100 text-amber-800';
+            case 'success':
+                return 'border-[#cfe3d8] bg-[#e9f5ef] text-[#166a4d]';
+            case 'info':
+                return 'border-sky-200 bg-sky-100 text-sky-800';
+            default:
+                return 'border-[#d9ded9] bg-[#f7f9f7] text-[#5b6b61]';
+        }
+    };
 
     return (
         <section className="rounded-[24px] border border-[#d9ded9] bg-white p-5 shadow-sm">
@@ -54,6 +120,8 @@ export default function SimulatorProgress({
                 {enabledSteps.map((step, index) => {
                     const isActive = index === currentStepIndex;
                     const isCompleted = index < currentStepIndex;
+                    const isHighlighted = step.key === highlightStep;
+                    const status = stepStatuses?.[step.key];
 
                     return (
                         <button
@@ -61,13 +129,12 @@ export default function SimulatorProgress({
                             type="button"
                             disabled={loading}
                             onClick={() => onStepClick?.(step.key, index)}
-                            className={`rounded-xl border px-4 py-3 text-left transition ${
-                                isActive
-                                    ? 'border-[#166a4d] bg-[#e9f5ef]'
-                                    : isCompleted
-                                    ? 'border-[#cfe3d8] bg-[#f4faf7]'
-                                    : 'border-[#d9ded9] bg-white'
-                            }`}
+                            className={`rounded-xl border px-4 py-3 text-left transition ${getStepCardClasses({
+                                isActive,
+                                isCompleted,
+                                isHighlighted,
+                                status,
+                            })}`}
                         >
                             <div className="text-[11px] uppercase tracking-wide text-[#7a877f]">
                                 Solis {index + 1}
@@ -76,6 +143,22 @@ export default function SimulatorProgress({
                             <div className="mt-1 text-[14px] font-medium text-[#182219]">
                                 {step.label}
                             </div>
+
+                            {status ? (
+                                <div className="mt-3 space-y-2">
+                                    <span
+                                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStatusBadgeClasses(status.tone)}`}
+                                    >
+                                        {status.label}
+                                    </span>
+
+                                    {status.detail ? (
+                                        <div className="text-[12px] leading-5 text-[#5b6b61]">
+                                            {status.detail}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </button>
                     );
                 })}

@@ -9,6 +9,8 @@ export function StatusBadge({ status }: { status?: string | null }) {
         submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
         reviewed: 'border-violet-200 bg-violet-50 text-violet-700',
         draft: 'border-slate-200 bg-slate-100 text-slate-700',
+        teacher_testing: 'border-sky-200 bg-sky-50 text-sky-700',
+        teacher_test_submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     };
 
     return (

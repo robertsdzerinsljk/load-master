@@ -109,8 +109,57 @@ type PreviewResponse = {
     message?: string | null;
 };
 
+type TeacherTestData = {
+    id: number;
+    status: string;
+    current_step: string;
+    score?: number | string | null;
+    is_valid?: boolean | null;
+    updated_at?: string | null;
+    submitted_at?: string | null;
+    qualitySummary?: {
+        headline: string;
+        tone: 'info' | 'success' | 'warning' | 'danger';
+        summary: string;
+        score: number;
+        is_valid: boolean;
+        penalties_count: number;
+        insights: Array<{
+            title: string;
+            tone: 'info' | 'success' | 'warning' | 'danger';
+            body: string;
+        }>;
+    } | null;
+};
+
+type TeacherTestStats = {
+    total: number;
+    active: number;
+    submitted: number;
+};
+
+type ReadinessIssue = {
+    severity: 'critical' | 'warning';
+    title: string;
+    body: string;
+};
+
+type ReadinessData = {
+    status: 'ready' | 'warning' | 'blocked';
+    headline: string;
+    summary: string;
+    has_critical_issues: boolean;
+    critical_count: number;
+    warning_count: number;
+    issues: ReadinessIssue[];
+    recommendations: string[];
+};
+
 type PageProps = {
     template: TemplateData;
+    readiness: ReadinessData;
+    latestTeacherTest?: TeacherTestData | null;
+    teacherTestStats?: TeacherTestStats | null;
 };
 
 function goBack() {
@@ -141,6 +190,103 @@ function formatDate(value?: string | null) {
 function formatNumber(value?: string | number | null, suffix = '') {
     if (value === null || value === undefined || value === '') return '—';
     return `${value}${suffix}`;
+}
+
+function formatDateTime(value?: string | null) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('lv-LV', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date);
+}
+
+function getTeacherTestStatusLabel(status?: string | null) {
+    const map: Record<string, string> = {
+        teacher_testing: 'Testēšana',
+        teacher_test_submitted: 'Tests iesniegts',
+        teacher_test_archived: 'Iepriekšējais tests',
+    };
+
+    if (!status) return 'Nav testu';
+
+    return map[status] ?? status;
+}
+
+function getTeacherTestStepLabel(step?: string | null) {
+    const map: Record<string, string> = {
+        intro: 'Uzdevuma pārskats',
+        transport: 'Transporta izvēle',
+        route: 'Maršruta veidošana',
+        fuel: 'Degvielas plānošana',
+        port: 'Ostas izvēle',
+        ship: 'Kuģa izvēle',
+        simulation: 'Rezultāta pārbaude',
+        submit: 'Iesniegšana',
+    };
+
+    if (!step) return '—';
+
+    return map[step] ?? step;
+}
+
+function TeacherTestBadge({ status }: { status?: string | null }) {
+    const current = status ?? 'teacher_testing';
+
+    const styleMap: Record<string, string> = {
+        teacher_testing: 'border-sky-200 bg-sky-50 text-sky-700',
+        teacher_test_submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        teacher_test_archived: 'border-slate-200 bg-slate-100 text-slate-700',
+    };
+
+    return (
+        <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
+                styleMap[current] ?? 'border-slate-200 bg-slate-100 text-slate-700'
+            }`}
+        >
+            {getTeacherTestStatusLabel(current)}
+        </span>
+    );
+}
+
+function qualityToneClasses(tone: 'info' | 'success' | 'warning' | 'danger') {
+    const map: Record<typeof tone, string> = {
+        info: 'border-sky-200 bg-sky-50 text-sky-800',
+        success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800',
+        danger: 'border-red-200 bg-red-50 text-red-800',
+    };
+
+    return map[tone];
+}
+
+function readinessToneClasses(status: 'ready' | 'warning' | 'blocked') {
+    const map: Record<typeof status, string> = {
+        ready: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800',
+        blocked: 'border-red-200 bg-red-50 text-red-800',
+    };
+
+    return map[status];
+}
+
+function issueToneClasses(severity: 'critical' | 'warning') {
+    const map: Record<typeof severity, string> = {
+        critical: 'border-red-200 bg-red-50 text-red-800',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800',
+    };
+
+    return map[severity];
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -294,6 +440,13 @@ function PreviewCard({
 export default function Show() {
     const page = usePage<PageProps>();
     const template = page.props.template;
+    const readiness = page.props.readiness;
+    const latestTeacherTest = page.props.latestTeacherTest ?? null;
+    const teacherTestStats = page.props.teacherTestStats ?? {
+        total: 0,
+        active: 0,
+        submitted: 0,
+    };
 
     const [isTryingScenario, setIsTryingScenario] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
@@ -326,6 +479,12 @@ export default function Show() {
         template.description ||
         template.student_brief ||
         'Šai uzdevuma sagatavei apraksts vēl nav pievienots.';
+
+    const openTeacherTestLabel = latestTeacherTest
+        ? latestTeacherTest.status === 'teacher_testing'
+            ? 'Atvērt aktīvo testu'
+            : 'Atvērt pēdējo testu'
+        : 'Testēt simulatorā';
 
     const compactMetrics = useMemo(() => {
         return [
@@ -458,16 +617,260 @@ export default function Show() {
 
                                 <button
                                     type="button"
-                                    onClick={handleTryScenario}
-                                    disabled={isTryingScenario}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
+                                    onClick={() =>
+                                        router.visit(
+                                            `/teacher/simulator/template/${template.id}`
+                                        )
+                                    }
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
                                 >
                                     <Play className="h-4 w-4" />
-                                    {isTryingScenario ? 'Notiek aprēķins...' : 'Izmēģināt scenāriju'}
+                                    Testēt simulatorā
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        router.post(
+                                            `/teacher/simulator/template/${template.id}/fresh`
+                                        )
+                                    }
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-[#166A4D] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                >
+                                    <Play className="h-4 w-4" />
+                                    Jauns tests
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleTryScenario}
+                                    disabled={isTryingScenario}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#DBE9F7] px-5 py-3 text-[15px] font-medium text-black transition disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <Play className="h-4 w-4" />
+                                    {isTryingScenario ? 'Notiek aprēķins...' : 'Aprēķināt scenāriju'}
                                 </button>
                             </div>
                         </div>
                     </section>
+
+                    <SectionCard
+                        title="Skolotāja testēšana"
+                        description="Atver pēdējo simulatora testu vai sāc pilnīgi jaunu mēģinājumu, lai pārbaudītu scenāriju pirms piešķiršanas studentiem."
+                        icon={<Play className="h-5 w-5" />}
+                    >
+                        {latestTeacherTest ? (
+                            <div className="space-y-5">
+                                <div className="space-y-5">
+                                    <div className={`rounded-2xl border p-5 ${readinessToneClasses(readiness.status)}`}>
+                                        <div className="text-[12px] font-semibold uppercase tracking-[0.18em]">
+                                            Piešķiršanas gatavība
+                                        </div>
+                                        <div className="mt-2 text-[22px] font-semibold">
+                                            {readiness.headline}
+                                        </div>
+                                        <p className="mt-3 max-w-3xl text-[15px] leading-7">
+                                            {readiness.summary}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                        <InfoCard
+                                            label="Statuss"
+                                            value={readiness.headline}
+                                            icon={<CheckCircle2 className="h-4 w-4" />}
+                                        />
+                                        <InfoCard
+                                            label="Kritiskās problēmas"
+                                            value={String(readiness.critical_count)}
+                                            icon={<AlertTriangle className="h-4 w-4" />}
+                                        />
+                                        <InfoCard
+                                            label="Brīdinājumi"
+                                            value={String(readiness.warning_count)}
+                                            icon={<ShieldCheck className="h-4 w-4" />}
+                                        />
+                                    </div>
+
+                                    {readiness.issues.length ? (
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            {readiness.issues.map((issue) => (
+                                                <div
+                                                    key={`${issue.severity}-${issue.title}`}
+                                                    className={`rounded-2xl border p-4 ${issueToneClasses(issue.severity)}`}
+                                                >
+                                                    <div className="text-[15px] font-semibold">
+                                                        {issue.title}
+                                                    </div>
+                                                    <p className="mt-2 text-[14px] leading-6">
+                                                        {issue.body}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+
+                                    {readiness.recommendations.length ? (
+                                        <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] p-5">
+                                            <div className="text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                                                Ieteicamie nākamie soļi
+                                            </div>
+                                            <div className="mt-3 space-y-2">
+                                                {readiness.recommendations.map((recommendation, index) => (
+                                                    <div
+                                                        key={`${recommendation}-${index}`}
+                                                        className="rounded-xl border border-[#e4e9e4] bg-white px-4 py-3 text-[14px] leading-6 text-[#425247]"
+                                                    >
+                                                        {recommendation}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex flex-col gap-4 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <TeacherTestBadge status={latestTeacherTest.status} />
+                                            <div className="text-[14px] text-[#5b6b61]">
+                                                Pēdējoreiz atjaunots {formatDateTime(latestTeacherTest.updated_at)}
+                                            </div>
+                                        </div>
+
+                                        <div className="text-[20px] font-semibold text-[#182219]">
+                                            {openTeacherTestLabel}
+                                        </div>
+
+                                        <p className="max-w-2xl text-[15px] leading-7 text-[#5b6b61]">
+                                            Pēdējais tests ir pieejams šajā sagatavē. Vari turpināt no iepriekšējā stāvokļa vai sākt jaunu tīru mēģinājumu.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                router.visit(`/teacher/simulator/${latestTeacherTest.id}`)
+                                            }
+                                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                            {openTeacherTestLabel}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                router.post(`/teacher/simulator/template/${template.id}/fresh`)
+                                            }
+                                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-[#125740] px-5 py-3 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                            Jauns tests
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <InfoCard
+                                        label="Pēdējā testa statuss"
+                                        value={getTeacherTestStatusLabel(latestTeacherTest.status)}
+                                        icon={<CheckCircle2 className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Pēdējais solis"
+                                        value={getTeacherTestStepLabel(latestTeacherTest.current_step)}
+                                        icon={<ClipboardList className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Punkti"
+                                        value={formatNumber(latestTeacherTest.score)}
+                                        icon={<Gauge className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Iesniegts"
+                                        value={formatDateTime(latestTeacherTest.submitted_at)}
+                                        icon={<Clock3 className="h-4 w-4" />}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                    <InfoCard
+                                        label="Kopā testi"
+                                        value={String(teacherTestStats.total)}
+                                        icon={<Boxes className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Aktīvie testi"
+                                        value={String(teacherTestStats.active)}
+                                        icon={<Play className="h-4 w-4" />}
+                                    />
+                                    <InfoCard
+                                        label="Iesniegtie testi"
+                                        value={String(teacherTestStats.submitted)}
+                                        icon={<CheckCircle2 className="h-4 w-4" />}
+                                    />
+                                </div>
+                                {latestTeacherTest.qualitySummary ? (
+                                    <div className="space-y-4">
+                                        <div
+                                            className={`rounded-2xl border p-5 ${qualityToneClasses(
+                                                latestTeacherTest.qualitySummary.tone
+                                            )}`}
+                                        >
+                                            <div className="text-[12px] font-semibold uppercase tracking-[0.18em]">
+                                                Scenārija kvalitātes signāls
+                                            </div>
+                                            <div className="mt-2 text-[22px] font-semibold">
+                                                {latestTeacherTest.qualitySummary.headline}
+                                            </div>
+                                            <p className="mt-3 max-w-3xl text-[15px] leading-7">
+                                                {latestTeacherTest.qualitySummary.summary}
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                            {latestTeacherTest.qualitySummary.insights.map((insight) => (
+                                                <div
+                                                    key={insight.title}
+                                                    className={`rounded-2xl border p-4 ${qualityToneClasses(
+                                                        insight.tone
+                                                    )}`}
+                                                >
+                                                    <div className="text-[15px] font-semibold">
+                                                        {insight.title}
+                                                    </div>
+                                                    <p className="mt-2 text-[14px] leading-6">
+                                                        {insight.body}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl border border-dashed border-[#d9ded9] bg-[#f8fbf9] p-5">
+                                <div className="text-[18px] font-semibold text-[#182219]">
+                                    Vēl nav saglabātu skolotāja testu
+                                </div>
+                                <p className="mt-2 max-w-2xl text-[15px] leading-7 text-[#5b6b61]">
+                                    Palaid simulatoru, lai pārbaudītu, kā šī sagatave uzvedas studenta plūsmā. Jaunais tests sāksies no tukša stāvokļa.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        router.visit(`/teacher/simulator/template/${template.id}`)
+                                    }
+                                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                >
+                                    <Play className="h-4 w-4" />
+                                    Testēt simulatorā
+                                </button>
+                            </div>
+                        )}
+                    </SectionCard>
 
                     {(previewError || previewData) && (
                         <SectionCard

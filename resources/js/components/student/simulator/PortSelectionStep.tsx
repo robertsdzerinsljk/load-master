@@ -3,6 +3,7 @@ import { PortItem } from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
+    stepNumber?: number;
     ports: PortItem[];
     selectedPortId: string;
     setSelectedPortId: (value: string) => void;
@@ -15,6 +16,7 @@ function formatDepth(value?: string | number | null) {
 }
 
 export default function PortSelectionStep({
+    stepNumber = 5,
     ports,
     selectedPortId,
     setSelectedPortId,
@@ -25,7 +27,7 @@ export default function PortSelectionStep({
             <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
                     <Anchor className="h-3.5 w-3.5" />
-                    5. solis
+                    {stepNumber}. solis
                 </div>
 
                 <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">

@@ -36,6 +36,8 @@ class SimulationAttempt extends Model
         'feedback_text',
         'preview_result',
         'submitted_at',
+
+        'assignment_id',
     ];
 
     protected $appends = [
@@ -66,6 +68,11 @@ class SimulationAttempt extends Model
     public function selectedPort(): BelongsTo
     {
         return $this->belongsTo(Port::class, 'selected_port_id');
+    }
+
+    public function feedback()
+    {
+    return $this->hasOne(\App\Models\TeacherFeedback::class, 'simulation_attempt_id');
     }
 
     public function selectedShip(): BelongsTo

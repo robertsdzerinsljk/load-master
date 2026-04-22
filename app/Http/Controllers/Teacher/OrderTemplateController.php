@@ -8,15 +8,22 @@ use App\Models\Location;
 use App\Models\OrderTemplate;
 use App\Models\Port;
 use App\Models\Ship;
+use App\Models\SimulationAttempt;
 use App\Models\SpecialCondition;
 use App\Models\TemperatureMode;
 use App\Models\TransportTemplate;
 use App\Services\LandTransportCalculator;
+use App\Services\Simulator\ScenarioReadinessService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class OrderTemplateController extends Controller
 {
+    public function __construct(
+        private readonly ScenarioReadinessService $scenarioReadinessService
+    ) {
+    }
+
     public function index()
     {
         return Inertia::render('Teacher/Templates/OrderTemplates/Index', [
@@ -53,7 +60,7 @@ class OrderTemplateController extends Controller
         return redirect()->route('teacher.templates.order-templates.show', $template->id);
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         $template = OrderTemplate::query()
             ->with([
@@ -71,8 +78,38 @@ class OrderTemplateController extends Controller
             ])
             ->findOrFail($id);
 
+        $teacherTests = SimulationAttempt::query()
+            ->where('user_id', $request->user()->id)
+            ->where('order_template_id', $template->id)
+            ->whereIn('status', [
+                'teacher_testing',
+                'teacher_test_submitted',
+                'teacher_test_archived',
+            ])
+            ->latest('updated_at')
+            ->get();
+
+        $latestTeacherTest = $teacherTests->first();
+        $readiness = $this->scenarioReadinessService->evaluate($template, $latestTeacherTest);
+
         return Inertia::render('Teacher/Templates/OrderTemplates/Show', [
             'template' => $template,
+            'readiness' => $readiness,
+            'latestTeacherTest' => $latestTeacherTest ? [
+                'id' => $latestTeacherTest->id,
+                'status' => $latestTeacherTest->status,
+                'current_step' => $latestTeacherTest->current_step,
+                'score' => data_get($latestTeacherTest->preview_result, 'result.score', $latestTeacherTest->score),
+                'is_valid' => data_get($latestTeacherTest->preview_result, 'result.is_valid', $latestTeacherTest->is_valid),
+                'updated_at' => optional($latestTeacherTest->updated_at)?->format('Y-m-d H:i'),
+                'submitted_at' => optional($latestTeacherTest->submitted_at)?->format('Y-m-d H:i'),
+                'qualitySummary' => $this->buildTeacherTestQualitySummary($latestTeacherTest),
+            ] : null,
+            'teacherTestStats' => [
+                'total' => $teacherTests->count(),
+                'active' => $teacherTests->where('status', 'teacher_testing')->count(),
+                'submitted' => $teacherTests->where('status', 'teacher_test_submitted')->count(),
+            ],
         ]);
     }
 
@@ -149,6 +186,115 @@ class OrderTemplateController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    private function buildTeacherTestQualitySummary(SimulationAttempt $attempt): ?array
+    {
+        $preview = is_array($attempt->preview_result) ? $attempt->preview_result : [];
+        $result = data_get($preview, 'result');
+
+        if (!is_array($result)) {
+            return null;
+        }
+
+        $score = (int) ($result['score'] ?? $attempt->score ?? 0);
+        $isValid = (bool) ($result['is_valid'] ?? $attempt->is_valid ?? false);
+        $delayMinutes = (int) ($result['delay_minutes'] ?? data_get($preview, 'timeline.summary.delay_minutes', 0) ?? 0);
+        $warnings = data_get($result, 'warnings', []);
+        $penalties = data_get($result, 'score_breakdown.penalties', []);
+
+        $categoryCounts = [
+            'time' => 0,
+            'cost' => 0,
+            'compatibility' => 0,
+            'trips' => 0,
+        ];
+
+        foreach ($penalties as $penalty) {
+            $category = $penalty['category'] ?? null;
+
+            if ($category && array_key_exists($category, $categoryCounts)) {
+                $categoryCounts[$category]++;
+            }
+        }
+
+        $insights = [];
+
+        if ($delayMinutes > 0) {
+            $insights[] = [
+                'title' => 'Termiņa spiediens',
+                'tone' => 'danger',
+                'body' => "Pēdējais tests kavēja termiņu par {$delayMinutes} minūtēm, tāpēc scenārijs var būt pārāk stingrs laika ziņā.",
+            ];
+        }
+
+        if (($categoryCounts['compatibility'] ?? 0) > 0) {
+            $insights[] = [
+                'title' => 'Savietojamības riski',
+                'tone' => 'warning',
+                'body' => 'Lielākā daļa sodu nāk no maršruta, ostas, kuģa vai degvielas plāna savietojamības. Pārbaudi, vai skolēniem ir pietiekami skaidras izvēles.',
+            ];
+        }
+
+        if (($categoryCounts['cost'] ?? 0) > 0 || ($categoryCounts['trips'] ?? 0) > 0) {
+            $insights[] = [
+                'title' => 'Kapacitātes slodze',
+                'tone' => 'warning',
+                'body' => 'Tests saņēma sodus par transporta vienību skaitu vai reisu apjomu. Var būt vērts pārskatīt pieejamo kapacitāti vai maksimālo reisu limitu.',
+            ];
+        }
+
+        if ($score >= 90 && $isValid && empty($penalties)) {
+            $insights[] = [
+                'title' => 'Var būt pārāk viegls',
+                'tone' => 'info',
+                'body' => 'Pēdējais tests izgāja bez sodiem. Ja gribi vairāk izaicinājuma, vari pievienot stingrāku termiņu vai sarežģītāku resursu izvēli.',
+            ];
+        }
+
+        if (empty($insights) && !empty($warnings)) {
+            $insights[] = [
+                'title' => 'Ir signāli pārbaudei',
+                'tone' => 'warning',
+                'body' => (string) ($warnings[0] ?? 'Pēdējais tests uzrādīja brīdinājumus, tāpēc scenāriju vērts vēlreiz pārbaudīt pirms piešķiršanas.'),
+            ];
+        }
+
+        if (empty($insights)) {
+            $insights[] = [
+                'title' => 'Scenārijs izskatās stabils',
+                'tone' => 'success',
+                'body' => 'Pēdējais tests neuzrādīja kritiskus signālus. Vari izmantot šo rezultātu kā bāzes pārbaudi pirms piešķiršanas studentiem.',
+            ];
+        }
+
+        if (!$isValid || $score < 50) {
+            $headline = 'Scenārijs prasa pārskatīšanu';
+            $tone = 'danger';
+            $summary = 'Pēdējais skolotāja tests uzrādīja kritiskas problēmas vai pārāk smagus sodus. Pirms piešķiršanas studentiem būtu vēlams to pielāgot.';
+        } elseif ($score >= 90) {
+            $headline = 'Scenārijs šķiet ļoti viegls';
+            $tone = 'info';
+            $summary = 'Pēdējais tests sasniedza ļoti augstu rezultātu. Ja mērķis ir izaicinājums, apsver stingrākus nosacījumus vai vairāk savstarpēji atkarīgu izvēļu.';
+        } elseif ($score >= 70) {
+            $headline = 'Scenārijs izskatās sabalansēts';
+            $tone = 'success';
+            $summary = 'Pēdējais tests rāda, ka scenārijs ir izpildāms, bet joprojām prasa pārdomātas izvēles. Tas izskatās labs kandidāts piešķiršanai.';
+        } else {
+            $headline = 'Scenārijs ir izaicinošs';
+            $tone = 'warning';
+            $summary = 'Pēdējais tests ir izpildāms, taču sodu apjoms ir jūtams. Pārbaudi, vai šis grūtības līmenis atbilst iecerētajam.';
+        }
+
+        return [
+            'headline' => $headline,
+            'tone' => $tone,
+            'summary' => $summary,
+            'score' => $score,
+            'is_valid' => $isValid,
+            'penalties_count' => is_array($penalties) ? count($penalties) : 0,
+            'insights' => array_slice($insights, 0, 3),
+        ];
     }
 
     public function previewSaved(int $id)
@@ -273,9 +419,16 @@ class OrderTemplateController extends Controller
             'timing_fuel_stop_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_port_processing_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_ship_loading_minutes' => 'nullable|integer|min:0|max:100000',
+            'timing_max_drive_minutes_before_rest' => 'nullable|integer|min:0|max:100000',
+            'timing_rest_minutes' => 'nullable|integer|min:0|max:100000',
 
             'waiting_port_queue_minutes' => 'nullable|integer|min:0|max:100000',
             'waiting_ship_ready_at' => 'nullable|date',
+
+            'scoring_time_weight' => 'nullable|integer|min:0|max:100',
+            'scoring_cost_weight' => 'nullable|integer|min:0|max:100',
+            'scoring_compatibility_weight' => 'nullable|integer|min:0|max:100',
+            'scoring_trips_weight' => 'nullable|integer|min:0|max:100',
 
             'transport_template_ids' => 'nullable|array',
             'transport_template_ids.*' => 'integer|exists:transport_templates,id',
@@ -456,25 +609,46 @@ class OrderTemplateController extends Controller
     private function buildScenarioConfig(string $type, array $validated = []): array
 {
     $timing = [
-        'loading_fixed_minutes' => isset($validated['timing_loading_fixed_minutes'])
-            ? (int) $validated['timing_loading_fixed_minutes']
-            : 45,
-        'fuel_stop_minutes' => isset($validated['timing_fuel_stop_minutes'])
-            ? (int) $validated['timing_fuel_stop_minutes']
-            : 20,
-        'port_processing_minutes' => isset($validated['timing_port_processing_minutes'])
-            ? (int) $validated['timing_port_processing_minutes']
-            : 60,
-        'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
-            ? (int) $validated['timing_ship_loading_minutes']
-            : 90,
-    ];
+    'loading_fixed_minutes' => isset($validated['timing_loading_fixed_minutes'])
+        ? (int) $validated['timing_loading_fixed_minutes']
+        : 45,
+    'fuel_stop_minutes' => isset($validated['timing_fuel_stop_minutes'])
+        ? (int) $validated['timing_fuel_stop_minutes']
+        : 20,
+    'port_processing_minutes' => isset($validated['timing_port_processing_minutes'])
+        ? (int) $validated['timing_port_processing_minutes']
+        : 60,
+    'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
+        ? (int) $validated['timing_ship_loading_minutes']
+        : 90,
+    'max_drive_minutes_before_rest' => isset($validated['timing_max_drive_minutes_before_rest'])
+        ? (int) $validated['timing_max_drive_minutes_before_rest']
+        : 270,
+    'rest_minutes' => isset($validated['timing_rest_minutes'])
+        ? (int) $validated['timing_rest_minutes']
+        : 45,
+];
 
     $availability = [
         'port_queue_minutes' => isset($validated['waiting_port_queue_minutes'])
             ? (int) $validated['waiting_port_queue_minutes']
             : 0,
         'ship_ready_at' => $validated['waiting_ship_ready_at'] ?? null,
+    ];
+
+    $scoring = [
+    'time_weight' => isset($validated['scoring_time_weight'])
+        ? (int) $validated['scoring_time_weight']
+        : 35,
+    'cost_weight' => isset($validated['scoring_cost_weight'])
+        ? (int) $validated['scoring_cost_weight']
+        : 25,
+    'compatibility_weight' => isset($validated['scoring_compatibility_weight'])
+        ? (int) $validated['scoring_compatibility_weight']
+        : 25,
+    'trips_weight' => isset($validated['scoring_trips_weight'])
+        ? (int) $validated['scoring_trips_weight']
+        : 15,
     ];
 
     return match ($type) {
@@ -489,6 +663,7 @@ class OrderTemplateController extends Controller
             ],
             'timing' => $timing,
             'availability' => $availability,
+            'scoring' => $scoring,
         ],
         'land_to_port' => [
             'mode' => 'land_port',
@@ -501,6 +676,7 @@ class OrderTemplateController extends Controller
             ],
             'timing' => $timing,
             'availability' => $availability,
+            'scoring' => $scoring,
         ],
         'port_to_ship' => [
             'mode' => 'port_ship',
@@ -513,6 +689,7 @@ class OrderTemplateController extends Controller
             ],
             'timing' => $timing,
             'availability' => $availability,
+            'scoring' => $scoring,
         ],
         'full_chain' => [
             'mode' => 'full',
@@ -525,10 +702,12 @@ class OrderTemplateController extends Controller
             ],
             'timing' => $timing,
             'availability' => $availability,
+            'scoring' => $scoring,
         ],
         default => [
             'timing' => $timing,
             'availability' => $availability,
+            'scoring' => $scoring,
         ],
     };
 }

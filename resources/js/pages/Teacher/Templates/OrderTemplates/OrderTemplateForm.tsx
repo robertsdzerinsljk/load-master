@@ -107,10 +107,18 @@ type InitialData = {
             fuel_stop_minutes?: number | string | null;
             port_processing_minutes?: number | string | null;
             ship_loading_minutes?: number | string | null;
+            max_drive_minutes_before_rest?: number | string | null;
+            rest_minutes?: number | string | null;
         } | null;
         availability?: {
             port_queue_minutes?: number | string | null;
             ship_ready_at?: string | null;
+        } | null;
+        scoring?: {
+            time_weight?: number | string | null;
+            cost_weight?: number | string | null;
+            compatibility_weight?: number | string | null;
+            trips_weight?: number | string | null;
         } | null;
     } | null;
     transportTemplates?: Array<{ id: number }>;
@@ -365,14 +373,32 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
     const [timingShipLoadingMinutes, setTimingShipLoadingMinutes] = useState(
         String(initialData.scenario_config?.timing?.ship_loading_minutes ?? 90)
     );
+    const [timingMaxDriveMinutesBeforeRest, setTimingMaxDriveMinutesBeforeRest] = useState(
+        String(initialData.scenario_config?.timing?.max_drive_minutes_before_rest ?? 270)
+    );
+    const [timingRestMinutes, setTimingRestMinutes] = useState(
+        String(initialData.scenario_config?.timing?.rest_minutes ?? 45)
+    );
 
-    const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
+const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
     String(initialData.scenario_config?.availability?.port_queue_minutes ?? 0)
     );
     const [waitingShipReadyAt, setWaitingShipReadyAt] = useState(
         initialData.scenario_config?.availability?.ship_ready_at
             ? String(initialData.scenario_config.availability.ship_ready_at).slice(0, 16)
             : ''
+    );
+    const [scoringTimeWeight, setScoringTimeWeight] = useState(
+    String(initialData.scenario_config?.scoring?.time_weight ?? 35)
+    );
+    const [scoringCostWeight, setScoringCostWeight] = useState(
+        String(initialData.scenario_config?.scoring?.cost_weight ?? 25)
+    );
+    const [scoringCompatibilityWeight, setScoringCompatibilityWeight] = useState(
+        String(initialData.scenario_config?.scoring?.compatibility_weight ?? 25)
+    );
+    const [scoringTripsWeight, setScoringTripsWeight] = useState(
+        String(initialData.scenario_config?.scoring?.trips_weight ?? 15)
     );
 
     const [transportTemplateIds, setTransportTemplateIds] = useState<number[]>(
@@ -504,11 +530,26 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
         timing_port_processing_minutes:
             timingPortProcessingMinutes === '' ? null : Number(timingPortProcessingMinutes),
         timing_ship_loading_minutes:
-            timingShipLoadingMinutes === '' ? null : Number(timingShipLoadingMinutes),        
+            timingShipLoadingMinutes === '' ? null : Number(timingShipLoadingMinutes),
+        timing_max_drive_minutes_before_rest:
+            timingMaxDriveMinutesBeforeRest === ''
+                ? null
+                : Number(timingMaxDriveMinutesBeforeRest),
+        timing_rest_minutes:
+            timingRestMinutes === '' ? null : Number(timingRestMinutes),
 
         waiting_port_queue_minutes:
             waitingPortQueueMinutes === '' ? null : Number(waitingPortQueueMinutes),
         waiting_ship_ready_at: waitingShipReadyAt || null,
+
+        scoring_time_weight:
+            scoringTimeWeight === '' ? null : Number(scoringTimeWeight),
+        scoring_cost_weight:
+            scoringCostWeight === '' ? null : Number(scoringCostWeight),
+        scoring_compatibility_weight:
+            scoringCompatibilityWeight === '' ? null : Number(scoringCompatibilityWeight),
+        scoring_trips_weight:
+            scoringTripsWeight === '' ? null : Number(scoringTripsWeight),
 
         transport_template_ids: caps.transport ? transportTemplateIds : [],
         ship_ids: caps.ship ? shipIds : [],
@@ -978,6 +1019,33 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
                             disabled={!caps.ship}
                         />
                     </div>
+
+                    <div>
+                        <label className={labelClass}>Maksimālais braukšanas laiks pirms atpūtas (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingMaxDriveMinutesBeforeRest}
+                            onChange={(e) => setTimingMaxDriveMinutesBeforeRest(e.target.value)}
+                            className={inputClass}
+                            placeholder="270"
+                            disabled={!caps.transport && !caps.route}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Atpūtas ilgums (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingRestMinutes}
+                            onChange={(e) => setTimingRestMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="45"
+                            disabled={!caps.transport && !caps.route}
+                        />
+                    </div>
+
                 </div>
             </OrderTemplateFormSection>
             
@@ -1007,6 +1075,65 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
                             onChange={(e) => setWaitingShipReadyAt(e.target.value)}
                             className={inputClass}
                             disabled={!caps.ship}
+                        />
+                    </div>
+                </div>
+            </OrderTemplateFormSection>
+
+            <OrderTemplateFormSection
+                title="Scoring prioritātes"
+                description="Šie svari nosaka, kas šajā scenārijā vairāk ietekmē gala score."
+            >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label className={labelClass}>Laika svars</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoringTimeWeight}
+                            onChange={(e) => setScoringTimeWeight(e.target.value)}
+                            className={inputClass}
+                            placeholder="35"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Izmaksu svars</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoringCostWeight}
+                            onChange={(e) => setScoringCostWeight(e.target.value)}
+                            className={inputClass}
+                            placeholder="25"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Saderības svars</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoringCompatibilityWeight}
+                            onChange={(e) => setScoringCompatibilityWeight(e.target.value)}
+                            className={inputClass}
+                            placeholder="25"
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Reisu skaita svars</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoringTripsWeight}
+                            onChange={(e) => setScoringTripsWeight(e.target.value)}
+                            className={inputClass}
+                            placeholder="15"
                         />
                     </div>
                 </div>

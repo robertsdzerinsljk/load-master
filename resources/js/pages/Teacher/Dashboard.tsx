@@ -19,6 +19,7 @@ type DashboardProps = {
         templates_count: number;
         attempts_in_progress: number;
         attempts_submitted: number;
+        attempts_reviewed: number;
     };
     templates: Array<{
         id: number;
@@ -121,6 +122,11 @@ function StatusBadge({ status }: { status: string }) {
             label: 'Iesniegts',
             className: 'border-green-200 bg-green-50 text-green-700',
             icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+        },
+        reviewed: {
+        label: 'Pārskatīts',
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
+        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
         },
     };
 
@@ -343,10 +349,12 @@ function AssignmentRow({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-[#166a4d]">
-                    <Eye className="h-4 w-4" />
-                    Atvērt
-                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-[#166a4d]">
+                        <Eye className="h-4 w-4" />
+                        Skatīt mēģinājumu
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                    </div>
                 </div>
             </div>
         </button>
@@ -386,7 +394,7 @@ export default function TeacherDashboard() {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[360px]">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[520px] xl:grid-cols-3">
                                     <div className="rounded-2xl border border-[#e2e9e4] bg-[#f8fbf9] p-4">
                                         <div className="text-sm text-[#6a776f]">Aktīvie iesniegumi</div>
                                         <div className="mt-2 flex items-center gap-2 text-2xl font-semibold text-[#182219]">
@@ -400,6 +408,13 @@ export default function TeacherDashboard() {
                                         <div className="mt-2 flex items-center gap-2 text-2xl font-semibold text-[#182219]">
                                             <Clock3 className="h-5 w-5 text-[#166a4d]" />
                                             {stats.attempts_in_progress}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-[#e2e9e4] bg-[#f8fbf9] p-4">
+                                        <div className="text-sm text-[#6a776f]">Pārskatītie darbi</div>
+                                        <div className="mt-2 flex items-center gap-2 text-2xl font-semibold text-[#182219]">
+                                            <CheckCircle2 className="h-5 w-5 text-[#166a4d]" />
+                                            {stats.attempts_reviewed}
                                         </div>
                                     </div>
                                 </div>
@@ -430,6 +445,12 @@ export default function TeacherDashboard() {
                             label="Iesniegti"
                             value={stats.attempts_submitted}
                             helper="Darbi, kas jau gaida pārskatīšanu"
+                            icon={<CheckCircle2 className="h-5 w-5" />}
+                        />
+                        <StatCard
+                            label="Pārskatīti"
+                            value={stats.attempts_reviewed}
+                            helper="Darbi, kuri jau ir novērtēti"
                             icon={<CheckCircle2 className="h-5 w-5" />}
                         />
                     </section>

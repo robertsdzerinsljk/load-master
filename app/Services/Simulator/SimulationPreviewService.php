@@ -28,6 +28,14 @@ class SimulationPreviewService
         $port = $attempt->selectedPort;
         $ship = $attempt->selectedShip;
 
+        $config = is_array($template->scenario_config) ? $template->scenario_config : [];
+        $scoring = is_array($config['scoring'] ?? null) ? $config['scoring'] : [];
+
+        $timeWeight = (int) ($scoring['time_weight'] ?? 35);
+        $costWeight = (int) ($scoring['cost_weight'] ?? 25);
+        $compatibilityWeight = (int) ($scoring['compatibility_weight'] ?? 25);
+        $tripsWeight = (int) ($scoring['trips_weight'] ?? 15);
+
         $segments = $attempt->routeSegments->sortBy('pivot.position')->values();
         $fuelStations = $attempt->fuelStations->sortBy('pivot.position')->values();
 
@@ -164,40 +172,158 @@ class SimulationPreviewService
             && $portShipCompatible
             && $isWithinDeadline;
 
-        $score = 100;
+        $hints = [
+            'critical' => [],
+            'optimization' => [],
+            'info' => [],
+        ];
 
         if (!$hasEnoughVehicles) {
-            $score -= 40;
-        }
-        if ($requiredTrips > 1) {
-        $score -= min(25, ($requiredTrips - 1) * 2);
+            $hints['critical'][] = 'Izvēlēto transportu skaits nav pietiekams visai kravai.';
         }
 
         if (!$chainValid) {
-            $score -= 30;
-        }
-
-        if ($needsRefuel && $fuelStopsCount === 0) {
-            $score -= 20;
-        }
-
-        if (!$rangePlanValid) {
-            $score -= 15;
+            $hints['critical'][] = 'Maršruta segmenti neveido nepārtrauktu ķēdi.';
         }
 
         if (!$portShipCompatible) {
-            $score -= 25;
+            $hints['critical'][] = 'Ostas un kuģa kombinācija nav korekta šim risinājumam.';
+        }
+
+        if ($needsRefuel && $fuelStopsCount === 0) {
+            $hints['critical'][] = 'Maršrutam nepieciešama uzpilde, bet nav izvēlēta neviena degvielas pietura.';
+        }
+
+        if (!$rangePlanValid) {
+            $hints['critical'][] = 'Transporta darbības rādiuss tiek pārsniegts starp uzpildēm.';
         }
 
         if (!$isWithinDeadline) {
-            $score -= min(30, (int) ceil($delayMinutes / 60) * 3);
+            $hints['critical'][] = "Risinājums nokavē termiņu par {$delayMinutes} minūtēm.";
         }
 
-        $score = max(0, $score);
+        if ($requiredTrips > 1) {
+            $hints['optimization'][] = "Risinājumam nepieciešami {$requiredTrips} reisi. Apsver lielāku kapacitāti vai vairāk transporta vienību.";
+        }
+
+        if (!empty($timeline['events'])) {
+            $hints['info'][] = 'Timeline ir aprēķināts no secīgas notikumu ķēdes, ieskaitot apstrādes un gaidīšanas laikus.';
+        }
+
+        $score = 100;
+
+$scoreBreakdown = [
+    'base_score' => 100,
+    'penalties' => [],
+    'final_score' => 100,
+];
+
+// TIME
+if (!$isWithinDeadline) {
+    $penalty = min($timeWeight, (int) ceil($delayMinutes / 60) * 3);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'deadline_delay',
+        'label' => 'Kavējums pret deadline',
+        'category' => 'time',
+        'amount' => $penalty,
+        'details' => "Kavējums: {$delayMinutes} min",
+    ];
+}
+
+// COST / RESOURCE PRESSURE
+if (!$hasEnoughVehicles) {
+    $penalty = min($costWeight, 20);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'insufficient_vehicles',
+        'label' => 'Nepietiek transporta vienību',
+        'category' => 'cost',
+        'amount' => $penalty,
+        'details' => "Nepieciešami: {$requiredVehicles}, izvēlēti: {$vehicleCount}",
+    ];
+}
+
+// COMPATIBILITY
+if (!$chainValid) {
+    $penalty = min($compatibilityWeight, 15);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'route_chain',
+        'label' => 'Maršruta ķēde nav nepārtraukta',
+        'category' => 'compatibility',
+        'amount' => $penalty,
+        'details' => 'Segmenti neveido korektu secību',
+    ];
+}
+
+if (!$portShipCompatible) {
+    $penalty = min($compatibilityWeight, 20);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'port_ship_compatibility',
+        'label' => 'Ostas un kuģa nesaderība',
+        'category' => 'compatibility',
+        'amount' => $penalty,
+        'details' => 'Osta, kuģis vai kapacitāte nav savstarpēji korekta',
+    ];
+}
+
+if ($needsRefuel && $fuelStopsCount === 0) {
+    $penalty = min($compatibilityWeight, 10);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'missing_fuel_stop',
+        'label' => 'Trūkst degvielas pieturas',
+        'category' => 'compatibility',
+        'amount' => $penalty,
+        'details' => 'Maršrutam vajadzīga uzpilde, bet nav izvēlēta neviena pietura',
+    ];
+}
+
+if (!$rangePlanValid) {
+    $penalty = min($compatibilityWeight, 10);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'range_plan_invalid',
+        'label' => 'Pārāk lieli attālumi starp uzpildēm',
+        'category' => 'compatibility',
+        'amount' => $penalty,
+        'details' => 'Transporta darbības rādiuss tiek pārsniegts',
+    ];
+}
+
+// TRIPS / EFFICIENCY
+if ($requiredTrips > 1) {
+    $penalty = min($tripsWeight, ($requiredTrips - 1) * 2);
+    $score -= $penalty;
+
+    $scoreBreakdown['penalties'][] = [
+        'key' => 'too_many_trips',
+        'label' => 'Pārāk daudz reisu',
+        'category' => 'trips',
+        'amount' => $penalty,
+        'details' => "Nepieciešami {$requiredTrips} reisi",
+    ];
+}
+
+$score = max(0, $score);
+$scoreBreakdown['final_score'] = $score;
         $isExamMode = ($template->evaluation_mode ?? 'practice') === 'exam';
 
         if ($isExamMode) {
             $warnings = [];
+            $hints = [
+                'critical' => [],
+                'optimization' => [],
+                'info' => [],
+            ];
         }
         return [
             'transport' => [
@@ -247,22 +373,30 @@ class SimulationPreviewService
                 'containers' => $containerCount,
             ],
             'timeline' => $timeline,
+            'hints' => $hints,
             'result' => [
-                'required_vehicles' => $requiredVehicles,
-                'selected_vehicles' => $vehicleCount,
-                'vehicle_capacity' => $vehicleCapacity,
-                'capacity_per_trip' => $capacityPerTrip,
-                'required_trips' => $requiredTrips,
-                'trip_time_hours' => $tripTimeHours,
-                'fuel_needed_liters' => $fuelNeededLiters,
-                'total_cost' => $totalCost,
-                'needs_refuel' => $needsRefuel,
-                'is_valid' => $isValid,
-                'score' => $score,
-                'warnings' => $warnings,
-                'delay_minutes' => $delayMinutes,
-                'is_within_deadline' => $isWithinDeadline,
-            ],
+    'required_vehicles' => $requiredVehicles,
+    'selected_vehicles' => $vehicleCount,
+    'vehicle_capacity' => $vehicleCapacity,
+    'capacity_per_trip' => $capacityPerTrip,
+    'required_trips' => $requiredTrips,
+    'trip_time_hours' => $tripTimeHours,
+    'fuel_needed_liters' => $fuelNeededLiters,
+    'total_cost' => $totalCost,
+    'needs_refuel' => $needsRefuel,
+    'is_valid' => $isValid,
+    'score' => $score,
+    'scoring' => [
+        'time_weight' => $timeWeight,
+        'cost_weight' => $costWeight,
+        'compatibility_weight' => $compatibilityWeight,
+        'trips_weight' => $tripsWeight,
+    ],
+    'score_breakdown' => $scoreBreakdown,
+    'warnings' => $warnings,
+    'delay_minutes' => $delayMinutes,
+    'is_within_deadline' => $isWithinDeadline,
+],
         ];
     }
 }

@@ -35,14 +35,13 @@ class SimulationTimelineService
         $containerCount = (int) ($template->cargo_amount_containers ?? 0);
         $vehicleCount = max(1, (int) ($attempt->selected_vehicle_count ?? 1));
 
-            $vehicleCapacity = (int) (
+        $vehicleCapacity = (int) (
             $transport->capacity_containers
             ?? $transport->container_capacity
             ?? 0
         );
 
         $capacityPerTrip = max(1, $vehicleCapacity * $vehicleCount);
-
         $requiredTrips = $capacityPerTrip > 0
             ? (int) ceil($containerCount / $capacityPerTrip)
             : 1;
@@ -57,6 +56,8 @@ class SimulationTimelineService
         $defaultFuelStopMinutes = (int) ($timing['fuel_stop_minutes'] ?? 20);
         $defaultPortProcessingMinutes = (int) ($timing['port_processing_minutes'] ?? 60);
         $defaultShipLoadingMinutes = (int) ($timing['ship_loading_minutes'] ?? 90);
+        $maxDriveMinutesBeforeRest = (int) ($timing['max_drive_minutes_before_rest'] ?? 270);
+        $restMinutes = (int) ($timing['rest_minutes'] ?? 45);
 
         $portQueueMinutes = (int) ($availability['port_queue_minutes'] ?? 0);
         $shipReadyAt = !empty($availability['ship_ready_at'])
@@ -70,6 +71,11 @@ class SimulationTimelineService
             : now()->copy();
 
         $startedAt = $current->copy();
+        $drivingMinutesSinceRest = 0;
+        $totalRouteDistanceKm = (float) $segments->sum(fn ($segment) => (float) ($segment->distance_km ?? 0));
+        $returnTripMinutes = $avgSpeed > 0
+            ? (int) ceil(($totalRouteDistanceKm / $avgSpeed) * 60)
+            : 0;
 
         if ($containerCount > 0) {
             $loadingMinutes = $defaultLoadingMinutes;
@@ -89,67 +95,109 @@ class SimulationTimelineService
         }
 
         for ($trip = 1; $trip <= $requiredTrips; $trip++) {
+            foreach ($segments as $index => $segment) {
+                $distanceKm = (float) ($segment->distance_km ?? 0);
+                $driveMinutes = $avgSpeed > 0
+                    ? (int) ceil(($distanceKm / $avgSpeed) * 60)
+                    : 0;
 
-        foreach ($segments as $index => $segment) {
-            $distanceKm = (float) ($segment->distance_km ?? 0);
+                if ($driveMinutes > 0 && $maxDriveMinutesBeforeRest > 0) {
+                    while ($drivingMinutesSinceRest > 0
+                        && ($drivingMinutesSinceRest + $driveMinutes) > $maxDriveMinutesBeforeRest
+                    ) {
+                        $events[] = $this->makeEvent(
+                            type: 'rest',
+                            label: "Obligātā atpūta pirms reisa {$trip} turpinājuma",
+                            start: $current,
+                            durationMinutes: $restMinutes,
+                            meta: [
+                                'trip' => $trip,
+                                'reason' => 'max_drive_limit_reached',
+                                'max_drive_minutes_before_rest' => $maxDriveMinutesBeforeRest,
+                            ]
+                        );
 
-            $driveMinutes = $avgSpeed > 0
-                ? (int) ceil(($distanceKm / $avgSpeed) * 60)
-                : 0;
+                        $current = $current->copy()->addMinutes($restMinutes);
+                        $drivingMinutesSinceRest = 0;
+                    }
+                }
 
-            $from = $segment->fromLocation->name ?? '—';
-            $to = $segment->toLocation->name ?? '—';
-
-            $events[] = $this->makeEvent(
-                type: 'drive',
-                label: "Reiss {$trip}: {$from} → {$to}",
-                start: $current,
-                durationMinutes: $driveMinutes,
-                meta: [
-                    'trip' => $trip,
-                    'distance_km' => $distanceKm,
-                    'avg_speed_kmh' => $avgSpeed,
-                ]
-            );
-
-            $current = $current->copy()->addMinutes($driveMinutes);
-
-            if ($fuelStations->has($index)) {
-                $station = $fuelStations[$index];
-                $stationName = $station->display_name ?? $station->name ?? 'Degvielas pietura';
+                $from = $segment->fromLocation->name ?? '—';
+                $to = $segment->toLocation->name ?? '—';
 
                 $events[] = $this->makeEvent(
-                    type: 'fuel_stop',
-                    label: "Reiss {$trip}: Uzpilde {$stationName}",
+                    type: 'drive',
+                    label: "Reiss {$trip}: {$from} → {$to}",
                     start: $current,
-                    durationMinutes: $defaultFuelStopMinutes,
+                    durationMinutes: $driveMinutes,
                     meta: [
                         'trip' => $trip,
-                        'station_id' => $station->id,
+                        'distance_km' => $distanceKm,
+                        'avg_speed_kmh' => $avgSpeed,
+                        'segment_position' => $index + 1,
                     ]
                 );
 
-                $current = $current->copy()->addMinutes($defaultFuelStopMinutes);
+                $current = $current->copy()->addMinutes($driveMinutes);
+                $drivingMinutesSinceRest += $driveMinutes;
+
+                if ($fuelStations->has($index)) {
+                    $station = $fuelStations[$index];
+                    $stationName = $station->display_name ?? $station->name ?? 'Degvielas pietura';
+
+                    $events[] = $this->makeEvent(
+                        type: 'fuel_stop',
+                        label: "Reiss {$trip}: Uzpilde {$stationName}",
+                        start: $current,
+                        durationMinutes: $defaultFuelStopMinutes,
+                        meta: [
+                            'trip' => $trip,
+                            'station_id' => $station->id,
+                            'station_name' => $stationName,
+                        ]
+                    );
+
+                    $current = $current->copy()->addMinutes($defaultFuelStopMinutes);
+                }
+            }
+
+            if ($trip < $requiredTrips && $returnTripMinutes > 0) {
+                if ($maxDriveMinutesBeforeRest > 0) {
+                    while ($drivingMinutesSinceRest > 0
+                        && ($drivingMinutesSinceRest + $returnTripMinutes) > $maxDriveMinutesBeforeRest
+                    ) {
+                        $events[] = $this->makeEvent(
+                            type: 'rest',
+                            label: "Obligātā atpūta pirms atgriešanās (Reiss {$trip})",
+                            start: $current,
+                            durationMinutes: $restMinutes,
+                            meta: [
+                                'trip' => $trip,
+                                'reason' => 'max_drive_limit_reached',
+                                'max_drive_minutes_before_rest' => $maxDriveMinutesBeforeRest,
+                            ]
+                        );
+
+                        $current = $current->copy()->addMinutes($restMinutes);
+                        $drivingMinutesSinceRest = 0;
+                    }
+                }
+
+                $events[] = $this->makeEvent(
+                    type: 'return',
+                    label: "Atgriešanās uz sākuma punktu (Reiss {$trip})",
+                    start: $current,
+                    durationMinutes: $returnTripMinutes,
+                    meta: [
+                        'trip' => $trip,
+                        'distance_km' => $totalRouteDistanceKm,
+                    ]
+                );
+
+                $current = $current->copy()->addMinutes($returnTripMinutes);
+                $drivingMinutesSinceRest += $returnTripMinutes;
             }
         }
-
-        // 🔁 RETURN TRIP (optional realism)
-        if ($trip < $requiredTrips) {
-            $events[] = $this->makeEvent(
-                type: 'return',
-                label: "Atgriešanās uz sākuma punktu (Reiss {$trip})",
-                start: $current,
-                durationMinutes: (int) ceil($segments->sum('distance_km') / $avgSpeed * 60),
-                meta: [
-                    'trip' => $trip,
-                ]
-            );
-
-            $current = $current->copy()->addMinutes(
-                (int) ceil($segments->sum('distance_km') / $avgSpeed * 60)
-            );
-        }
-    }
 
         if ($port && $portQueueMinutes > 0) {
             $events[] = $this->makeEvent(
