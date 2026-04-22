@@ -9,9 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('teacher_feedback', function (Blueprint $table) {
-            $table->dropForeign(['assignment_id']);
-        });
+        $foreignKeys = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_NAME = 'teacher_feedback'
+            AND COLUMN_NAME = 'assignment_id'
+            AND CONSTRAINT_SCHEMA = DATABASE()
+        ");
+
+        foreach ($foreignKeys as $fk) {
+            DB::statement("ALTER TABLE teacher_feedback DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
+        }
 
         Schema::table('teacher_feedback', function (Blueprint $table) {
             $table->unsignedBigInteger('assignment_id')->nullable()->change();
