@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('PRAGMA foreign_keys=OFF');
+        Schema::disableForeignKeyConstraints();
 
         Schema::table('teacher_feedback', function (Blueprint $table) {
             $table->dropForeign(['assignment_id']);
@@ -34,12 +34,12 @@ return new class extends Migration
         Schema::drop('teacher_feedback');
         DB::statement('ALTER TABLE teacher_feedback_tmp RENAME TO teacher_feedback');
 
-        DB::statement('PRAGMA foreign_keys=ON');
+        Schema::enableForeignKeyConstraints();
     }
 
     public function down(): void
     {
-        DB::statement('PRAGMA foreign_keys=OFF');
+        Schema::disableForeignKeyConstraints();
 
         DB::statement('CREATE TABLE teacher_feedback_tmp (
             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -60,6 +60,6 @@ return new class extends Migration
         Schema::drop('teacher_feedback');
         DB::statement('ALTER TABLE teacher_feedback_tmp RENAME TO teacher_feedback');
 
-        DB::statement('PRAGMA foreign_keys=ON');
+        Schema::enableForeignKeyConstraints();
     }
 };
