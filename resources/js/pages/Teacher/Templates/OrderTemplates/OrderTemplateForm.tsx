@@ -107,6 +107,7 @@ type InitialData = {
             fuel_stop_minutes?: number | string | null;
             port_processing_minutes?: number | string | null;
             ship_loading_minutes?: number | string | null;
+            sea_transit_minutes?: number | string | null;
             max_drive_minutes_before_rest?: number | string | null;
             rest_minutes?: number | string | null;
         } | null;
@@ -373,6 +374,9 @@ const [budgetLimit, setBudgetLimit] = useState(String(initialData.budget_limit ?
     const [timingShipLoadingMinutes, setTimingShipLoadingMinutes] = useState(
         String(initialData.scenario_config?.timing?.ship_loading_minutes ?? 90)
     );
+    const [timingSeaTransitMinutes, setTimingSeaTransitMinutes] = useState(
+        String(initialData.scenario_config?.timing?.sea_transit_minutes ?? 360)
+    );
     const [timingMaxDriveMinutesBeforeRest, setTimingMaxDriveMinutesBeforeRest] = useState(
         String(initialData.scenario_config?.timing?.max_drive_minutes_before_rest ?? 270)
     );
@@ -531,6 +535,8 @@ const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
             timingPortProcessingMinutes === '' ? null : Number(timingPortProcessingMinutes),
         timing_ship_loading_minutes:
             timingShipLoadingMinutes === '' ? null : Number(timingShipLoadingMinutes),
+        timing_sea_transit_minutes:
+            timingSeaTransitMinutes === '' ? null : Number(timingSeaTransitMinutes),
         timing_max_drive_minutes_before_rest:
             timingMaxDriveMinutesBeforeRest === ''
                 ? null
@@ -1017,6 +1023,19 @@ const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
                             className={inputClass}
                             placeholder="90"
                             disabled={!caps.ship}
+                        />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>JÅ«ras ceÄ¼a ilgums (min)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={timingSeaTransitMinutes}
+                            onChange={(e) => setTimingSeaTransitMinutes(e.target.value)}
+                            className={inputClass}
+                            placeholder="360"
+                            disabled={!caps.ship || !caps.endPort}
                         />
                     </div>
 

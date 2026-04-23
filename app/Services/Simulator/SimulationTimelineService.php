@@ -12,8 +12,12 @@ class SimulationTimelineService
     {
         $attempt->loadMissing([
             'orderTemplate',
+            'orderTemplate.startLocation',
+            'orderTemplate.endLocation',
+            'orderTemplate.startPort.location',
+            'orderTemplate.endPort.location',
             'selectedTransportTemplate',
-            'selectedPort',
+            'selectedPort.location',
             'selectedShip',
             'routeSegments.fromLocation',
             'routeSegments.toLocation',
@@ -56,6 +60,7 @@ class SimulationTimelineService
         $defaultFuelStopMinutes = (int) ($timing['fuel_stop_minutes'] ?? 20);
         $defaultPortProcessingMinutes = (int) ($timing['port_processing_minutes'] ?? 60);
         $defaultShipLoadingMinutes = (int) ($timing['ship_loading_minutes'] ?? 90);
+        $defaultSeaTransitMinutes = (int) ($timing['sea_transit_minutes'] ?? 360);
         $maxDriveMinutesBeforeRest = (int) ($timing['max_drive_minutes_before_rest'] ?? 270);
         $restMinutes = (int) ($timing['rest_minutes'] ?? 45);
 
@@ -72,6 +77,14 @@ class SimulationTimelineService
 
         $startedAt = $current->copy();
         $drivingMinutesSinceRest = 0;
+        $startLocationName = $segments->first()?->fromLocation?->name
+            ?? $template->startLocation?->name
+            ?? $template->startPort?->name
+            ?? 'Sākuma punkts';
+        $endLocationName = $segments->last()?->toLocation?->name
+            ?? $template->endLocation?->name
+            ?? $template->endPort?->name
+            ?? 'Galamērķis';
         $totalRouteDistanceKm = (float) $segments->sum(fn ($segment) => (float) ($segment->distance_km ?? 0));
         $returnTripMinutes = $avgSpeed > 0
             ? (int) ceil(($totalRouteDistanceKm / $avgSpeed) * 60)
@@ -88,6 +101,8 @@ class SimulationTimelineService
                 meta: [
                     'containers' => $containerCount,
                     'vehicles' => $vehicleCount,
+                    'location_name' => $startLocationName,
+                    'transport_name' => $transport?->name,
                 ]
             );
 
@@ -135,6 +150,8 @@ class SimulationTimelineService
                         'distance_km' => $distanceKm,
                         'avg_speed_kmh' => $avgSpeed,
                         'segment_position' => $index + 1,
+                        'from_location_name' => $from,
+                        'to_location_name' => $to,
                     ]
                 );
 
@@ -154,6 +171,7 @@ class SimulationTimelineService
                             'trip' => $trip,
                             'station_id' => $station->id,
                             'station_name' => $stationName,
+                            'location_name' => $station->location_name ?? $station->location?->name,
                         ]
                     );
 
@@ -191,6 +209,8 @@ class SimulationTimelineService
                     meta: [
                         'trip' => $trip,
                         'distance_km' => $totalRouteDistanceKm,
+                        'from_location_name' => $endLocationName,
+                        'to_location_name' => $startLocationName,
                     ]
                 );
 
@@ -209,6 +229,7 @@ class SimulationTimelineService
                     'reason' => 'port_queue',
                     'port_id' => $port->id,
                     'port_name' => $port->name,
+                    'location_name' => $port->location?->name ?? $port->name,
                 ]
             );
 
@@ -224,6 +245,7 @@ class SimulationTimelineService
                 meta: [
                     'port_id' => $port->id,
                     'port_name' => $port->name,
+                    'location_name' => $port->location?->name ?? $port->name,
                 ]
             );
 
@@ -243,6 +265,8 @@ class SimulationTimelineService
                     'ship_id' => $ship->id,
                     'ship_name' => $ship->name,
                     'ready_at' => $shipReadyAt->toDateTimeString(),
+                    'port_name' => $port?->name,
+                    'location_name' => $port?->location?->name ?? $port?->name,
                 ]
             );
 
@@ -258,10 +282,38 @@ class SimulationTimelineService
                 meta: [
                     'ship_id' => $ship->id,
                     'ship_name' => $ship->name,
+                    'port_name' => $port?->name,
+                    'location_name' => $port?->location?->name ?? $port?->name,
                 ]
             );
 
             $current = $current->copy()->addMinutes($defaultShipLoadingMinutes);
+        }
+
+        $departurePortName = $port?->name
+            ?? $template->startPort?->name
+            ?? $template->startLocation?->name
+            ?? 'IzbraukÅ¡anas punkts';
+        $arrivalPortName = $template->endPort?->name
+            ?? $template->endLocation?->name
+            ?? null;
+
+        if ($ship && $arrivalPortName && $arrivalPortName !== $departurePortName) {
+            $events[] = $this->makeEvent(
+                type: 'sea_transit',
+                label: "{$ship->name} dodas uz {$arrivalPortName}",
+                start: $current,
+                durationMinutes: $defaultSeaTransitMinutes,
+                meta: [
+                    'ship_id' => $ship->id,
+                    'ship_name' => $ship->name,
+                    'origin_port_name' => $departurePortName,
+                    'destination_port_name' => $arrivalPortName,
+                    'mode' => 'sea',
+                ]
+            );
+
+            $current = $current->copy()->addMinutes($defaultSeaTransitMinutes);
         }
 
         $finishedAt = $current->copy();

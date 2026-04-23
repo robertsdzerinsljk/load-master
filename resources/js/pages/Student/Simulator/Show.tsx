@@ -83,7 +83,6 @@ export default function StudentSimulatorShow() {
         'error',
     );
     const [showToast, setShowToast] = useState(false);
-    const [showHints, setShowHints] = useState(false);
 
     const [selectedTransportId, setSelectedTransportId] = useState<string>(
         String(initialAttempt.selected_transport_template_id ?? ''),
@@ -184,24 +183,9 @@ export default function StudentSimulatorShow() {
     const timelineEvents: TimelineEvent[] = Array.isArray(timeline?.events)
         ? timeline.events
         : [];
-
-    const MAX_TIMELINE_EVENTS = 20;
-    const visibleTimelineEvents = timelineEvents.slice(0, MAX_TIMELINE_EVENTS);
-    const hiddenTimelineCount =
-        timelineEvents.length > MAX_TIMELINE_EVENTS
-            ? timelineEvents.length - MAX_TIMELINE_EVENTS
-            : 0;
-
-    const previewHints = attempt.preview_result?.hints;
-    const criticalHints = previewHints?.critical ?? [];
-    const optimizationHints = previewHints?.optimization ?? [];
-    const infoHints = previewHints?.info ?? [];
     const isSubmittedAttempt =
         attempt.status === 'submitted' ||
         attempt.status === 'teacher_test_submitted';
-
-    const totalHintsCount =
-        criticalHints.length + optimizationHints.length + infoHints.length;
 
     const hasStep = (stepKey: string) => availableSteps.includes(stepKey);
 
@@ -559,15 +543,16 @@ export default function StudentSimulatorShow() {
                       }
                     : !hasPreview
                       ? {
-                            label: 'Jāaprēķina',
+                            label: 'Jāpalaiž',
                             tone: 'warning',
-                            detail: 'Palaid preview pārbaudi',
+                            detail:
+                                'Palaid simulāciju un apskati notikumu ķēdi',
                         }
                       : isPreviewValid
                         ? {
                               label: 'Derīgs',
                               tone: 'success',
-                              detail: 'Preview ir gatavs iesniegšanai',
+                              detail: 'Simulācija ir gatava iesniegšanai',
                           }
                         : isExamMode
                           ? {
@@ -578,7 +563,7 @@ export default function StudentSimulatorShow() {
                           : {
                                 label: 'Jāizlabo',
                                 tone: 'danger',
-                                detail: 'Preview atrada kritiskas problēmas',
+                                detail: 'Simulācija atrada kritiskas problēmas',
                             };
         }
 
@@ -592,7 +577,7 @@ export default function StudentSimulatorShow() {
                   ? {
                         label: 'Bloķēts',
                         tone: 'neutral',
-                        detail: 'Vispirms jāaprēķina preview',
+                        detail: 'Vispirms jāpalaiž simulācija',
                     }
                   : isPreviewValid
                     ? {
@@ -738,7 +723,7 @@ export default function StudentSimulatorShow() {
 
         if (targetStep === 'submit') {
             if (!attempt.preview_result) {
-                return 'Vispirms aprēķini preview rezultātu.';
+                return 'Vispirms palaid simulāciju.';
             }
 
             if (attempt.preview_result?.result?.is_valid === false) {
@@ -1354,267 +1339,15 @@ export default function StudentSimulatorShow() {
                             )}
 
                             {currentStepKey === 'simulation' && (
-                                <div className="space-y-6">
-                                    <PreviewStep
-                                        stepNumber={currentStepNumber}
-                                        attempt={attempt}
-                                        loading={loading}
-                                        canPreview={canPreview}
-                                        onPreview={() => saveStep('simulation')}
-                                        isExamMode={isExamMode}
-                                    />
-
-                                    {!isExamMode && totalHintsCount > 0 ? (
-                                        <section className="rounded-[24px] border border-[#d9ded9] bg-white p-5 shadow-sm">
-                                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                                <div>
-                                                    <div className="text-[12px] font-medium tracking-wide text-[#7a877f] uppercase">
-                                                        Practice hints
-                                                    </div>
-                                                    <div className="mt-1 text-[16px] font-semibold text-[#182219]">
-                                                        Pieejami{' '}
-                                                        {totalHintsCount}{' '}
-                                                        ieteikumi šī risinājuma
-                                                        uzlabošanai
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setShowHints(
-                                                            (prev) => !prev,
-                                                        )
-                                                    }
-                                                    className="inline-flex items-center justify-center rounded-xl border border-[#d9ded9] bg-white px-4 py-2 text-[14px] font-medium text-[#182219] hover:bg-[#f7f9f7]"
-                                                >
-                                                    {showHints
-                                                        ? 'Paslēpt ieteikumus'
-                                                        : 'Skatīt ieteikumus'}
-                                                </button>
-                                            </div>
-
-                                            {showHints ? (
-                                                <div className="mt-5 space-y-5">
-                                                    {criticalHints.length ? (
-                                                        <HintGroup
-                                                            title="Kritiski"
-                                                            items={
-                                                                criticalHints
-                                                            }
-                                                            variant="critical"
-                                                        />
-                                                    ) : null}
-
-                                                    {optimizationHints.length ? (
-                                                        <HintGroup
-                                                            title="Optimizācija"
-                                                            items={
-                                                                optimizationHints
-                                                            }
-                                                            variant="optimization"
-                                                        />
-                                                    ) : null}
-
-                                                    {infoHints.length ? (
-                                                        <HintGroup
-                                                            title="Informatīvi"
-                                                            items={infoHints}
-                                                            variant="info"
-                                                        />
-                                                    ) : null}
-                                                </div>
-                                            ) : null}
-                                        </section>
-                                    ) : null}
-
-                                    {!isExamMode ? (
-                                        timelineSummary ? (
-                                            <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
-                                                    Timeline
-                                                </div>
-
-                                                <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
-                                                    Laika aprēķina kopsavilkums
-                                                </h2>
-
-                                                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                                    <TimelineStatCard
-                                                        label="Sākums"
-                                                        value={
-                                                            timelineSummary.started_at
-                                                        }
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Beigas"
-                                                        value={
-                                                            timelineSummary.finished_at
-                                                        }
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Kopējais laiks"
-                                                        value={`${timelineSummary.total_minutes ?? '—'} min`}
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Kopējais laiks stundās"
-                                                        value={`${timelineSummary.total_hours ?? '—'} h`}
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Deadline"
-                                                        value={
-                                                            timelineSummary.deadline_at ??
-                                                            'Nav norādīts'
-                                                        }
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Kavējums"
-                                                        value={`${timelineSummary.delay_minutes ?? 0} min`}
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Nepieciešamie reisi"
-                                                        value={
-                                                            attempt
-                                                                .preview_result
-                                                                ?.result
-                                                                ?.required_trips ??
-                                                            '—'
-                                                        }
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Kapacitāte vienā reisā"
-                                                        value={
-                                                            attempt
-                                                                .preview_result
-                                                                ?.result
-                                                                ?.capacity_per_trip ??
-                                                            '—'
-                                                        }
-                                                    />
-                                                    <TimelineStatCard
-                                                        label="Transporta kapacitāte"
-                                                        value={
-                                                            attempt
-                                                                .preview_result
-                                                                ?.result
-                                                                ?.vehicle_capacity ??
-                                                            '—'
-                                                        }
-                                                    />
-                                                </div>
-
-                                                <div className="mt-6 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
-                                                    {timelineSummary.is_within_deadline
-                                                        ? 'Maršruts un operāciju ķēde iekļaujas deadline ietvaros.'
-                                                        : 'Risinājums neiekļaujas deadline ietvaros.'}
-                                                </div>
-
-                                                {timelineEvents.length ? (
-                                                    <div className="mt-6 space-y-3">
-                                                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                                                            <h3 className="text-[16px] font-semibold text-[#182219]">
-                                                                Timeline
-                                                                notikumi
-                                                            </h3>
-
-                                                            <div className="text-[13px] text-[#5b6b61]">
-                                                                Parādīti{' '}
-                                                                {
-                                                                    visibleTimelineEvents.length
-                                                                }{' '}
-                                                                no{' '}
-                                                                {
-                                                                    timelineEvents.length
-                                                                }{' '}
-                                                                notikumiem
-                                                            </div>
-                                                        </div>
-
-                                                        {visibleTimelineEvents.map(
-                                                            (event, index) => (
-                                                                <div
-                                                                    key={`${event.type}-${index}`}
-                                                                    className="rounded-2xl border border-[#d9ded9] bg-white px-4 py-4"
-                                                                >
-                                                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                                                        <div>
-                                                                            <div className="text-[15px] font-semibold text-[#182219]">
-                                                                                {index +
-                                                                                    1}
-                                                                                .{' '}
-                                                                                {
-                                                                                    event.label
-                                                                                }
-                                                                            </div>
-                                                                            <div className="mt-1 text-[13px] tracking-wide text-[#7a877f] uppercase">
-                                                                                {
-                                                                                    event.type
-                                                                                }
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div className="grid gap-2 text-[14px] text-[#4d5d53] md:text-right">
-                                                                            <div>
-                                                                                Sākums:{' '}
-                                                                                {
-                                                                                    event.start_at
-                                                                                }
-                                                                            </div>
-                                                                            <div>
-                                                                                Beigas:{' '}
-                                                                                {
-                                                                                    event.end_at
-                                                                                }
-                                                                            </div>
-                                                                            <div>
-                                                                                Ilgums:{' '}
-                                                                                {
-                                                                                    event.duration_minutes
-                                                                                }{' '}
-                                                                                min
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ),
-                                                        )}
-
-                                                        {hiddenTimelineCount >
-                                                        0 ? (
-                                                            <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] px-4 py-4 text-[14px] text-[#4d5d53]">
-                                                                Timeline ir
-                                                                saīsināts
-                                                                priekšskatījumam.
-                                                                Vēl paslēpti{' '}
-                                                                {
-                                                                    hiddenTimelineCount
-                                                                }{' '}
-                                                                notikumi.
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                ) : null}
-                                            </section>
-                                        ) : null
-                                    ) : hasPreview ? (
-                                        <section className="rounded-[24px] border border-[#d9ded9] bg-white p-5 shadow-sm">
-                                            <div className="text-[12px] font-medium tracking-wide text-[#7a877f] uppercase">
-                                                Exam mode
-                                            </div>
-                                            <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                                                Detalizētais timeline nav
-                                                pieejams pārbaudes darba režīmā
-                                            </div>
-                                            <p className="mt-2 text-[14px] leading-6 text-[#5b6b61]">
-                                                Kopsavilkumā redzēsi tikai
-                                                iesniegšanai nepieciešamo
-                                                preview informāciju bez
-                                                diagnostikas ķēdes un
-                                                detalizētiem notikumiem.
-                                            </p>
-                                        </section>
-                                    ) : null}
-                                </div>
+                                <PreviewStep
+                                    key={`${attempt.id}-${timelineSummary?.finished_at ?? 'empty'}-${timelineEvents.length}-${attempt.preview_result?.result?.score ?? 'na'}`}
+                                    stepNumber={currentStepNumber}
+                                    attempt={attempt}
+                                    loading={loading}
+                                    canPreview={canPreview}
+                                    onPreview={() => saveStep('simulation')}
+                                    isExamMode={isExamMode}
+                                />
                             )}
 
                             {currentStepKey === 'submit' && (
@@ -1671,58 +1404,3 @@ export default function StudentSimulatorShow() {
     );
 }
 
-function TimelineStatCard({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | number | null | undefined;
-}) {
-    return (
-        <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] p-4">
-            <div className="text-[12px] font-medium tracking-wide text-[#7a877f] uppercase">
-                {label}
-            </div>
-            <div className="mt-2 text-[15px] font-semibold text-[#182219]">
-                {value !== null && value !== undefined && value !== ''
-                    ? value
-                    : '—'}
-            </div>
-        </div>
-    );
-}
-
-function HintGroup({
-    title,
-    items,
-    variant,
-}: {
-    title: string;
-    items: string[];
-    variant: 'critical' | 'optimization' | 'info';
-}) {
-    const classes =
-        variant === 'critical'
-            ? 'border-red-200 bg-red-50 text-red-800'
-            : variant === 'optimization'
-              ? 'border-amber-200 bg-amber-50 text-amber-800'
-              : 'border-[#d9ded9] bg-[#f8fbf9] text-[#4d5d53]';
-
-    return (
-        <div>
-            <h3 className="text-[15px] font-semibold text-[#182219]">
-                {title}
-            </h3>
-            <div className="mt-3 space-y-2">
-                {items.map((item, index) => (
-                    <div
-                        key={`${title}-${index}`}
-                        className={`rounded-2xl border px-4 py-3 text-[14px] leading-6 ${classes}`}
-                    >
-                        {item}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}

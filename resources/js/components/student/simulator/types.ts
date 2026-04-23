@@ -23,13 +23,22 @@ export type FuelStationItem = {
     };
 };
 
+export type LocationItem = {
+    id: number;
+    name: string;
+    city?: string | null;
+    country?: string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+};
+
 export type RouteItem = {
     id: number;
     distance_km?: string | number | null;
-    fromLocation?: { id?: number; name: string } | null;
-    toLocation?: { id?: number; name: string } | null;
-    from_location?: { id?: number; name: string } | null;
-    to_location?: { id?: number; name: string } | null;
+    fromLocation?: LocationItem | null;
+    toLocation?: LocationItem | null;
+    from_location?: LocationItem | null;
+    to_location?: LocationItem | null;
     pivot?: {
         position?: number;
     };
@@ -44,6 +53,7 @@ export type PortItem = {
     depth_value?: number | string | null;
     max_depth_m?: number | string | null;
     draft_limit_m?: number | string | null;
+    location?: LocationItem | null;
 };
 
 export type ShipItem = {
@@ -109,25 +119,10 @@ export type Template = {
     step_config?: Record<string, boolean> | null;
     scenario_config?: Record<string, unknown> | null;
 
-    startLocation?: {
-        id: number;
-        name: string;
-    } | null;
-
-    endLocation?: {
-        id: number;
-        name: string;
-    } | null;
-
-    startPort?: {
-        id: number;
-        name: string;
-    } | null;
-
-    endPort?: {
-        id: number;
-        name: string;
-    } | null;
+    startLocation?: LocationItem | null;
+    endLocation?: LocationItem | null;
+    startPort?: PortItem | null;
+    endPort?: PortItem | null;
 
     temperatureMode?: {
         id: number;
@@ -285,7 +280,7 @@ export const simulatorSteps = [
     { key: 'fuel', label: 'Degvielas plānošana' },
     { key: 'port', label: 'Ostas izvēle' },
     { key: 'ship', label: 'Kuģa izvēle' },
-    { key: 'simulation', label: 'Rezultāta pārbaude' },
+    { key: 'simulation', label: 'Palaist simulāciju' },
     { key: 'submit', label: 'Iesniegšana' },
 ] as const;
 
@@ -299,12 +294,16 @@ export function getStatusLabel(status?: string | null) {
         teacher_test_submitted: 'Tests iesniegts',
     };
 
-    if (!status) return 'Procesā';
+    if (!status) {
+        return 'Procesā';
+    }
+
     return map[status] ?? status;
 }
 
 export function getStepTitle(step?: string | null) {
     const item = simulatorSteps.find((s) => s.key === step);
+
     return item?.label ?? 'Uzdevuma pārskats';
 }
 

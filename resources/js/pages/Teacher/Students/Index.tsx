@@ -384,13 +384,13 @@ export default function TeacherStudentsIndex() {
                         />
                     </section>
 
-                    <section className="rounded-[28px] border border-[#d9ded9] bg-white p-5 shadow-sm">
+                    <section className="rounded-[28px] border border-[#d9ded9] bg-[#166A4D] p-5 shadow-sm">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div>
-                                <h2 className="text-[24px] font-semibold tracking-tight text-[#182219]">
+                                <h2 className="text-[24px] font-semibold tracking-tight text-white">
                                     Studentu saraksts
                                 </h2>
-                                <p className="mt-1 text-[15px] leading-7 text-[#5b6b61]">
+                                <p className="mt-1 text-[15px] leading-7 text-[#F6F6F4]">
                                     Grupēts un filtrējams skats, lai pasniedzējs varētu strādāt ar
                                     klasēm, kursiem un lielāku studentu skaitu.
                                 </p>
@@ -454,10 +454,10 @@ export default function TeacherStudentsIndex() {
                                                 </div>
 
                                                 <div>
-                                                    <h3 className="text-[22px] font-semibold tracking-tight text-[#182219]">
+                                                    <h3 className="text-[22px] font-semibold tracking-tight text-white">
                                                         {groupName}
                                                     </h3>
-                                                    <p className="text-[14px] text-[#5b6b61]">
+                                                    <p className="text-[14px] text-[#F6F6F4]">
                                                         {groupStudents.length} studenti šajā grupā
                                                     </p>
                                                 </div>

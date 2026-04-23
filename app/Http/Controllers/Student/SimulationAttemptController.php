@@ -164,7 +164,7 @@ class SimulationAttemptController extends Controller
 
         if ($requestedStep === 'submit' && empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegšanas nepieciešams aprēķināt preview.',
+                'Pirms iesniegšanas nepieciešams palaist simulāciju.',
                 $attempt,
                 $availableSteps,
                 ($attempt->orderTemplate->evaluation_mode ?? 'practice') === 'exam',
@@ -523,7 +523,7 @@ class SimulationAttemptController extends Controller
 
         if (empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegšanas nepieciešams preview aprēķins.',
+                'Pirms iesniegšanas nepieciešams simulācijas aprēķins.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -603,6 +603,8 @@ class SimulationAttemptController extends Controller
                 'orderTemplate.ships',
                 'orderTemplate.startLocation',
                 'orderTemplate.endLocation',
+                'orderTemplate.startPort.location',
+                'orderTemplate.endPort.location',
                 'orderTemplate.temperatureMode',
                 'orderTemplate.specialCondition',
                 'selectedTransportTemplate',

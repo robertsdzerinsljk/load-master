@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils';
 import type { CSSProperties } from 'react';
 import {
     Anchor,
@@ -17,8 +16,9 @@ import {
     Sun,
     Truck,
     X,
-    type LucideIcon,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { simulatorSteps } from './types';
 import type {
     SimulatorStepStatus,
@@ -88,8 +88,8 @@ const stepPresentations: Record<string, StepPresentation> = {
         icon: ShipWheel,
     },
     simulation: {
-        shortLabel: 'Pārbaude',
-        description: 'Preview aprēķins un rezultāta validācija.',
+        shortLabel: 'Simulācija',
+        description: 'Palaid notikumu ķēdi un seko līdzi kravas kustībai.',
         icon: ScanSearch,
     },
     submit: {
@@ -254,6 +254,7 @@ function resolveStatusIndicator(status?: SimulatorStepStatus) {
 
 function metaString(meta: TimelineEvent['meta'], key: string) {
     const value = meta?.[key];
+
     return typeof value === 'string' ? value : null;
 }
 

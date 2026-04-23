@@ -419,6 +419,7 @@ class OrderTemplateController extends Controller
             'timing_fuel_stop_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_port_processing_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_ship_loading_minutes' => 'nullable|integer|min:0|max:100000',
+            'timing_sea_transit_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_max_drive_minutes_before_rest' => 'nullable|integer|min:0|max:100000',
             'timing_rest_minutes' => 'nullable|integer|min:0|max:100000',
 
@@ -621,6 +622,9 @@ class OrderTemplateController extends Controller
     'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
         ? (int) $validated['timing_ship_loading_minutes']
         : 90,
+    'sea_transit_minutes' => isset($validated['timing_sea_transit_minutes'])
+        ? (int) $validated['timing_sea_transit_minutes']
+        : 360,
     'max_drive_minutes_before_rest' => isset($validated['timing_max_drive_minutes_before_rest'])
         ? (int) $validated['timing_max_drive_minutes_before_rest']
         : 270,

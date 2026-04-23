@@ -159,6 +159,7 @@ class SimulationPreviewService
         }
 
         $timeline = $this->timelineService->build($attempt);
+        $totalOperationHours = round(((int) ($timeline['summary']['total_minutes'] ?? 0)) / 60, 2);
         $delayMinutes = (int) ($timeline['summary']['delay_minutes'] ?? 0);
         $isWithinDeadline = (bool) ($timeline['summary']['is_within_deadline'] ?? true);
 
@@ -380,7 +381,7 @@ $scoreBreakdown['final_score'] = $score;
     'vehicle_capacity' => $vehicleCapacity,
     'capacity_per_trip' => $capacityPerTrip,
     'required_trips' => $requiredTrips,
-    'trip_time_hours' => $tripTimeHours,
+    'trip_time_hours' => $totalOperationHours > 0 ? $totalOperationHours : $tripTimeHours,
     'fuel_needed_liters' => $fuelNeededLiters,
     'total_cost' => $totalCost,
     'needs_refuel' => $needsRefuel,

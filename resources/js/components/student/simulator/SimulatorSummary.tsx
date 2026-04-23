@@ -1,10 +1,8 @@
-import {
+import type {
     Attempt,
-    getStatusLabel,
-    getStepTitle,
-    routeName,
     Template,
 } from './types';
+import { getStatusLabel, getStepTitle, routeName } from './types';
 
 type Props = {
     template: Template;
@@ -126,9 +124,9 @@ export default function SimulatorSummary({ template, attempt }: Props) {
                 ) : null}
 
                 {preview ? (
-                    <SummaryBlock title="Preview rezultāts">
+                    <SummaryBlock title="Simulācijas rezultāts">
                         <SummaryRow
-                            label="Preview statuss"
+                            label="Simulācijas statuss"
                             value={
                                 isExamMode
                                     ? result?.is_valid
