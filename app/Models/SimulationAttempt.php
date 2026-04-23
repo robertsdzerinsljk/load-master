@@ -12,6 +12,8 @@ class SimulationAttempt extends Model
         'preview_result' => 'array',
         'submitted_at' => 'datetime',
         'is_valid' => 'boolean',
+        'loading_duration_minutes' => 'decimal:2',
+        'unloading_duration_minutes' => 'decimal:2',
     ];
 
     protected $fillable = [
@@ -24,6 +26,13 @@ class SimulationAttempt extends Model
         'selected_ship_id',
         'selected_special_condition_id',
         'selected_vehicle_count',
+
+        'selected_loading_method_code',
+        'selected_unloading_method_code',
+        'loading_method_source',
+        'unloading_method_source',
+        'loading_duration_minutes',
+        'unloading_duration_minutes',
 
         'current_step',
         'status',
@@ -72,7 +81,7 @@ class SimulationAttempt extends Model
 
     public function feedback()
     {
-    return $this->hasOne(\App\Models\TeacherFeedback::class, 'simulation_attempt_id');
+        return $this->hasOne(\App\Models\TeacherFeedback::class, 'simulation_attempt_id');
     }
 
     public function selectedShip(): BelongsTo
@@ -129,22 +138,22 @@ class SimulationAttempt extends Model
     }
 
     public function getOrderedFuelStationsAttribute()
-{
-    if (!$this->relationLoaded('fuelStations')) {
-        return [];
-    }
+    {
+        if (!$this->relationLoaded('fuelStations')) {
+            return [];
+        }
 
-    return $this->fuelStations->map(function ($station) {
-        return [
-            'id' => $station->id,
-            'name' => $station->display_name ?? '—',
-            'location_name' => $station->location_name ?? null,
-            'fuel_type' => $station->fuel_type,
-            'price_per_liter' => $station->price_per_liter,
-            'pivot' => [
-                'position' => $station->pivot?->position,
-            ],
-        ];
-    })->values();
+        return $this->fuelStations->map(function ($station) {
+            return [
+                'id' => $station->id,
+                'name' => $station->display_name ?? '—',
+                'location_name' => $station->location_name ?? null,
+                'fuel_type' => $station->fuel_type,
+                'price_per_liter' => $station->price_per_liter,
+                'pivot' => [
+                    'position' => $station->pivot?->position,
+                ],
+            ];
+        })->values();
     }
 }

@@ -4,6 +4,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import FuelPlanningStep from '@/components/student/simulator/FuelPlanningStep';
+import HandlingSelectionPanel from '@/components/student/simulator/HandlingSelectionPanel';
 import IntroStep from '@/components/student/simulator/IntroStep';
 import PortSelectionStep from '@/components/student/simulator/PortSelectionStep';
 import PreviewStep from '@/components/student/simulator/PreviewStep';
@@ -96,8 +97,20 @@ export default function StudentSimulatorShow() {
     const [selectedShipId, setSelectedShipId] = useState<string>(
         String(initialAttempt.selected_ship_id ?? ''),
     );
+    const [selectedLoadingMethodCode, setSelectedLoadingMethodCode] =
+        useState<string>(initialAttempt.selected_loading_method_code ?? '');
+    const [selectedUnloadingMethodCode, setSelectedUnloadingMethodCode] =
+        useState<string>(initialAttempt.selected_unloading_method_code ?? '');
+    const [loadingMethodSource, setLoadingMethodSource] = useState<string>(
+        initialAttempt.loading_method_source ?? 'port',
+    );
+    const [unloadingMethodSource, setUnloadingMethodSource] = useState<string>(
+        initialAttempt.unloading_method_source ?? 'ship',
+    );
+
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
     const lastSavedDraftRef = useRef(
         JSON.stringify({
             selectedTransportId: String(
@@ -106,8 +119,16 @@ export default function StudentSimulatorShow() {
             vehicleCount: initialAttempt.selected_vehicle_count ?? 1,
             selectedPortId: String(initialAttempt.selected_port_id ?? ''),
             selectedShipId: String(initialAttempt.selected_ship_id ?? ''),
+            selectedLoadingMethodCode:
+                initialAttempt.selected_loading_method_code ?? '',
+            selectedUnloadingMethodCode:
+                initialAttempt.selected_unloading_method_code ?? '',
+            loadingMethodSource: initialAttempt.loading_method_source ?? 'port',
+            unloadingMethodSource:
+                initialAttempt.unloading_method_source ?? 'ship',
         }),
     );
+
     useEffect(() => {
         if (!message) {
             setShowToast(false);
@@ -139,6 +160,10 @@ export default function StudentSimulatorShow() {
     const availableShips = template.ships ?? [];
     const selectedSegments = attempt.ordered_route_segments ?? [];
     const selectedFuelStations = attempt.ordered_fuel_stations ?? [];
+    const handlingContext = attempt.handling_context ?? null;
+    const loadingSelectionRequired = !!handlingContext?.loading?.required;
+    const unloadingSelectionRequired = !!handlingContext?.unloading?.required;
+    const handlingErrors = handlingContext?.validation?.errors ?? [];
 
     const [highlightStep, setHighlightStep] = useState<string | null>(null);
     const [pendingProblemStep, setPendingProblemStep] = useState<string | null>(
@@ -187,6 +212,64 @@ export default function StudentSimulatorShow() {
         attempt.status === 'submitted' ||
         attempt.status === 'teacher_test_submitted';
 
+    useEffect(() => {
+        const loadingSources =
+            handlingContext?.loading?.sources?.filter((source) => source.enabled) ??
+            [];
+        const unloadingSources =
+            handlingContext?.unloading?.sources?.filter((source) => source.enabled) ??
+            [];
+        const nextLoadingSource =
+            loadingSources.find((source) => source.key === loadingMethodSource)
+                ?.key ??
+            loadingSources[0]?.key ??
+            '';
+        const nextUnloadingSource =
+            unloadingSources.find((source) => source.key === unloadingMethodSource)
+                ?.key ??
+            unloadingSources[0]?.key ??
+            '';
+
+        if (nextLoadingSource !== loadingMethodSource) {
+            setLoadingMethodSource(nextLoadingSource);
+        }
+
+        if (nextUnloadingSource !== unloadingMethodSource) {
+            setUnloadingMethodSource(nextUnloadingSource);
+        }
+
+        const activeLoadingSource = loadingSources.find(
+            (source) => source.key === nextLoadingSource,
+        );
+        const activeUnloadingSource = unloadingSources.find(
+            (source) => source.key === nextUnloadingSource,
+        );
+
+        if (
+            selectedLoadingMethodCode &&
+            !activeLoadingSource?.methods.some(
+                (method) => method.code === selectedLoadingMethodCode,
+            )
+        ) {
+            setSelectedLoadingMethodCode('');
+        }
+
+        if (
+            selectedUnloadingMethodCode &&
+            !activeUnloadingSource?.methods.some(
+                (method) => method.code === selectedUnloadingMethodCode,
+            )
+        ) {
+            setSelectedUnloadingMethodCode('');
+        }
+    }, [
+        handlingContext,
+        loadingMethodSource,
+        selectedLoadingMethodCode,
+        selectedUnloadingMethodCode,
+        unloadingMethodSource,
+    ]);
+
     const hasStep = (stepKey: string) => availableSteps.includes(stepKey);
 
     const getNextStep = (stepKey: string) => {
@@ -220,8 +303,21 @@ export default function StudentSimulatorShow() {
                 vehicleCount,
                 selectedPortId,
                 selectedShipId,
+                selectedLoadingMethodCode,
+                selectedUnloadingMethodCode,
+                loadingMethodSource,
+                unloadingMethodSource,
             }),
-        [selectedPortId, selectedShipId, selectedTransportId, vehicleCount],
+        [
+            selectedPortId,
+            selectedShipId,
+            selectedTransportId,
+            vehicleCount,
+            selectedLoadingMethodCode,
+            selectedUnloadingMethodCode,
+            loadingMethodSource,
+            unloadingMethodSource,
+        ],
     );
 
     const markSaved = (fingerprint = draftFingerprint) => {
@@ -235,6 +331,21 @@ export default function StudentSimulatorShow() {
         available_steps?: string[];
     }) => {
         setAttempt(data.attempt);
+
+        setSelectedTransportId(
+            String(data.attempt.selected_transport_template_id ?? ''),
+        );
+        setVehicleCount(data.attempt.selected_vehicle_count ?? 1);
+        setSelectedPortId(String(data.attempt.selected_port_id ?? ''));
+        setSelectedShipId(String(data.attempt.selected_ship_id ?? ''));
+        setSelectedLoadingMethodCode(
+            data.attempt.selected_loading_method_code ?? '',
+        );
+        setSelectedUnloadingMethodCode(
+            data.attempt.selected_unloading_method_code ?? '',
+        );
+        setLoadingMethodSource(data.attempt.loading_method_source ?? 'port');
+        setUnloadingMethodSource(data.attempt.unloading_method_source ?? 'ship');
 
         if (
             Array.isArray(data.available_steps) &&
@@ -279,6 +390,7 @@ export default function StudentSimulatorShow() {
             case 'missing_fuel_stop':
             case 'range_plan_invalid':
                 return pickEarliestAvailableStep('fuel', 'simulation');
+            case 'handling_selection':
             case 'port_ship_compatibility':
                 return pickEarliestAvailableStep('ship', 'port', 'simulation');
             default:
@@ -304,6 +416,17 @@ export default function StudentSimulatorShow() {
                 : null,
             hasStep('port') && !selectedPortId ? 'port' : null,
             hasStep('ship') && !selectedShipId ? 'ship' : null,
+            hasStep('ship') &&
+            loadingSelectionRequired &&
+            !selectedLoadingMethodCode
+                ? 'ship'
+                : null,
+            hasStep('ship') &&
+            unloadingSelectionRequired &&
+            !selectedUnloadingMethodCode
+                ? 'ship'
+                : null,
+            hasStep('ship') && handlingErrors.length ? 'ship' : null,
             ...penaltySteps,
             'simulation',
         );
@@ -356,6 +479,10 @@ export default function StudentSimulatorShow() {
 
     const requiresFuelPlanning =
         hasStep('fuel') && !!template.requires_refuel_planning;
+    const isHandlingReady =
+        (!loadingSelectionRequired || !!selectedLoadingMethodCode) &&
+        (!unloadingSelectionRequired || !!selectedUnloadingMethodCode) &&
+        handlingErrors.length === 0;
 
     const canPreview = useMemo(() => {
         if (hasStep('transport')) {
@@ -380,6 +507,10 @@ export default function StudentSimulatorShow() {
             if (!selectedShipId) {
                 return false;
             }
+
+            if (!isHandlingReady) {
+                return false;
+            }
         }
 
         return true;
@@ -390,7 +521,11 @@ export default function StudentSimulatorShow() {
         selectedSegments.length,
         selectedPortId,
         selectedShipId,
+        selectedLoadingMethodCode,
+        selectedUnloadingMethodCode,
+        isHandlingReady,
     ]);
+
     const hasPreview = !!attempt.preview_result;
     const isPreviewValid = attempt.preview_result?.result?.is_valid === true;
 
@@ -521,16 +656,34 @@ export default function StudentSimulatorShow() {
                       tone: 'warning',
                       detail: 'Izvēlies kuģi',
                   }
-                : practiceProblemSteps.has('ship')
+                : !isHandlingReady &&
+                    ((loadingSelectionRequired &&
+                        !selectedLoadingMethodCode) ||
+                        (unloadingSelectionRequired &&
+                            !selectedUnloadingMethodCode))
                   ? {
-                        label: 'Jāizlabo',
-                        tone: 'danger',
-                        detail: 'Kuģis nav saderīgs ar risinājumu',
+                        label: 'Trūkst dati',
+                        tone: 'warning',
+                        detail: 'Izvēlies iekraušanas un izkraušanas metodi',
                     }
-                  : {
-                        label: 'Pabeigts',
-                        tone: 'success',
-                    };
+                  : handlingErrors.length > 0
+                    ? {
+                          label: 'JÄizlabo',
+                          tone: 'danger',
+                          detail:
+                              handlingErrors[0] ??
+                              'Apstrades plans nav derigs',
+                      }
+                  : practiceProblemSteps.has('ship')
+                    ? {
+                          label: 'Jāizlabo',
+                          tone: 'danger',
+                          detail: 'Kuģis nav saderīgs ar risinājumu',
+                      }
+                    : {
+                          label: 'Pabeigts',
+                          tone: 'success',
+                      };
         }
 
         if (hasStep('simulation')) {
@@ -611,28 +764,28 @@ export default function StudentSimulatorShow() {
         selectedShipId,
         selectedTransportId,
         vehicleCount,
+        selectedLoadingMethodCode,
+        selectedUnloadingMethodCode,
+        loadingSelectionRequired,
+        unloadingSelectionRequired,
+        isHandlingReady,
+        handlingErrors.length,
     ]);
 
     const buildStepPayload = (step: string): Record<string, unknown> => {
-        const payload: Record<string, unknown> = {
+        return {
             current_step: step,
             selected_vehicle_count: vehicleCount,
+            selected_transport_template_id: selectedTransportId
+                ? Number(selectedTransportId)
+                : null,
+            selected_port_id: selectedPortId ? Number(selectedPortId) : null,
+            selected_ship_id: selectedShipId ? Number(selectedShipId) : null,
+            selected_loading_method_code: selectedLoadingMethodCode || null,
+            selected_unloading_method_code: selectedUnloadingMethodCode || null,
+            loading_method_source: loadingMethodSource || null,
+            unloading_method_source: unloadingMethodSource || null,
         };
-
-        if (selectedTransportId) {
-            payload.selected_transport_template_id =
-                Number(selectedTransportId);
-        }
-
-        if (selectedPortId) {
-            payload.selected_port_id = Number(selectedPortId);
-        }
-
-        if (selectedShipId) {
-            payload.selected_ship_id = Number(selectedShipId);
-        }
-
-        return payload;
     };
 
     const validateStepTransition = (targetStep: string): string | null => {
@@ -718,6 +871,18 @@ export default function StudentSimulatorShow() {
                 return 'Vispirms izvēlies kuģi.';
             }
 
+            if (loadingSelectionRequired && !selectedLoadingMethodCode) {
+                return 'Vispirms izvēlies iekraušanas metodi.';
+            }
+
+            if (unloadingSelectionRequired && !selectedUnloadingMethodCode) {
+                return 'Vispirms izvēlies izkraušanas metodi.';
+            }
+
+            if (handlingErrors.length) {
+                return handlingErrors[0] ?? 'Apstrades plans nav derigs.';
+            }
+
             return null;
         }
 
@@ -755,6 +920,10 @@ export default function StudentSimulatorShow() {
             const data = await response.json();
 
             if (!response.ok) {
+                if (data.attempt) {
+                    syncAttemptResponse(data);
+                }
+
                 setSaveState('error');
                 return;
             }
@@ -827,6 +996,10 @@ export default function StudentSimulatorShow() {
             const data = await response.json();
 
             if (!response.ok) {
+                if (data.attempt) {
+                    syncAttemptResponse(data);
+                }
+
                 setMessageType('error');
                 setSaveState('error');
                 setMessage(data.message || 'Neizdevās iesniegt risinājumu.');
@@ -1329,13 +1502,199 @@ export default function StudentSimulatorShow() {
                             )}
 
                             {currentStepKey === 'ship' && (
-                                <ShipSelectionStep
-                                    stepNumber={currentStepNumber}
-                                    ships={availableShips}
-                                    selectedShipId={selectedShipId}
-                                    setSelectedShipId={setSelectedShipId}
-                                    loading={loading}
-                                />
+                                <div className="space-y-6">
+                                    <ShipSelectionStep
+                                        stepNumber={currentStepNumber}
+                                        ships={availableShips}
+                                        selectedShipId={selectedShipId}
+                                        setSelectedShipId={setSelectedShipId}
+                                        loading={loading}
+                                    />
+
+                                    <HandlingSelectionPanel
+                                        stepNumber={currentStepNumber}
+                                        handlingContext={handlingContext}
+                                        selectedPortName={
+                                            attempt.selectedPort?.name ?? null
+                                        }
+                                        selectedShipName={
+                                            attempt.selectedShip?.name ?? null
+                                        }
+                                        selectedLoadingMethodCode={
+                                            selectedLoadingMethodCode
+                                        }
+                                        selectedUnloadingMethodCode={
+                                            selectedUnloadingMethodCode
+                                        }
+                                        loadingMethodSource={loadingMethodSource}
+                                        unloadingMethodSource={
+                                            unloadingMethodSource
+                                        }
+                                        setSelectedLoadingMethodCode={
+                                            setSelectedLoadingMethodCode
+                                        }
+                                        setSelectedUnloadingMethodCode={
+                                            setSelectedUnloadingMethodCode
+                                        }
+                                        setLoadingMethodSource={
+                                            setLoadingMethodSource
+                                        }
+                                        setUnloadingMethodSource={
+                                            setUnloadingMethodSource
+                                        }
+                                        loadingDurationMinutes={
+                                            attempt.loading_duration_minutes
+                                        }
+                                        unloadingDurationMinutes={
+                                            attempt.unloading_duration_minutes
+                                        }
+                                        loading={loading}
+                                    />
+
+                                    {false && (
+                                        <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
+                                            Kravas apstrāde
+                                        </div>
+
+                                        <h3 className="mt-3 text-[22px] font-semibold tracking-tight text-[#182219]">
+                                            Izvēlies iekraušanas un izkraušanas
+                                            metodi
+                                        </h3>
+
+                                        <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
+                                            Norādi, kā krava tiks iekrauta un
+                                            izkrauta. Šīs izvēles tiks
+                                            pārbaudītas pret ostas, kuģa un
+                                            scenārija prasībām.
+                                        </p>
+
+                                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-[#1f2a21]">
+                                                    Iekraušanas metode
+                                                </label>
+                                                <select
+                                                    value={
+                                                        selectedLoadingMethodCode
+                                                    }
+                                                    onChange={(e) =>
+                                                        setSelectedLoadingMethodCode(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    disabled={loading}
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                >
+                                                    <option value="">
+                                                        Izvēlies metodi...
+                                                    </option>
+                                                    <option value="conveyor">
+                                                        Conveyor
+                                                    </option>
+                                                    <option value="crane">
+                                                        Crane
+                                                    </option>
+                                                    <option value="forklift">
+                                                        Forklift
+                                                    </option>
+                                                    <option value="manual">
+                                                        Manual labor
+                                                    </option>
+                                                    <option value="pump">
+                                                        Pump
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-[#1f2a21]">
+                                                    Iekraušanas avots
+                                                </label>
+                                                <select
+                                                    value={loadingMethodSource}
+                                                    onChange={(e) =>
+                                                        setLoadingMethodSource(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    disabled={loading}
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                >
+                                                    <option value="port">
+                                                        Port
+                                                    </option>
+                                                    <option value="ship">
+                                                        Ship
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-[#1f2a21]">
+                                                    Izkraušanas metode
+                                                </label>
+                                                <select
+                                                    value={
+                                                        selectedUnloadingMethodCode
+                                                    }
+                                                    onChange={(e) =>
+                                                        setSelectedUnloadingMethodCode(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    disabled={loading}
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                >
+                                                    <option value="">
+                                                        Izvēlies metodi...
+                                                    </option>
+                                                    <option value="conveyor">
+                                                        Conveyor
+                                                    </option>
+                                                    <option value="crane">
+                                                        Crane
+                                                    </option>
+                                                    <option value="forklift">
+                                                        Forklift
+                                                    </option>
+                                                    <option value="manual">
+                                                        Manual labor
+                                                    </option>
+                                                    <option value="pump">
+                                                        Pump
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-[#1f2a21]">
+                                                    Izkraušanas avots
+                                                </label>
+                                                <select
+                                                    value={
+                                                        unloadingMethodSource
+                                                    }
+                                                    onChange={(e) =>
+                                                        setUnloadingMethodSource(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    disabled={loading}
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                >
+                                                    <option value="port">
+                                                        Port
+                                                    </option>
+                                                    <option value="ship">
+                                                        Ship
+                                                    </option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        </section>
+                                    )}
+                                </div>
                             )}
 
                             {currentStepKey === 'simulation' && (
@@ -1403,4 +1762,3 @@ export default function StudentSimulatorShow() {
         </>
     );
 }
-

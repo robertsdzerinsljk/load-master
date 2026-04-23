@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\HandlingMethod;
 use App\Models\LandRoute;
 use App\Models\Location;
 use App\Models\OrderTemplate;
@@ -394,10 +395,18 @@ class OrderTemplateController extends Controller
 
             'cargo_name' => 'nullable|string|max:255',
             'cargo_type' => 'nullable|string|max:255',
+            'cargo_mode' => 'nullable|string|max:40',
             'cargo_amount_containers' => 'nullable|integer|min:0',
             'cargo_amount_tons' => 'nullable|numeric|min:0',
             'cargo_volume_m3' => 'nullable|numeric|min:0',
             'cargo_value' => 'nullable|numeric|min:0',
+            'requires_closed_space' => 'nullable|boolean',
+            'requires_ventilation' => 'nullable|boolean',
+            'requires_hazardous_support' => 'nullable|boolean',
+            'allowed_ship_cargo_modes' => 'nullable|array',
+            'allowed_ship_cargo_modes.*' => 'string|max:40',
+            'forbidden_ship_cargo_modes' => 'nullable|array',
+            'forbidden_ship_cargo_modes.*' => 'string|max:40',
 
             'temperature_mode_id' => 'nullable|exists:temperature_modes,id',
             'special_condition_id' => 'nullable|exists:special_conditions,id',
@@ -430,6 +439,19 @@ class OrderTemplateController extends Controller
             'scoring_cost_weight' => 'nullable|integer|min:0|max:100',
             'scoring_compatibility_weight' => 'nullable|integer|min:0|max:100',
             'scoring_trips_weight' => 'nullable|integer|min:0|max:100',
+            'requires_loading_method_choice' => 'nullable|boolean',
+            'requires_unloading_method_choice' => 'nullable|boolean',
+            'allow_manual_handling' => 'nullable|boolean',
+            'allow_port_equipment' => 'nullable|boolean',
+            'allow_ship_equipment' => 'nullable|boolean',
+            'allowed_handling_method_codes' => 'nullable|array',
+            'allowed_handling_method_codes.*' => 'string|max:100',
+            'required_handling_method_codes' => 'nullable|array',
+            'required_handling_method_codes.*' => 'string|max:100',
+            'compatibility_enforce_port_cargo_support' => 'nullable|boolean',
+            'compatibility_enforce_ship_cargo_support' => 'nullable|boolean',
+            'compatibility_enforce_port_ship_draft' => 'nullable|boolean',
+            'compatibility_enforce_handling_compatibility' => 'nullable|boolean',
 
             'transport_template_ids' => 'nullable|array',
             'transport_template_ids.*' => 'integer|exists:transport_templates,id',
@@ -463,10 +485,16 @@ class OrderTemplateController extends Controller
 
             'cargo_name' => $validated['cargo_name'] ?? null,
             'cargo_type' => $validated['cargo_type'] ?? null,
+            'cargo_mode' => $validated['cargo_mode'] ?? null,
             'cargo_amount_containers' => $validated['cargo_amount_containers'] ?? null,
             'cargo_amount_tons' => $validated['cargo_amount_tons'] ?? null,
             'cargo_volume_m3' => $validated['cargo_volume_m3'] ?? null,
             'cargo_value' => $validated['cargo_value'] ?? null,
+            'requires_closed_space' => (bool) ($validated['requires_closed_space'] ?? false),
+            'requires_ventilation' => (bool) ($validated['requires_ventilation'] ?? false),
+            'requires_hazardous_support' => (bool) ($validated['requires_hazardous_support'] ?? false),
+            'allowed_ship_cargo_modes' => $this->normalizeStringList($validated['allowed_ship_cargo_modes'] ?? []),
+            'forbidden_ship_cargo_modes' => $this->normalizeStringList($validated['forbidden_ship_cargo_modes'] ?? []),
 
             'temperature_mode_id' => $validated['temperature_mode_id'] ?? null,
             'special_condition_id' => $validated['special_condition_id'] ?? null,
@@ -483,6 +511,13 @@ class OrderTemplateController extends Controller
             'requires_refuel_planning' => $this->resolveRefuelPlanning($scenarioType, $validated),
             'max_trips' => $validated['max_trips'] ?? null,
             'priority' => $validated['priority'] ?? null,
+            'requires_loading_method_choice' => (bool) ($validated['requires_loading_method_choice'] ?? false),
+            'requires_unloading_method_choice' => (bool) ($validated['requires_unloading_method_choice'] ?? false),
+            'allow_manual_handling' => (bool) ($validated['allow_manual_handling'] ?? true),
+            'allow_port_equipment' => (bool) ($validated['allow_port_equipment'] ?? true),
+            'allow_ship_equipment' => (bool) ($validated['allow_ship_equipment'] ?? true),
+            'allowed_handling_method_codes' => $this->normalizeStringList($validated['allowed_handling_method_codes'] ?? []),
+            'required_handling_method_codes' => $this->normalizeStringList($validated['required_handling_method_codes'] ?? []),
 
             'step_config' => $this->buildStepConfig($scenarioType),
             'scenario_config' => $this->buildScenarioConfig($scenarioType, $validated),
@@ -526,7 +561,8 @@ class OrderTemplateController extends Controller
             'locations' => Location::orderBy('name')->get(['id', 'name', 'city', 'type']),
             'ports' => Port::orderBy('name')->get(['id', 'name', 'country']),
             'transportTemplates' => TransportTemplate::orderBy('name')->get(['id', 'name', 'type']),
-            'ships' => Ship::orderBy('name')->get(['id', 'name', 'cargo_type']),
+            'ships' => Ship::orderBy('name')->get(['id', 'name', 'cargo_type', 'cargo_mode']),
+            'handlingMethods' => HandlingMethod::orderBy('name')->get(['id', 'name', 'code', 'category']),
             'landRoutes' => LandRoute::with(['fromLocation:id,name', 'toLocation:id,name'])
                 ->orderByDesc('id')
                 ->get(['id', 'from_location_id', 'to_location_id', 'distance_km']),
@@ -556,6 +592,13 @@ class OrderTemplateController extends Controller
                 ['value' => 'medium', 'label' => 'Vidēja'],
                 ['value' => 'high', 'label' => 'Augsta'],
                 ['value' => 'critical', 'label' => 'Kritiska'],
+            ],
+            'cargoModes' => [
+                ['value' => 'bulk', 'label' => 'Beramkrava'],
+                ['value' => 'containerized', 'label' => 'Konteinerizeta'],
+                ['value' => 'liquid', 'label' => 'Skidra krava'],
+                ['value' => 'palletized', 'label' => 'Paletizeta'],
+                ['value' => 'break_bulk', 'label' => 'Break bulk'],
             ],
         ];
     }
@@ -608,113 +651,125 @@ class OrderTemplateController extends Controller
     }
 
     private function buildScenarioConfig(string $type, array $validated = []): array
-{
-    $timing = [
-    'loading_fixed_minutes' => isset($validated['timing_loading_fixed_minutes'])
-        ? (int) $validated['timing_loading_fixed_minutes']
-        : 45,
-    'fuel_stop_minutes' => isset($validated['timing_fuel_stop_minutes'])
-        ? (int) $validated['timing_fuel_stop_minutes']
-        : 20,
-    'port_processing_minutes' => isset($validated['timing_port_processing_minutes'])
-        ? (int) $validated['timing_port_processing_minutes']
-        : 60,
-    'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
-        ? (int) $validated['timing_ship_loading_minutes']
-        : 90,
-    'sea_transit_minutes' => isset($validated['timing_sea_transit_minutes'])
-        ? (int) $validated['timing_sea_transit_minutes']
-        : 360,
-    'max_drive_minutes_before_rest' => isset($validated['timing_max_drive_minutes_before_rest'])
-        ? (int) $validated['timing_max_drive_minutes_before_rest']
-        : 270,
-    'rest_minutes' => isset($validated['timing_rest_minutes'])
-        ? (int) $validated['timing_rest_minutes']
-        : 45,
-];
+    {
+        $timing = [
+            'loading_fixed_minutes' => isset($validated['timing_loading_fixed_minutes'])
+                ? (int) $validated['timing_loading_fixed_minutes']
+                : 45,
+            'fuel_stop_minutes' => isset($validated['timing_fuel_stop_minutes'])
+                ? (int) $validated['timing_fuel_stop_minutes']
+                : 20,
+            'port_processing_minutes' => isset($validated['timing_port_processing_minutes'])
+                ? (int) $validated['timing_port_processing_minutes']
+                : 60,
+            'ship_loading_minutes' => isset($validated['timing_ship_loading_minutes'])
+                ? (int) $validated['timing_ship_loading_minutes']
+                : 90,
+            'sea_transit_minutes' => isset($validated['timing_sea_transit_minutes'])
+                ? (int) $validated['timing_sea_transit_minutes']
+                : 360,
+            'max_drive_minutes_before_rest' => isset($validated['timing_max_drive_minutes_before_rest'])
+                ? (int) $validated['timing_max_drive_minutes_before_rest']
+                : 270,
+            'rest_minutes' => isset($validated['timing_rest_minutes'])
+                ? (int) $validated['timing_rest_minutes']
+                : 45,
+        ];
 
-    $availability = [
-        'port_queue_minutes' => isset($validated['waiting_port_queue_minutes'])
-            ? (int) $validated['waiting_port_queue_minutes']
-            : 0,
-        'ship_ready_at' => $validated['waiting_ship_ready_at'] ?? null,
-    ];
+        $availability = [
+            'port_queue_minutes' => isset($validated['waiting_port_queue_minutes'])
+                ? (int) $validated['waiting_port_queue_minutes']
+                : 0,
+            'ship_ready_at' => $validated['waiting_ship_ready_at'] ?? null,
+        ];
 
-    $scoring = [
-    'time_weight' => isset($validated['scoring_time_weight'])
-        ? (int) $validated['scoring_time_weight']
-        : 35,
-    'cost_weight' => isset($validated['scoring_cost_weight'])
-        ? (int) $validated['scoring_cost_weight']
-        : 25,
-    'compatibility_weight' => isset($validated['scoring_compatibility_weight'])
-        ? (int) $validated['scoring_compatibility_weight']
-        : 25,
-    'trips_weight' => isset($validated['scoring_trips_weight'])
-        ? (int) $validated['scoring_trips_weight']
-        : 15,
-    ];
+        $scoring = [
+            'time_weight' => isset($validated['scoring_time_weight'])
+                ? (int) $validated['scoring_time_weight']
+                : 35,
+            'cost_weight' => isset($validated['scoring_cost_weight'])
+                ? (int) $validated['scoring_cost_weight']
+                : 25,
+            'compatibility_weight' => isset($validated['scoring_compatibility_weight'])
+                ? (int) $validated['scoring_compatibility_weight']
+                : 25,
+            'trips_weight' => isset($validated['scoring_trips_weight'])
+                ? (int) $validated['scoring_trips_weight']
+                : 15,
+        ];
 
-    return match ($type) {
-        'land_transport' => [
-            'mode' => 'land',
-            'student_choices' => [
-                'transport' => true,
-                'route' => true,
-                'fuel' => true,
-                'port' => false,
-                'ship' => false,
+        $compatibility = [
+            'enforce_port_cargo_support' => (bool) ($validated['compatibility_enforce_port_cargo_support'] ?? true),
+            'enforce_ship_cargo_support' => (bool) ($validated['compatibility_enforce_ship_cargo_support'] ?? true),
+            'enforce_port_ship_draft' => (bool) ($validated['compatibility_enforce_port_ship_draft'] ?? true),
+            'enforce_handling_compatibility' => (bool) ($validated['compatibility_enforce_handling_compatibility'] ?? true),
+        ];
+
+        return match ($type) {
+            'land_transport' => [
+                'mode' => 'land',
+                'student_choices' => [
+                    'transport' => true,
+                    'route' => true,
+                    'fuel' => true,
+                    'port' => false,
+                    'ship' => false,
+                ],
+                'timing' => $timing,
+                'availability' => $availability,
+                'scoring' => $scoring,
+                'compatibility' => $compatibility,
             ],
-            'timing' => $timing,
-            'availability' => $availability,
-            'scoring' => $scoring,
-        ],
-        'land_to_port' => [
-            'mode' => 'land_port',
-            'student_choices' => [
-                'transport' => true,
-                'route' => true,
-                'fuel' => true,
-                'port' => true,
-                'ship' => false,
+            'land_to_port' => [
+                'mode' => 'land_port',
+                'student_choices' => [
+                    'transport' => true,
+                    'route' => true,
+                    'fuel' => true,
+                    'port' => true,
+                    'ship' => false,
+                ],
+                'timing' => $timing,
+                'availability' => $availability,
+                'scoring' => $scoring,
+                'compatibility' => $compatibility,
             ],
-            'timing' => $timing,
-            'availability' => $availability,
-            'scoring' => $scoring,
-        ],
-        'port_to_ship' => [
-            'mode' => 'port_ship',
-            'student_choices' => [
-                'transport' => false,
-                'route' => false,
-                'fuel' => false,
-                'port' => true,
-                'ship' => true,
+            'port_to_ship' => [
+                'mode' => 'port_ship',
+                'student_choices' => [
+                    'transport' => false,
+                    'route' => false,
+                    'fuel' => false,
+                    'port' => true,
+                    'ship' => true,
+                ],
+                'timing' => $timing,
+                'availability' => $availability,
+                'scoring' => $scoring,
+                'compatibility' => $compatibility,
             ],
-            'timing' => $timing,
-            'availability' => $availability,
-            'scoring' => $scoring,
-        ],
-        'full_chain' => [
-            'mode' => 'full',
-            'student_choices' => [
-                'transport' => true,
-                'route' => true,
-                'fuel' => true,
-                'port' => true,
-                'ship' => true,
+            'full_chain' => [
+                'mode' => 'full',
+                'student_choices' => [
+                    'transport' => true,
+                    'route' => true,
+                    'fuel' => true,
+                    'port' => true,
+                    'ship' => true,
+                ],
+                'timing' => $timing,
+                'availability' => $availability,
+                'scoring' => $scoring,
+                'compatibility' => $compatibility,
             ],
-            'timing' => $timing,
-            'availability' => $availability,
-            'scoring' => $scoring,
-        ],
-        default => [
-            'timing' => $timing,
-            'availability' => $availability,
-            'scoring' => $scoring,
-        ],
-    };
-}
+            default => [
+                'timing' => $timing,
+                'availability' => $availability,
+                'scoring' => $scoring,
+                'compatibility' => $compatibility,
+            ],
+        };
+    }
 
     private function defaultScenarioFocus(string $type): string
     {
@@ -798,5 +853,18 @@ class OrderTemplateController extends Controller
         }
 
         return (bool) ($validated['requires_refuel_planning'] ?? false);
+    }
+
+    private function normalizeStringList(array $values): array
+    {
+        return array_values(array_unique(array_filter(array_map(function ($value) {
+            if (!is_string($value)) {
+                return null;
+            }
+
+            $trimmed = trim($value);
+
+            return $trimmed === '' ? null : $trimmed;
+        }, $values))));
     }
 }

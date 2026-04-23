@@ -3,37 +3,65 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Ship extends Model
 {
     protected $fillable = [
         'name',
-        'ship_type',
+        'cargo_type',
+        'cargo_mode',
+        'is_open_cargo',
+        'is_closed_cargo',
+        'supports_bulk',
+        'supports_container',
+        'supports_liquid',
+        'supports_refrigerated',
+        'supports_hazardous',
+        'has_onboard_crane',
         'draft_m',
-        'draught_m',
-        'required_depth_m',
+        'fuel_consumption_per_hour',
+        'speed_kmh',
         'capacity_containers',
-        'container_capacity',
         'capacity_tons',
+        'loading_capacity_containers_per_hour',
+        'loading_capacity_tons_per_hour',
+        'notes',
     ];
 
-    protected $appends = [
-        'draft_value',
-        'capacity_containers_value',
+    protected $casts = [
+        'capacity_containers' => 'integer',
+        'capacity_tons' => 'decimal:2',
+        'draft_m' => 'decimal:2',
+        'fuel_consumption_per_hour' => 'decimal:2',
+        'speed_kmh' => 'decimal:2',
+        'loading_capacity_containers_per_hour' => 'decimal:2',
+        'loading_capacity_tons_per_hour' => 'decimal:2',
+        'is_open_cargo' => 'boolean',
+        'is_closed_cargo' => 'boolean',
+        'supports_bulk' => 'boolean',
+        'supports_container' => 'boolean',
+        'supports_liquid' => 'boolean',
+        'supports_refrigerated' => 'boolean',
+        'supports_hazardous' => 'boolean',
+        'has_onboard_crane' => 'boolean',
     ];
 
-    public function getDraftValueAttribute()
+    public function orderTemplates(): BelongsToMany
     {
-        return $this->draft_m
-            ?? $this->draught_m
-            ?? $this->required_depth_m
-            ?? null;
+        return $this->belongsToMany(OrderTemplate::class, 'order_template_ships');
     }
 
-    public function getCapacityContainersValueAttribute()
+    public function handlingMethods(): BelongsToMany
     {
-        return $this->capacity_containers
-            ?? $this->container_capacity
-            ?? null;
+    return $this->belongsToMany(HandlingMethod::class, 'handling_method_ship')
+        ->withPivot([
+            'is_loading',
+            'is_unloading',
+            'throughput_override_containers_per_hour',
+            'throughput_override_tons_per_hour',
+            'notes',
+        ])
+        ->withTimestamps();
     }
 }

@@ -63,6 +63,8 @@ class SimulationTimelineService
         $defaultSeaTransitMinutes = (int) ($timing['sea_transit_minutes'] ?? 360);
         $maxDriveMinutesBeforeRest = (int) ($timing['max_drive_minutes_before_rest'] ?? 270);
         $restMinutes = (int) ($timing['rest_minutes'] ?? 45);
+        $resolvedPortProcessingMinutes = (int) ceil((float) ($attempt->unloading_duration_minutes ?? $defaultPortProcessingMinutes));
+        $resolvedShipLoadingMinutes = (int) ceil((float) ($attempt->loading_duration_minutes ?? $defaultShipLoadingMinutes));
 
         $portQueueMinutes = (int) ($availability['port_queue_minutes'] ?? 0);
         $shipReadyAt = !empty($availability['ship_ready_at'])
@@ -241,7 +243,7 @@ class SimulationTimelineService
                 type: 'port_processing',
                 label: "Ostas apstrāde: {$port->name}",
                 start: $current,
-                durationMinutes: $defaultPortProcessingMinutes,
+                durationMinutes: $resolvedPortProcessingMinutes,
                 meta: [
                     'port_id' => $port->id,
                     'port_name' => $port->name,
@@ -249,7 +251,7 @@ class SimulationTimelineService
                 ]
             );
 
-            $current = $current->copy()->addMinutes($defaultPortProcessingMinutes);
+            $current = $current->copy()->addMinutes($resolvedPortProcessingMinutes);
         }
 
         if ($ship && $shipReadyAt && $current->lessThan($shipReadyAt)) {
@@ -278,7 +280,7 @@ class SimulationTimelineService
                 type: 'ship_loading',
                 label: "Iekraušana kuģī: {$ship->name}",
                 start: $current,
-                durationMinutes: $defaultShipLoadingMinutes,
+                durationMinutes: $resolvedShipLoadingMinutes,
                 meta: [
                     'ship_id' => $ship->id,
                     'ship_name' => $ship->name,
@@ -287,7 +289,7 @@ class SimulationTimelineService
                 ]
             );
 
-            $current = $current->copy()->addMinutes($defaultShipLoadingMinutes);
+            $current = $current->copy()->addMinutes($resolvedShipLoadingMinutes);
         }
 
         $departurePortName = $port?->name

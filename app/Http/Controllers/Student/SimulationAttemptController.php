@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\LandRoute;
 use App\Models\OrderTemplate;
 use App\Models\SimulationAttempt;
 use App\Models\TransportTemplate;
-use App\Models\LandRoute;
+use App\Services\HandlingDurationCalculator;
+use App\Services\HandlingValidator;
+use App\Services\Simulator\ScenarioCompatibilityService;
 use App\Services\Simulator\SimulationPreviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,7 +36,10 @@ class SimulationAttemptController extends Controller
     ];
 
     public function __construct(
-        private readonly SimulationPreviewService $previewService
+        private readonly SimulationPreviewService $previewService,
+        private readonly ScenarioCompatibilityService $compatibilityService,
+        private readonly HandlingValidator $handlingValidator,
+        private readonly HandlingDurationCalculator $handlingDurationCalculator,
     ) {
     }
 
@@ -97,45 +103,90 @@ class SimulationAttemptController extends Controller
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
             ->with([
-                'orderTemplate',
+                'orderTemplate.temperatureMode',
                 'selectedTransportTemplate',
                 'routeSegments.fromLocation',
                 'routeSegments.toLocation',
                 'fuelStations.location',
-                'selectedPort',
-                'selectedShip',
+                'selectedPort.location',
+                'selectedPort.handlingMethods',
+                'selectedShip.handlingMethods',
             ])
             ->findOrFail($attemptId);
 
         $availableSteps = $this->resolveAvailableSteps($attempt->orderTemplate);
-
         $validated = $request->validate([
             'current_step' => ['required', 'string', 'in:' . implode(',', self::STEP_ORDER)],
             'selected_transport_template_id' => ['nullable', 'integer', 'exists:transport_templates,id'],
             'selected_vehicle_count' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'selected_port_id' => ['nullable', 'integer', 'exists:ports,id'],
             'selected_ship_id' => ['nullable', 'integer', 'exists:ships,id'],
+            'selected_loading_method_code' => ['nullable', 'string', 'max:100'],
+            'selected_unloading_method_code' => ['nullable', 'string', 'max:100'],
+            'loading_method_source' => ['nullable', 'in:port,ship'],
+            'unloading_method_source' => ['nullable', 'in:port,ship'],
         ]);
 
         $requestedStep = $validated['current_step'];
 
         if (!in_array($requestedStep, $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šis solis šim scenārijam nav pieejams.',
+                'message' => 'Sis solis sim scenarijam nav pieejams.',
             ], 422);
         }
 
+        $originalPortId = $attempt->selected_port_id;
+        $originalShipId = $attempt->selected_ship_id;
         $planningChanged = $this->applyPlanningSelections($attempt, $validated);
+        $resourcesChanged = $originalPortId !== $attempt->selected_port_id
+            || $originalShipId !== $attempt->selected_ship_id;
+        $handlingChanged = false;
 
-        if ($requestedStep === 'route' && in_array('transport', $availableSteps, true) && !$attempt->selected_transport_template_id) {
+        if ($resourcesChanged) {
+            $this->resetHandlingState($attempt);
+            $handlingChanged = true;
+        }
+
+        foreach ([
+            'selected_loading_method_code',
+            'selected_unloading_method_code',
+            'loading_method_source',
+            'unloading_method_source',
+        ] as $field) {
+            if (!array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            if (($attempt->{$field} ?? null) !== $validated[$field]) {
+                $attempt->{$field} = $validated[$field];
+                $handlingChanged = true;
+            }
+        }
+
+        $handlingResult = $this->syncHandlingState($attempt);
+        $handlingChanged = $handlingChanged || ($handlingResult['changed'] ?? false);
+
+        if (($planningChanged || $handlingChanged) && $requestedStep !== 'simulation') {
+            $this->invalidatePreview($attempt);
+        }
+
+        if (
+            $requestedStep === 'route'
+            && in_array('transport', $availableSteps, true)
+            && !$attempt->selected_transport_template_id
+        ) {
             return response()->json([
-                'message' => 'Vispirms izvēlies transportu.',
+                'message' => 'Vispirms izvelies transportu.',
             ], 422);
         }
 
-        if ($requestedStep === 'fuel' && in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
+        if (
+            $requestedStep === 'fuel'
+            && in_array('route', $availableSteps, true)
+            && $attempt->routeSegments->count() === 0
+        ) {
             return response()->json([
-                'message' => 'Vispirms izveido maršrutu.',
+                'message' => 'Vispirms izveido marsrutu.',
             ], 422);
         }
 
@@ -143,8 +194,14 @@ class SimulationAttemptController extends Controller
             $errors = $this->validateSimulationRequirements($attempt, $availableSteps);
 
             if (!empty($errors)) {
+                if ($planningChanged || $handlingChanged) {
+                    $attempt->save();
+                }
+
                 return response()->json([
                     'message' => implode(' ', $errors),
+                    'attempt' => $this->prepareAttemptForClient($attempt),
+                    'available_steps' => $availableSteps,
                 ], 422);
             }
 
@@ -158,13 +215,9 @@ class SimulationAttemptController extends Controller
             $attempt->score = $preview['result']['score'] ?? null;
         }
 
-        if ($planningChanged && $requestedStep !== 'simulation') {
-            $this->invalidatePreview($attempt);
-        }
-
         if ($requestedStep === 'submit' && empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegšanas nepieciešams palaist simulāciju.',
+                'Pirms iesniegsanas nepieciesams palaist simulaciju.',
                 $attempt,
                 $availableSteps,
                 ($attempt->orderTemplate->evaluation_mode ?? 'practice') === 'exam',
@@ -177,8 +230,8 @@ class SimulationAttemptController extends Controller
 
             return $this->blockedSubmissionResponse(
                 $isExamMode
-                    ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'
-                    : 'Risinājumu nevar iesniegt, kamēr tajā ir kritiskas problēmas.',
+                    ? 'Risinajumu nevar iesniegt, kamer tas neatbilst visam prasibam.'
+                    : 'Risinajumu nevar iesniegt, kamer tajaa ir kritiskas problemas.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -189,12 +242,9 @@ class SimulationAttemptController extends Controller
         $attempt->current_step = $requestedStep;
         $attempt->save();
 
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
-
         return response()->json([
-            'message' => 'Solis saglabāts.',
-            'attempt' => $attempt,
+            'message' => 'Solis saglabats.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
             'available_steps' => $availableSteps,
         ]);
     }
@@ -204,10 +254,11 @@ class SimulationAttemptController extends Controller
         $attempt = SimulationAttempt::query()
             ->where('user_id', $request->user()->id)
             ->with([
-                'orderTemplate',
+                'orderTemplate.temperatureMode',
                 'selectedTransportTemplate',
                 'selectedPort.location',
-                'selectedShip',
+                'selectedPort.handlingMethods',
+                'selectedShip.handlingMethods',
                 'routeSegments.fromLocation',
                 'routeSegments.toLocation',
                 'fuelStations.location',
@@ -219,21 +270,51 @@ class SimulationAttemptController extends Controller
             'selected_vehicle_count' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'selected_port_id' => ['nullable', 'integer', 'exists:ports,id'],
             'selected_ship_id' => ['nullable', 'integer', 'exists:ships,id'],
+            'selected_loading_method_code' => ['nullable', 'string', 'max:100'],
+            'selected_unloading_method_code' => ['nullable', 'string', 'max:100'],
+            'loading_method_source' => ['nullable', 'in:port,ship'],
+            'unloading_method_source' => ['nullable', 'in:port,ship'],
         ]);
 
+        $originalPortId = $attempt->selected_port_id;
+        $originalShipId = $attempt->selected_ship_id;
         $planningChanged = $this->applyPlanningSelections($attempt, $validated);
+        $resourcesChanged = $originalPortId !== $attempt->selected_port_id
+            || $originalShipId !== $attempt->selected_ship_id;
+        $handlingChanged = false;
 
-        if ($planningChanged) {
+        if ($resourcesChanged) {
+            $this->resetHandlingState($attempt);
+            $handlingChanged = true;
+        }
+
+        foreach ([
+            'selected_loading_method_code',
+            'selected_unloading_method_code',
+            'loading_method_source',
+            'unloading_method_source',
+        ] as $field) {
+            if (!array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            if (($attempt->{$field} ?? null) !== $validated[$field]) {
+                $attempt->{$field} = $validated[$field];
+                $handlingChanged = true;
+            }
+        }
+
+        $handlingResult = $this->syncHandlingState($attempt);
+        $handlingChanged = $handlingChanged || ($handlingResult['changed'] ?? false);
+
+        if ($planningChanged || $handlingChanged) {
             $this->invalidatePreview($attempt);
             $attempt->save();
         }
 
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
-
         return response()->json([
-            'message' => 'Melnraksts saglabāts.',
-            'attempt' => $attempt,
+            'message' => 'Melnraksts saglabats.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
             'available_steps' => $this->resolveAvailableSteps($attempt->orderTemplate),
         ]);
     }
@@ -249,7 +330,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
+                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
             ], 422);
         }
 
@@ -265,12 +346,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Maršruta segments pievienots.',
-            'attempt' => $attempt,
+            'message' => 'Marsruta segments pievienots.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -285,7 +364,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
+                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
             ], 422);
         }
 
@@ -301,12 +380,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Maršruta segments noņemts.',
-            'attempt' => $attempt,
+            'message' => 'Marsruta segments nonemts.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -325,7 +402,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
+                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
             ], 422);
         }
 
@@ -338,7 +415,7 @@ class SimulationAttemptController extends Controller
 
         if ($currentIndex === false) {
             return response()->json([
-                'message' => 'Maršruta segments nav atrasts mēģinājumā.',
+                'message' => 'Marsruta segments nav atrasts megjinajuma.',
             ], 404);
         }
 
@@ -348,7 +425,7 @@ class SimulationAttemptController extends Controller
 
         if (!isset($segments[$targetIndex])) {
             return response()->json([
-                'message' => 'Segmentu vairs nevar pārvietot šajā virzienā.',
+                'message' => 'Segmentu vairs nevar parvietot saja virziena.',
             ], 422);
         }
 
@@ -364,12 +441,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Maršruta segmenta secība atjaunota.',
-            'attempt' => $attempt,
+            'message' => 'Marsruta segmenta seciba atjaunota.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -384,7 +459,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
+                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
             ], 422);
         }
 
@@ -400,12 +475,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
             'message' => 'Degvielas pietura pievienota.',
-            'attempt' => $attempt,
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -420,7 +493,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
+                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
             ], 422);
         }
 
@@ -436,12 +509,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Degvielas pietura noņemta.',
-            'attempt' => $attempt,
+            'message' => 'Degvielas pietura nonemta.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -459,7 +530,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
+                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
             ], 422);
         }
 
@@ -472,7 +543,7 @@ class SimulationAttemptController extends Controller
 
         if ($currentIndex === false) {
             return response()->json([
-                'message' => 'Degvielas pietura nav atrasta mēģinājumā.',
+                'message' => 'Degvielas pietura nav atrasta megjinajuma.',
             ], 404);
         }
 
@@ -482,7 +553,7 @@ class SimulationAttemptController extends Controller
 
         if (!isset($stations[$targetIndex])) {
             return response()->json([
-                'message' => 'Pieturu vairs nevar pārvietot šajā virzienā.',
+                'message' => 'Pieturu vairs nevar parvietot saja virziena.',
             ], 422);
         }
 
@@ -498,12 +569,10 @@ class SimulationAttemptController extends Controller
 
         $this->invalidatePreview($attempt);
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Degvielas pieturu secība atjaunota.',
-            'attempt' => $attempt,
+            'message' => 'Degvielas pieturu seciba atjaunota.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -523,7 +592,7 @@ class SimulationAttemptController extends Controller
 
         if (empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegšanas nepieciešams simulācijas aprēķins.',
+                'Pirms iesniegsanas nepieciesams simulacijas aprekins.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -534,8 +603,8 @@ class SimulationAttemptController extends Controller
         if (data_get($attempt->preview_result, 'result.is_valid') !== true) {
             return $this->blockedSubmissionResponse(
                 $isExamMode
-                    ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'
-                    : 'Risinājumu nevar iesniegt, kamēr tajā ir kritiskas problēmas.',
+                    ? 'Risinajumu nevar iesniegt, kamer tas neatbilst visam prasibam.'
+                    : 'Risinajumu nevar iesniegt, kamer tajaa ir kritiskas problemas.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -549,12 +618,10 @@ class SimulationAttemptController extends Controller
         $attempt->submitted_at = now();
         $attempt->current_step = 'submit';
         $attempt->save();
-        $this->loadAttemptStateRelations($attempt);
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
 
         return response()->json([
-            'message' => 'Mēģinājums iesniegts.',
-            'attempt' => $attempt,
+            'message' => 'Megjinajums iesniegts.',
+            'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
 
@@ -600,7 +667,8 @@ class SimulationAttemptController extends Controller
                 'orderTemplate.landRoutes.toLocation',
                 'orderTemplate.fuelStations.location',
                 'orderTemplate.ports.location',
-                'orderTemplate.ships',
+                'orderTemplate.ports.handlingMethods',
+                'orderTemplate.ships.handlingMethods',
                 'orderTemplate.startLocation',
                 'orderTemplate.endLocation',
                 'orderTemplate.startPort.location',
@@ -609,7 +677,8 @@ class SimulationAttemptController extends Controller
                 'orderTemplate.specialCondition',
                 'selectedTransportTemplate',
                 'selectedPort.location',
-                'selectedShip',
+                'selectedPort.handlingMethods',
+                'selectedShip.handlingMethods',
                 'routeSegments.fromLocation',
                 'routeSegments.toLocation',
                 'fuelStations.location',
@@ -623,11 +692,9 @@ class SimulationAttemptController extends Controller
             $attempt->save();
         }
 
-        $attempt = $this->sanitizeAttemptForStudent($attempt);
-
         return Inertia::render('Student/Simulator/Show', [
             'template' => $attempt->orderTemplate,
-            'attempt' => $attempt,
+            'attempt' => $this->prepareAttemptForClient($attempt),
             'availableSteps' => $availableSteps,
             'simulatorMode' => $simulatorMode,
             'actionBaseUrl' => $simulatorMode === 'teacher'
@@ -637,8 +704,8 @@ class SimulationAttemptController extends Controller
                 ? "/teacher/templates/order-templates/{$attempt->orderTemplate->id}"
                 : '/student',
             'backLabel' => $simulatorMode === 'teacher'
-                ? 'Atpakaļ uz sagatavi'
-                : 'Atpakaļ uz uzdevumiem',
+                ? 'Atpakal uz sagatavi'
+                : 'Atpakal uz uzdevumiem',
         ]);
     }
 
@@ -668,28 +735,48 @@ class SimulationAttemptController extends Controller
     private function validateSimulationRequirements(SimulationAttempt $attempt, array $availableSteps): array
     {
         $errors = [];
+        $handlingContext = $attempt->getAttribute('handling_context');
 
         if (in_array('transport', $availableSteps, true) && !$attempt->selected_transport_template_id) {
-            $errors[] = 'Jāizvēlas transports.';
+            $errors[] = 'Jaizvelas transports.';
         }
 
         if (in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
-            $errors[] = 'Jāizveido maršruts.';
+            $errors[] = 'Jaizveido marsruts.';
         }
 
         if (in_array('port', $availableSteps, true) && !$attempt->selected_port_id) {
-            $errors[] = 'Jāizvēlas osta.';
+            $errors[] = 'Jaizvelas osta.';
         }
 
         if (in_array('ship', $availableSteps, true) && !$attempt->selected_ship_id) {
-            $errors[] = 'Jāizvēlas kuģis.';
+            $errors[] = 'Jaizvelas kugjis.';
         }
 
         if (in_array('transport', $availableSteps, true) && !$attempt->selected_vehicle_count) {
-            $errors[] = 'Jānorāda transportu skaits.';
+            $errors[] = 'Janorada transportu skaits.';
         }
 
-        return $errors;
+        if (
+            in_array('ship', $availableSteps, true)
+            && is_array($handlingContext)
+            && $attempt->selected_port_id
+            && $attempt->selected_ship_id
+        ) {
+            if (($handlingContext['loading']['required'] ?? false) && !$attempt->selected_loading_method_code) {
+                $errors[] = 'Jaizvelas iekrausanas metode.';
+            }
+
+            if (($handlingContext['unloading']['required'] ?? false) && !$attempt->selected_unloading_method_code) {
+                $errors[] = 'Jaizvelas izkrausanas metode.';
+            }
+
+            foreach ((array) ($handlingContext['validation']['errors'] ?? []) as $error) {
+                $errors[] = $error;
+            }
+        }
+
+        return array_values(array_unique(array_filter($errors)));
     }
 
     private function applyPlanningSelections(SimulationAttempt $attempt, array $validated): bool
@@ -731,13 +818,143 @@ class SimulationAttemptController extends Controller
     private function loadAttemptStateRelations(SimulationAttempt $attempt): void
     {
         $attempt->load([
+            'orderTemplate.temperatureMode',
             'selectedTransportTemplate',
             'selectedPort.location',
-            'selectedShip',
+            'selectedPort.handlingMethods',
+            'selectedShip.handlingMethods',
             'routeSegments.fromLocation',
             'routeSegments.toLocation',
             'fuelStations.location',
         ]);
+    }
+
+    private function prepareAttemptForClient(SimulationAttempt $attempt): SimulationAttempt
+    {
+        $this->loadAttemptStateRelations($attempt);
+        $this->appendHandlingContext($attempt);
+
+        return $this->sanitizeAttemptForStudent($attempt);
+    }
+
+    private function resetHandlingState(SimulationAttempt $attempt): void
+    {
+        $attempt->selected_loading_method_code = null;
+        $attempt->selected_unloading_method_code = null;
+        $attempt->loading_method_source = null;
+        $attempt->unloading_method_source = null;
+        $attempt->loading_duration_minutes = null;
+        $attempt->unloading_duration_minutes = null;
+        $attempt->feedback_text = null;
+    }
+
+    private function syncHandlingState(SimulationAttempt $attempt): array
+    {
+        $changed = false;
+
+        if (!$attempt->selected_port_id || !$attempt->selected_ship_id) {
+            foreach (['loading_duration_minutes', 'unloading_duration_minutes', 'feedback_text'] as $field) {
+                if ($attempt->{$field} !== null) {
+                    $attempt->{$field} = null;
+                    $changed = true;
+                }
+            }
+
+            $this->appendHandlingContext($attempt);
+
+            return [
+                'changed' => $changed,
+                'validation' => null,
+            ];
+        }
+
+        $attempt->loadMissing([
+            'orderTemplate.temperatureMode',
+            'selectedPort.handlingMethods',
+            'selectedShip.handlingMethods',
+        ]);
+
+        $validation = $this->handlingValidator->validate($attempt);
+        $changed = $this->applyResolvedHandlingState($attempt, $validation) || $changed;
+
+        if ($validation['valid'] ?? false) {
+            $durations = $this->handlingDurationCalculator->calculate($attempt);
+
+            foreach ([
+                'loading_duration_minutes' => $durations['loading_duration_minutes'] ?? null,
+                'unloading_duration_minutes' => $durations['unloading_duration_minutes'] ?? null,
+            ] as $field => $value) {
+                if ($attempt->{$field} !== $value) {
+                    $attempt->{$field} = $value;
+                    $changed = true;
+                }
+            }
+
+            if ($attempt->feedback_text !== null) {
+                $attempt->feedback_text = null;
+                $changed = true;
+            }
+        } else {
+            foreach (['loading_duration_minutes', 'unloading_duration_minutes'] as $field) {
+                if ($attempt->{$field} !== null) {
+                    $attempt->{$field} = null;
+                    $changed = true;
+                }
+            }
+
+            $feedback = implode(' ', (array) ($validation['errors'] ?? [])) ?: null;
+
+            if ($attempt->feedback_text !== $feedback) {
+                $attempt->feedback_text = $feedback;
+                $changed = true;
+            }
+        }
+
+        $this->appendHandlingContext($attempt);
+
+        return [
+            'changed' => $changed,
+            'validation' => $validation,
+        ];
+    }
+
+    private function applyResolvedHandlingState(SimulationAttempt $attempt, array $handlingValidation): bool
+    {
+        $changed = false;
+        $loading = (array) ($handlingValidation['loading'] ?? []);
+        $unloading = (array) ($handlingValidation['unloading'] ?? []);
+        $resolvedValues = [
+            'selected_loading_method_code' => ($loading['valid'] ?? false) ? ($loading['code'] ?? null) : null,
+            'loading_method_source' => ($loading['valid'] ?? false) ? ($loading['source'] ?? null) : null,
+            'selected_unloading_method_code' => ($unloading['valid'] ?? false) ? ($unloading['code'] ?? null) : null,
+            'unloading_method_source' => ($unloading['valid'] ?? false) ? ($unloading['source'] ?? null) : null,
+        ];
+
+        foreach ($resolvedValues as $field => $value) {
+            if (($attempt->{$field} ?? null) !== $value) {
+                $attempt->{$field} = $value;
+                $changed = true;
+            }
+        }
+
+        return $changed;
+    }
+
+    private function appendHandlingContext(SimulationAttempt $attempt): void
+    {
+        $compatibility = $this->compatibilityService->inspectAttempt($attempt);
+        $handling = is_array($compatibility['handling'] ?? null)
+            ? $compatibility['handling']
+            : [];
+
+        $handling['resource_checks'] = [
+            'port' => $compatibility['port'] ?? null,
+            'ship' => $compatibility['ship'] ?? null,
+            'pair' => $compatibility['pair'] ?? null,
+            'valid' => (bool) ($compatibility['valid'] ?? false),
+        ];
+
+        $attempt->setAttribute('handling_context', $handling);
     }
 
     private function sanitizeAttemptForStudent(SimulationAttempt $attempt): SimulationAttempt
@@ -807,6 +1024,13 @@ class SimulationAttemptController extends Controller
         array $availableSteps,
         ?string $fallbackStep = null
     ): ?string {
+        $handlingContext = $attempt->getAttribute('handling_context');
+
+        if (!is_array($handlingContext) && in_array('ship', $availableSteps, true)) {
+            $this->appendHandlingContext($attempt);
+            $handlingContext = $attempt->getAttribute('handling_context');
+        }
+
         $candidates = [];
 
         if (
@@ -836,6 +1060,18 @@ class SimulationAttemptController extends Controller
             $candidates[] = 'ship';
         }
 
+        if (
+            in_array('ship', $availableSteps, true)
+            && is_array($handlingContext)
+            && (
+                (($handlingContext['loading']['required'] ?? false) && !$attempt->selected_loading_method_code)
+                || (($handlingContext['unloading']['required'] ?? false) && !$attempt->selected_unloading_method_code)
+                || !empty($handlingContext['validation']['errors'] ?? [])
+            )
+        ) {
+            $candidates[] = 'ship';
+        }
+
         foreach ((array) data_get($attempt->preview_result, 'result.score_breakdown.penalties', []) as $penalty) {
             $mappedStep = $this->mapPenaltyKeyToStep($penalty['key'] ?? null, $availableSteps);
 
@@ -857,6 +1093,7 @@ class SimulationAttemptController extends Controller
             'insufficient_vehicles', 'too_many_trips' => $this->firstAvailableStep($availableSteps, ['transport', 'simulation']),
             'route_chain', 'deadline_delay' => $this->firstAvailableStep($availableSteps, ['route', 'simulation']),
             'missing_fuel_stop', 'range_plan_invalid' => $this->firstAvailableStep($availableSteps, ['fuel', 'simulation']),
+            'handling_selection' => $this->firstAvailableStep($availableSteps, ['ship', 'simulation']),
             'port_ship_compatibility' => $this->firstAvailableStep($availableSteps, ['ship', 'port', 'simulation']),
             default => null,
         };
