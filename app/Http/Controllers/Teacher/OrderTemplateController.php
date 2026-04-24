@@ -14,6 +14,7 @@ use App\Models\SpecialCondition;
 use App\Models\TemperatureMode;
 use App\Models\TransportTemplate;
 use App\Services\LandTransportCalculator;
+use App\Services\LocationCatalogService;
 use App\Services\Simulator\ScenarioReadinessService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,8 @@ use Inertia\Inertia;
 class OrderTemplateController extends Controller
 {
     public function __construct(
-        private readonly ScenarioReadinessService $scenarioReadinessService
+        private readonly ScenarioReadinessService $scenarioReadinessService,
+        private readonly LocationCatalogService $locationCatalog,
     ) {
     }
 
@@ -125,7 +127,7 @@ class OrderTemplateController extends Controller
 
         return Inertia::render('Teacher/Templates/OrderTemplates/Edit', [
             'template' => $template,
-            'options' => $this->getOptions(),
+            'options' => $this->getOptions($template),
         ]);
     }
 
@@ -553,17 +555,23 @@ class OrderTemplateController extends Controller
         );
     }
 
-    protected function getOptions(): array
+    protected function getOptions(?OrderTemplate $template = null): array
     {
         return [
             'temperatureModes' => TemperatureMode::orderBy('name')->get(['id', 'name']),
             'specialConditions' => SpecialCondition::orderBy('name')->get(['id', 'name']),
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'city', 'type']),
-            'ports' => Port::orderBy('name')->get(['id', 'name', 'country']),
+            'locations' => $this->locationCatalog->locationOptions(
+                LocationCatalogService::ROUTABLE_LOCATION_TYPES,
+                [$template?->start_location_id, $template?->end_location_id],
+            ),
+            'ports' => Port::orderBy('country')->orderBy('name')->get(['id', 'name', 'country']),
             'transportTemplates' => TransportTemplate::orderBy('name')->get(['id', 'name', 'type']),
             'ships' => Ship::orderBy('name')->get(['id', 'name', 'cargo_type', 'cargo_mode']),
             'handlingMethods' => HandlingMethod::orderBy('name')->get(['id', 'name', 'code', 'category']),
-            'landRoutes' => LandRoute::with(['fromLocation:id,name', 'toLocation:id,name'])
+            'landRoutes' => LandRoute::with([
+                'fromLocation:id,name,city,country,type',
+                'toLocation:id,name,city,country,type',
+            ])
                 ->orderByDesc('id')
                 ->get(['id', 'from_location_id', 'to_location_id', 'distance_km']),
             'scenarioTypes' => [

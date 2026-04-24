@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Models\LandRoute;
-use App\Models\Location;
+use App\Services\LocationCatalogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class LandRouteController extends Controller
 {
+    public function __construct(
+        private readonly LocationCatalogService $locationCatalog
+    ) {
+    }
+
     public function index()
     {
         return Inertia::render('Teacher/Templates/LandRoutes/Index', [
@@ -22,7 +27,9 @@ class LandRouteController extends Controller
     public function create()
     {
         return Inertia::render('Teacher/Templates/LandRoutes/Create', [
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'type', 'city']),
+            'locations' => $this->locationCatalog->locationOptions(
+                LocationCatalogService::ROUTABLE_LOCATION_TYPES
+            ),
         ]);
     }
 
@@ -48,7 +55,10 @@ class LandRouteController extends Controller
 
         return Inertia::render('Teacher/Templates/LandRoutes/Edit', [
             'routeItem' => $route,
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'type', 'city']),
+            'locations' => $this->locationCatalog->locationOptions(
+                LocationCatalogService::ROUTABLE_LOCATION_TYPES,
+                [$route->from_location_id, $route->to_location_id],
+            ),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -12,6 +13,7 @@ class Location extends Model
         'name',
         'type',
         'country',
+        'city_id',
         'city',
         'address',
         'latitude',
@@ -23,6 +25,11 @@ class Location extends Model
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
     ];
+
+    public function linkedCity(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'city_id');
+    }
 
     public function outgoingLandRoutes(): HasMany
     {

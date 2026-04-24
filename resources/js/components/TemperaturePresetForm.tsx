@@ -6,7 +6,6 @@ type TemperaturePresetFormData = {
     min_temp: string;
     max_temp: string;
     description: string;
-    is_shared: boolean;
 };
 
 type TemperaturePresetFormProps = {
@@ -51,7 +50,7 @@ export default function TemperaturePresetForm({
 }: TemperaturePresetFormProps) {
     const parsedRange = useMemo(
         () => parseRange(initialData?.range),
-        [initialData?.range]
+        [initialData?.range],
     );
 
     const [form, setForm] = useState<TemperaturePresetFormData>({
@@ -59,25 +58,17 @@ export default function TemperaturePresetForm({
         min_temp: parsedRange.min_temp,
         max_temp: parsedRange.max_temp,
         description: initialData?.description ?? '',
-        is_shared: false,
     });
 
     const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     ) => {
-        const { name, value, type } = e.target;
-
-        if (type === 'checkbox') {
-            const checked = (e.target as HTMLInputElement).checked;
-            setForm((prev) => ({ ...prev, [name]: checked }));
-            return;
-        }
-
+        const { name, value } = event.target;
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = (event: FormEvent) => {
+        event.preventDefault();
 
         if (onSubmit) {
             return onSubmit(form);
@@ -95,16 +86,19 @@ export default function TemperaturePresetForm({
 
         if (isEdit && id) {
             router.put(`/teacher/templates/temperature/${id}`, payload);
-        } else {
-            router.post('/teacher/templates/temperature', payload);
+            return;
         }
+
+        router.post('/teacher/templates/temperature', payload);
     };
 
     return (
         <form onSubmit={handleSubmit} className="mt-8 max-w-4xl">
             <div className="rounded-2xl border border-[#d9ded9] bg-white p-6">
                 <div>
-                    <h2 className="text-[16px] font-semibold text-[#162118]">Pamatinformācija</h2>
+                    <h2 className="text-[16px] font-semibold text-[#162118]">
+                        Pamatinformācija
+                    </h2>
                     <div className="mt-3 h-px bg-[#e4e8e4]" />
 
                     <div className="mt-5 grid gap-4">
@@ -122,7 +116,9 @@ export default function TemperaturePresetForm({
                 </div>
 
                 <div className="mt-8">
-                    <h2 className="text-[16px] font-semibold text-[#162118]">Temperatūras robežas</h2>
+                    <h2 className="text-[16px] font-semibold text-[#162118]">
+                        Temperatūras robežas
+                    </h2>
                     <div className="mt-3 h-px bg-[#e4e8e4]" />
 
                     <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -160,20 +156,6 @@ export default function TemperaturePresetForm({
                     </div>
                 </div>
 
-                <div className="mt-8">
-                    <h2 className="text-[16px] font-semibold text-[#162118]">Pieejamība</h2>
-                    <div className="mt-3 h-px bg-[#e4e8e4]" />
-
-                    <div className="mt-5">
-                        <Checkbox
-                            name="is_shared"
-                            checked={form.is_shared}
-                            onChange={handleChange}
-                            label="Padarīt šo temperatūras režīmu pieejamu studentiem"
-                        />
-                    </div>
-                </div>
-
                 <div className="mt-8 flex items-center gap-3">
                     <button
                         type="submit"
@@ -200,7 +182,11 @@ function Field({ children }: { children: React.ReactNode }) {
 }
 
 function Label({ text }: { text: string }) {
-    return <label className="mb-2 block text-[14px] font-medium text-[#162118]">{text}</label>;
+    return (
+        <label className="mb-2 block text-[14px] font-medium text-[#162118]">
+            {text}
+        </label>
+    );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -219,30 +205,5 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
             rows={4}
             className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]"
         />
-    );
-}
-
-function Checkbox({
-    name,
-    checked,
-    onChange,
-    label,
-}: {
-    name: string;
-    checked: boolean;
-    onChange: React.ChangeEventHandler<HTMLInputElement>;
-    label: string;
-}) {
-    return (
-        <label className="flex items-center gap-2 text-[14px] text-[#162118]">
-            <input
-                type="checkbox"
-                name={name}
-                checked={checked}
-                onChange={onChange}
-                className="h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
-            />
-            <span>{label}</span>
-        </label>
     );
 }

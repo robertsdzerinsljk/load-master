@@ -8,6 +8,7 @@ type Location = {
     name: string;
     type?: string | null;
     country?: string | null;
+    city_id?: number | null;
     city?: string | null;
     address?: string | null;
     latitude?: string | number | null;
@@ -48,6 +49,7 @@ export default function Edit() {
                         name: location.name ?? '',
                         type: location.type ?? '',
                         country: location.country ?? '',
+                        city_id: location.city_id ?? null,
                         city: location.city ?? '',
                         address: location.address ?? '',
                         latitude: location.latitude ?? '',

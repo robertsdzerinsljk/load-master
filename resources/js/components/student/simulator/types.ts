@@ -425,12 +425,12 @@ export type SimulatorStepStatus = {
 export const simulatorSteps: SimulatorStep[] = [
     { key: 'intro', label: 'Ievads' },
     { key: 'transport', label: 'Transports' },
-    { key: 'route', label: 'Marsruts' },
+    { key: 'route', label: 'Maršruts' },
     { key: 'fuel', label: 'Degviela' },
     { key: 'port', label: 'Osta' },
-    { key: 'ship', label: 'Kugjis' },
-    { key: 'simulation', label: 'Simulacija' },
-    { key: 'submit', label: 'Iesniegsana' },
+    { key: 'ship', label: 'Kuģis' },
+    { key: 'simulation', label: 'Simulācija' },
+    { key: 'submit', label: 'Iesniegšana' },
 ];
 
 const stepTitleMap: Record<string, string> = Object.fromEntries(
@@ -440,17 +440,17 @@ const stepTitleMap: Record<string, string> = Object.fromEntries(
 const statusLabelMap: Record<string, string> = {
     draft: 'Melnraksts',
     ready: 'Gatavs',
-    in_progress: 'Procesa',
+    in_progress: 'Procesā',
     submitted: 'Iesniegts',
-    reviewed: 'Parskatits',
-    teacher_testing: 'Skolotaja tests',
-    teacher_test_submitted: 'Skolotaja tests iesniegts',
-    teacher_test_archived: 'Skolotaja tests arhivets',
+    reviewed: 'Pārskatīts',
+    teacher_testing: 'Skolotāja tests',
+    teacher_test_submitted: 'Skolotāja tests iesniegts',
+    teacher_test_archived: 'Skolotāja tests arhivēts',
 };
 
 export function getStepTitle(stepKey?: string | null): string {
     if (!stepKey) {
-        return 'Nezinams solis';
+        return 'Nezināms solis';
     }
 
     return stepTitleMap[stepKey] ?? stepKey;
@@ -458,7 +458,7 @@ export function getStepTitle(stepKey?: string | null): string {
 
 export function getStatusLabel(status?: string | null): string {
     if (!status) {
-        return 'Nezinams statuss';
+        return 'Nezināms statuss';
     }
 
     return statusLabelMap[status] ?? status;

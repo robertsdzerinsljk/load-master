@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { formatLocationOptionLabel } from '@/utils/templateOptionLabels';
 
 type LocationOption = {
     id: number;
     name: string;
     type?: string | null;
     city?: string | null;
+    country?: string | null;
 };
 
 type Props = {
@@ -30,25 +32,56 @@ export default function LandRoutePresetForm({
     isEdit = false,
     id,
 }: Props) {
+    const page = usePage<{ props: { errors?: Record<string, string> } }>();
+    const errors = page.props.errors ?? {};
+
     const [fromLocationId, setFromLocationId] = useState(
-        String(initialData.from_location_id ?? '')
+        String(initialData.from_location_id ?? ''),
     );
     const [toLocationId, setToLocationId] = useState(
-        String(initialData.to_location_id ?? '')
+        String(initialData.to_location_id ?? ''),
     );
     const [distanceKm, setDistanceKm] = useState(
-        String(initialData.distance_km ?? '')
+        String(initialData.distance_km ?? ''),
     );
     const [estimatedTimeHours, setEstimatedTimeHours] = useState(
-        String(initialData.estimated_time_hours ?? '')
+        String(initialData.estimated_time_hours ?? ''),
     );
-    const [tollCost, setTollCost] = useState(
-        String(initialData.toll_cost ?? '')
-    );
+    const [tollCost, setTollCost] = useState(String(initialData.toll_cost ?? ''));
     const [notes, setNotes] = useState(initialData.notes ?? '');
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const sortedLocations = useMemo(
+        () =>
+            [...locations].sort((left, right) =>
+                formatLocationOptionLabel(left).localeCompare(
+                    formatLocationOptionLabel(right),
+                ),
+            ),
+        [locations],
+    );
+
+    const fromLocationOptions = useMemo(
+        () =>
+            sortedLocations.filter(
+                (location) =>
+                    String(location.id) !== toLocationId ||
+                    String(location.id) === fromLocationId,
+            ),
+        [fromLocationId, sortedLocations, toLocationId],
+    );
+
+    const toLocationOptions = useMemo(
+        () =>
+            sortedLocations.filter(
+                (location) =>
+                    String(location.id) !== fromLocationId ||
+                    String(location.id) === toLocationId,
+            ),
+        [fromLocationId, sortedLocations, toLocationId],
+    );
+
+    const handleSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
 
         const payload = {
             from_location_id: Number(fromLocationId),
@@ -62,15 +95,16 @@ export default function LandRoutePresetForm({
 
         if (isEdit && id) {
             router.put(`/teacher/templates/land-routes/${id}`, payload);
-        } else {
-            router.post('/teacher/templates/land-routes', payload);
+            return;
         }
+
+        router.post('/teacher/templates/land-routes', payload);
     };
 
     const inputClass =
         'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
-
     const labelClass = 'text-[14px] font-medium text-[#182219]';
+    const helperClass = 'mt-2 text-[13px] leading-6 text-[#5b6b61]';
 
     return (
         <form
@@ -83,36 +117,44 @@ export default function LandRoutePresetForm({
                         <label className={labelClass}>No lokācijas *</label>
                         <select
                             value={fromLocationId}
-                            onChange={(e) => setFromLocationId(e.target.value)}
+                            onChange={(event) => setFromLocationId(event.target.value)}
                             required
                             className={inputClass}
                         >
                             <option value="">Izvēlieties sākumpunktu</option>
-                            {locations.map((location) => (
+                            {fromLocationOptions.map((location) => (
                                 <option key={location.id} value={location.id}>
-                                    {location.name}
-                                    {location.city ? ` (${location.city})` : ''}
+                                    {formatLocationOptionLabel(location)}
                                 </option>
                             ))}
                         </select>
+                        <p className={helperClass}>
+                            Sākumpunkts un galapunkts nevar būt viena un tā pati
+                            lokācija.
+                        </p>
+                        {errors.from_location_id ? (
+                            <FieldError error={errors.from_location_id} />
+                        ) : null}
                     </div>
 
                     <div>
                         <label className={labelClass}>Uz lokāciju *</label>
                         <select
                             value={toLocationId}
-                            onChange={(e) => setToLocationId(e.target.value)}
+                            onChange={(event) => setToLocationId(event.target.value)}
                             required
                             className={inputClass}
                         >
                             <option value="">Izvēlieties galapunktu</option>
-                            {locations.map((location) => (
+                            {toLocationOptions.map((location) => (
                                 <option key={location.id} value={location.id}>
-                                    {location.name}
-                                    {location.city ? ` (${location.city})` : ''}
+                                    {formatLocationOptionLabel(location)}
                                 </option>
                             ))}
                         </select>
+                        {errors.to_location_id ? (
+                            <FieldError error={errors.to_location_id} />
+                        ) : null}
                     </div>
                 </div>
 
@@ -125,10 +167,13 @@ export default function LandRoutePresetForm({
                             min="0"
                             required
                             value={distanceKm}
-                            onChange={(e) => setDistanceKm(e.target.value)}
+                            onChange={(event) => setDistanceKm(event.target.value)}
                             className={inputClass}
                             placeholder="Piemēram, 220"
                         />
+                        {errors.distance_km ? (
+                            <FieldError error={errors.distance_km} />
+                        ) : null}
                     </div>
 
                     <div>
@@ -138,10 +183,15 @@ export default function LandRoutePresetForm({
                             step="0.01"
                             min="0"
                             value={estimatedTimeHours}
-                            onChange={(e) => setEstimatedTimeHours(e.target.value)}
+                            onChange={(event) =>
+                                setEstimatedTimeHours(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="Piemēram, 3.2"
                         />
+                        {errors.estimated_time_hours ? (
+                            <FieldError error={errors.estimated_time_hours} />
+                        ) : null}
                     </div>
 
                     <div>
@@ -151,10 +201,11 @@ export default function LandRoutePresetForm({
                             step="0.01"
                             min="0"
                             value={tollCost}
-                            onChange={(e) => setTollCost(e.target.value)}
+                            onChange={(event) => setTollCost(event.target.value)}
                             className={inputClass}
                             placeholder="Piemēram, 12.50"
                         />
+                        {errors.toll_cost ? <FieldError error={errors.toll_cost} /> : null}
                     </div>
                 </div>
 
@@ -163,10 +214,11 @@ export default function LandRoutePresetForm({
                     <textarea
                         rows={5}
                         value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
+                        onChange={(event) => setNotes(event.target.value)}
                         className={inputClass}
                         placeholder="Papildu informācija par maršrutu."
                     />
+                    {errors.notes ? <FieldError error={errors.notes} /> : null}
                 </div>
 
                 <div className="pt-2">
@@ -180,4 +232,8 @@ export default function LandRoutePresetForm({
             </div>
         </form>
     );
+}
+
+function FieldError({ error }: { error: string }) {
+    return <div className="mt-2 text-[12px] text-red-700">{error}</div>;
 }

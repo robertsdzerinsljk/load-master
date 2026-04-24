@@ -13,8 +13,7 @@ class StudentTestUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'student@test.local'],
             [
-                'name' => 'student',
-                'full_name' => 'Testa Students',
+                'name' => 'Test Student',
                 'role' => 'student',
                 'password' => Hash::make('password'),
             ]
@@ -23,8 +22,7 @@ class StudentTestUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'teacher@test.local'],
             [
-                'name' => 'teacher',
-                'full_name' => 'Testa Pasniedzējs',
+                'name' => 'Test Teacher',
                 'role' => 'teacher',
                 'password' => Hash::make('password'),
             ]

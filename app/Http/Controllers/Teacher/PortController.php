@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Models\HandlingMethod;
-use App\Models\Location;
 use App\Models\Port;
+use App\Services\LocationCatalogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PortController extends Controller
 {
+    public function __construct(
+        private readonly LocationCatalogService $locationCatalog
+    ) {
+    }
+
     public function index()
     {
         return Inertia::render('Teacher/Templates/Ports/Index', [
@@ -21,7 +26,11 @@ class PortController extends Controller
     public function create()
     {
         return Inertia::render('Teacher/Templates/Ports/Create', [
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'city', 'country']),
+            'countries' => $this->locationCatalog->countryOptions(),
+            'cities' => $this->locationCatalog->cityOptions(),
+            'locations' => $this->locationCatalog->locationOptions(
+                LocationCatalogService::PORT_LINKABLE_LOCATION_TYPES
+            ),
             'handlingMethods' => HandlingMethod::orderBy('name')->get(['id', 'name', 'code', 'category']),
         ]);
     }
@@ -54,7 +63,12 @@ class PortController extends Controller
 
         return Inertia::render('Teacher/Templates/Ports/Edit', [
             'port' => $port,
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'city', 'country']),
+            'countries' => $this->locationCatalog->countryOptions(),
+            'cities' => $this->locationCatalog->cityOptions(),
+            'locations' => $this->locationCatalog->locationOptions(
+                LocationCatalogService::PORT_LINKABLE_LOCATION_TYPES,
+                [$port->location_id],
+            ),
             'handlingMethods' => HandlingMethod::orderBy('name')->get(['id', 'name', 'code', 'category']),
         ]);
     }

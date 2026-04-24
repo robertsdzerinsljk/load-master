@@ -10,6 +10,7 @@ class SimulationAttempt extends Model
 {
     protected $casts = [
         'preview_result' => 'array',
+        'handling_context' => 'array',
         'submitted_at' => 'datetime',
         'is_valid' => 'boolean',
         'loading_duration_minutes' => 'decimal:2',
@@ -44,6 +45,7 @@ class SimulationAttempt extends Model
         'is_valid',
         'feedback_text',
         'preview_result',
+        'handling_context',
         'submitted_at',
 
         'assignment_id',

@@ -1,11 +1,18 @@
 import { router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type LocationOption = {
     id: number;
     name: string;
     city?: string | null;
+    country?: string | null;
+    type?: string | null;
+};
+
+type CityOption = {
+    id: number;
+    name: string;
     country?: string | null;
 };
 
@@ -60,6 +67,15 @@ type Props = {
     id?: number;
 };
 
+const LOCATION_TYPE_LABELS: Record<string, string> = {
+    city: 'City',
+    customer: 'Customer',
+    factory: 'Factory',
+    fuel_station: 'Fuel station',
+    port_terminal: 'Port terminal',
+    warehouse: 'Warehouse',
+};
+
 export default function PortPresetForm({
     submitLabel = 'Save port',
     initialData = {},
@@ -69,17 +85,47 @@ export default function PortPresetForm({
     const page = usePage<{
         props: {
             locations?: LocationOption[];
+            countries?: string[];
+            cities?: CityOption[];
             handlingMethods?: HandlingMethodOption[];
             errors?: Record<string, string>;
         };
     }>();
     const locations = page.props.locations ?? [];
+    const pageCountries = page.props.countries ?? [];
+    const cities = page.props.cities ?? [];
     const handlingMethodOptions = page.props.handlingMethods ?? [];
     const errors = page.props.errors ?? {};
 
+    const countryCatalog = useMemo(
+        () => collectCountryNames(pageCountries, cities, locations),
+        [cities, locations, pageCountries],
+    );
+
+    const initialLocation =
+        locations.find(
+            (location) =>
+                String(location.id) === String(initialData.location_id ?? ''),
+        ) ?? null;
+    const initialCountry = normalizeValue(
+        initialData.country || initialLocation?.country || '',
+    );
+    const initialCity = resolveInitialCityName(
+        initialLocation,
+        initialCountry,
+        cities,
+        locations,
+    );
+
     const [name, setName] = useState(initialData.name || '');
-    const [country, setCountry] = useState(initialData.country || '');
-    const [locationId, setLocationId] = useState(String(initialData.location_id ?? ''));
+    const [country, setCountry] = useState(initialCountry);
+    const [manualCountry, setManualCountry] = useState(
+        Boolean(initialCountry && !countryCatalog.includes(initialCountry)),
+    );
+    const [selectedCity, setSelectedCity] = useState(initialCity);
+    const [locationId, setLocationId] = useState(
+        String(initialData.location_id ?? ''),
+    );
     const [maxDraft, setMaxDraft] = useState(String(initialData.max_draft_m ?? ''));
     const [cityDistanceKm, setCityDistanceKm] = useState(
         String(initialData.city_distance_km ?? ''),
@@ -115,6 +161,57 @@ export default function PortPresetForm({
     );
     const [notes, setNotes] = useState(initialData.notes || '');
 
+    const availableCountries = useMemo(() => {
+        const values = new Set(countryCatalog);
+
+        if (normalizeValue(country) !== '') {
+            values.add(normalizeValue(country));
+        }
+
+        return Array.from(values).sort((left, right) =>
+            left.localeCompare(right),
+        );
+    }, [country, countryCatalog]);
+
+    const availableCities = useMemo(
+        () => collectCityNames(country, cities, locations),
+        [cities, country, locations],
+    );
+
+    const filteredLocations = useMemo(() => {
+        const normalizedCountry = normalizeValue(country);
+
+        if (normalizedCountry === '' || selectedCity === '') {
+            return [];
+        }
+
+        return locations
+            .filter((location) => {
+                if (normalizeValue(location.country) !== normalizedCountry) {
+                    return false;
+                }
+
+                const locationCity = resolveStructuredCityName(location);
+                const isCurrentLegacySelection =
+                    String(location.id) === locationId &&
+                    locationCity === '' &&
+                    normalizeValue(location.name) === selectedCity;
+
+                return locationCity === selectedCity || isCurrentLegacySelection;
+            })
+            .sort((left, right) => {
+                const typeRank = locationTypeRank(left.type) - locationTypeRank(right.type);
+
+                if (typeRank !== 0) {
+                    return typeRank;
+                }
+
+                return formatLocationLabel(left).localeCompare(
+                    formatLocationLabel(right),
+                );
+            });
+    }, [country, locationId, locations, selectedCity]);
+
     const handlingMethods = useMemo<HandlingMethodState[]>(() => {
         const configured = new Map(
             (initialData.handling_methods ?? []).map((method) => [
@@ -145,6 +242,24 @@ export default function PortPresetForm({
 
     const [handlingStates, setHandlingStates] = useState(handlingMethods);
 
+    useEffect(() => {
+        if (selectedCity !== '' && !availableCities.includes(selectedCity)) {
+            setSelectedCity('');
+            setLocationId('');
+        }
+    }, [availableCities, selectedCity]);
+
+    useEffect(() => {
+        if (
+            locationId !== '' &&
+            !filteredLocations.some(
+                (location) => String(location.id) === locationId,
+            )
+        ) {
+            setLocationId('');
+        }
+    }, [filteredLocations, locationId]);
+
     const updateHandlingState = (
         code: string,
         updates: Partial<HandlingMethodState>,
@@ -156,12 +271,41 @@ export default function PortPresetForm({
         );
     };
 
+    const handleCountryChange = (value: string) => {
+        setCountry(value);
+        setSelectedCity('');
+        setLocationId('');
+    };
+
+    const handleToggleManualCountry = () => {
+        if (manualCountry) {
+            setManualCountry(false);
+
+            if (!countryCatalog.includes(normalizeValue(country))) {
+                setCountry('');
+                setSelectedCity('');
+                setLocationId('');
+            }
+
+            return;
+        }
+
+        setManualCountry(true);
+        setSelectedCity('');
+        setLocationId('');
+    };
+
+    const handleCityChange = (value: string) => {
+        setSelectedCity(value);
+        setLocationId('');
+    };
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
 
         const payload = {
             name,
-            country,
+            country: normalizeValue(country),
             location_id: locationId === '' ? null : Number(locationId),
             max_draft_m: maxDraft === '' ? null : Number(maxDraft),
             city_distance_km: cityDistanceKm === '' ? null : Number(cityDistanceKm),
@@ -206,6 +350,7 @@ export default function PortPresetForm({
 
     const inputClass =
         'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
+    const helperClass = 'mt-2 text-[13px] leading-6 text-[#5b6b61]';
 
     return (
         <form
@@ -225,14 +370,75 @@ export default function PortPresetForm({
                 </Field>
 
                 <Field label="Country" error={errors.country}>
-                    <input
-                        type="text"
-                        value={country}
-                        onChange={(event) => setCountry(event.target.value)}
-                        required
+                    {manualCountry ? (
+                        <input
+                            type="text"
+                            value={country}
+                            onChange={(event) =>
+                                handleCountryChange(event.target.value)
+                            }
+                            required
+                            className={inputClass}
+                            placeholder="Latvia"
+                        />
+                    ) : (
+                        <select
+                            value={country}
+                            onChange={(event) =>
+                                handleCountryChange(event.target.value)
+                            }
+                            required
+                            className={inputClass}
+                        >
+                            <option value="">Choose country</option>
+                            {availableCountries.map((option) => (
+                                <option key={option} value={option}>
+                                    {option}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleToggleManualCountry}
+                            className="inline-flex items-center rounded-lg border border-[#d9ded9] px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
+                        >
+                            {manualCountry
+                                ? 'Use country list'
+                                : 'Add a new country'}
+                        </button>
+
+                        {country ? (
+                            <span className="text-[13px] text-[#5b6b61]">
+                                Selected: {country}
+                            </span>
+                        ) : null}
+                    </div>
+                </Field>
+
+                <Field label="City">
+                    <select
+                        value={selectedCity}
+                        onChange={(event) => handleCityChange(event.target.value)}
                         className={inputClass}
-                        placeholder="Latvia"
-                    />
+                        disabled={normalizeValue(country) === ''}
+                    >
+                        <option value="">
+                            {normalizeValue(country) === ''
+                                ? 'Choose country first'
+                                : 'Choose city'}
+                        </option>
+                        {availableCities.map((option) => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+                    <p className={helperClass}>
+                        Only cities for the selected country are shown here.
+                    </p>
                 </Field>
 
                 <Field label="Linked location" error={errors.location_id}>
@@ -240,15 +446,30 @@ export default function PortPresetForm({
                         value={locationId}
                         onChange={(event) => setLocationId(event.target.value)}
                         className={inputClass}
+                        disabled={
+                            normalizeValue(country) === '' || selectedCity === ''
+                        }
                     >
-                        <option value="">None</option>
-                        {locations.map((location) => (
+                        <option value="">
+                            {normalizeValue(country) === ''
+                                ? 'Choose country first'
+                                : selectedCity === ''
+                                  ? 'Choose city first'
+                                  : filteredLocations.length === 0
+                                    ? 'No matching locations'
+                                    : 'None'}
+                        </option>
+                        {filteredLocations.map((location) => (
                             <option key={location.id} value={location.id}>
-                                {location.name}
-                                {location.city ? ` (${location.city})` : ''}
+                                {formatLocationLabel(location)}
                             </option>
                         ))}
                     </select>
+                    <p className={helperClass}>
+                        {selectedCity
+                            ? `Showing locations in ${selectedCity}, ${country}.`
+                            : 'Pick the nearby city first so the linked location list stays clean.'}
+                    </p>
                 </Field>
 
                 <Field label="Max draft m" error={errors.max_draft_m}>
@@ -551,4 +772,135 @@ function ToggleSection({
             </div>
         </section>
     );
+}
+
+function collectCountryNames(
+    countries: string[],
+    cities: CityOption[],
+    locations: LocationOption[],
+): string[] {
+    const values = new Set<string>();
+
+    countries.forEach((country) => {
+        const normalized = normalizeValue(country);
+
+        if (normalized !== '') {
+            values.add(normalized);
+        }
+    });
+
+    cities.forEach((city) => {
+        const normalized = normalizeValue(city.country);
+
+        if (normalized !== '') {
+            values.add(normalized);
+        }
+    });
+
+    locations.forEach((location) => {
+        const normalized = normalizeValue(location.country);
+
+        if (normalized !== '') {
+            values.add(normalized);
+        }
+    });
+
+    return Array.from(values).sort((left, right) => left.localeCompare(right));
+}
+
+function collectCityNames(
+    country: string,
+    cities: CityOption[],
+    locations: LocationOption[],
+): string[] {
+    const normalizedCountry = normalizeValue(country);
+
+    if (normalizedCountry === '') {
+        return [];
+    }
+
+    const values = new Set<string>();
+
+    cities.forEach((city) => {
+        if (normalizeValue(city.country) !== normalizedCountry) {
+            return;
+        }
+
+        const normalizedName = normalizeValue(city.name);
+
+        if (normalizedName !== '') {
+            values.add(normalizedName);
+        }
+    });
+
+    locations.forEach((location) => {
+        if (normalizeValue(location.country) !== normalizedCountry) {
+            return;
+        }
+
+        const normalizedName = resolveStructuredCityName(location);
+
+        if (normalizedName !== '') {
+            values.add(normalizedName);
+        }
+    });
+
+    return Array.from(values).sort((left, right) => left.localeCompare(right));
+}
+
+function formatLocationLabel(location: LocationOption): string {
+    const typeLabel = LOCATION_TYPE_LABELS[normalizeValue(location.type)] ?? 'Location';
+    const cityName = resolveStructuredCityName(location);
+    const locationName = normalizeValue(location.name);
+
+    if (cityName !== '' && cityName !== locationName) {
+        return `${locationName} [${typeLabel}] - ${cityName}`;
+    }
+
+    return `${locationName} [${typeLabel}]`;
+}
+
+function locationTypeRank(type?: string | null): number {
+    return normalizeValue(type) === 'city' ? 0 : 1;
+}
+
+function normalizeValue(value?: string | null): string {
+    return (value ?? '').trim();
+}
+
+function resolveInitialCityName(
+    location: LocationOption | null,
+    country: string,
+    cities: CityOption[],
+    locations: LocationOption[],
+): string {
+    const structuredCity = resolveStructuredCityName(location);
+
+    if (structuredCity !== '') {
+        return structuredCity;
+    }
+
+    const locationName = normalizeValue(location?.name);
+
+    if (locationName === '') {
+        return '';
+    }
+
+    const matchingCityNames = collectCityNames(country, cities, locations);
+
+    return matchingCityNames.includes(locationName) ? locationName : '';
+}
+
+function resolveStructuredCityName(location?: LocationOption | null): string {
+    const directCity = normalizeValue(location?.city);
+
+    if (directCity !== '') {
+        return directCity;
+    }
+
+    if (normalizeValue(location?.type) === 'city') {
+        return normalizeValue(location?.name);
+    }
+
+    return '';
 }

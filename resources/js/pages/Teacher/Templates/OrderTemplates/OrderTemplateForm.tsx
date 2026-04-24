@@ -2,6 +2,12 @@ import { router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import OrderTemplateFormSection from './OrderTemplateFormSection';
+import {
+    formatLocationOptionLabel,
+    formatPortOptionLabel,
+    formatRouteOptionDescription,
+    formatRouteOptionLabel,
+} from '@/utils/templateOptionLabels';
 
 type SimpleOption = {
     id: number;
@@ -17,6 +23,7 @@ type LocationOption = {
     id: number;
     name: string;
     city?: string | null;
+    country?: string | null;
     type?: string | null;
 };
 
@@ -52,18 +59,30 @@ type LandRouteOption = {
     fromLocation?: {
         id: number;
         name: string;
+        city?: string | null;
+        country?: string | null;
+        type?: string | null;
     } | null;
     toLocation?: {
         id: number;
         name: string;
+        city?: string | null;
+        country?: string | null;
+        type?: string | null;
     } | null;
     from_location?: {
         id: number;
         name: string;
+        city?: string | null;
+        country?: string | null;
+        type?: string | null;
     } | null;
     to_location?: {
         id: number;
         name: string;
+        city?: string | null;
+        country?: string | null;
+        type?: string | null;
     } | null;
 };
 
@@ -511,6 +530,33 @@ export default function OrderTemplateForm({
                   { value: 'palletized', label: 'Palletized' },
                   { value: 'break_bulk', label: 'Break bulk' },
               ];
+    const sortedLocationOptions = useMemo(
+        () =>
+            [...options.locations].sort((left, right) =>
+                formatLocationOptionLabel(left).localeCompare(
+                    formatLocationOptionLabel(right),
+                ),
+            ),
+        [options.locations],
+    );
+    const sortedPortOptions = useMemo(
+        () =>
+            [...options.ports].sort((left, right) =>
+                formatPortOptionLabel(left).localeCompare(
+                    formatPortOptionLabel(right),
+                ),
+            ),
+        [options.ports],
+    );
+    const sortedLandRouteOptions = useMemo(
+        () =>
+            [...options.landRoutes].sort((left, right) =>
+                formatRouteOptionLabel(left).localeCompare(
+                    formatRouteOptionLabel(right),
+                ),
+            ),
+        [options.landRoutes],
+    );
 
     useEffect(() => {
         setScenarioFocus((current) =>
@@ -1059,10 +1105,9 @@ export default function OrderTemplateForm({
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
-                                    {options.locations.map((option) => (
+                                    {sortedLocationOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name}
-                                            {option.city ? ` (${option.city})` : ''}
+                                            {formatLocationOptionLabel(option)}
                                         </option>
                                     ))}
                                 </select>
@@ -1077,10 +1122,9 @@ export default function OrderTemplateForm({
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
-                                    {options.locations.map((option) => (
+                                    {sortedLocationOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name}
-                                            {option.city ? ` (${option.city})` : ''}
+                                            {formatLocationOptionLabel(option)}
                                         </option>
                                     ))}
                                 </select>
@@ -1095,10 +1139,9 @@ export default function OrderTemplateForm({
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
-                                    {options.ports.map((option) => (
+                                    {sortedPortOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name}
-                                            {option.country ? ` (${option.country})` : ''}
+                                            {formatPortOptionLabel(option)}
                                         </option>
                                     ))}
                                 </select>
@@ -1113,10 +1156,9 @@ export default function OrderTemplateForm({
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
-                                    {options.ports.map((option) => (
+                                    {sortedPortOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name}
-                                            {option.country ? ` (${option.country})` : ''}
+                                            {formatPortOptionLabel(option)}
                                         </option>
                                     ))}
                                 </select>
@@ -1438,10 +1480,10 @@ export default function OrderTemplateForm({
                         {caps.route ? (
                             <SelectableGrid
                                 title="Land routes"
-                                items={options.landRoutes.map((item) => ({
+                                items={sortedLandRouteOptions.map((item) => ({
                                     id: item.id,
-                                    title: `${(item.fromLocation ?? item.from_location)?.name ?? '—'} → ${(item.toLocation ?? item.to_location)?.name ?? '—'}`,
-                                    description: `${item.distance_km ?? '—'} km`,
+                                    title: formatRouteOptionLabel(item),
+                                    description: formatRouteOptionDescription(item),
                                 }))}
                                 selected={landRouteIds}
                                 onToggle={(value) =>
@@ -1457,9 +1499,9 @@ export default function OrderTemplateForm({
                         {caps.port ? (
                             <SelectableGrid
                                 title="Ports"
-                                items={options.ports.map((item) => ({
+                                items={sortedPortOptions.map((item) => ({
                                     id: item.id,
-                                    title: item.name,
+                                    title: formatPortOptionLabel(item),
                                     description: item.country || 'No country',
                                 }))}
                                 selected={portIds}

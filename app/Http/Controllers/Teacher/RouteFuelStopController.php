@@ -7,6 +7,7 @@ use App\Models\FuelStation;
 use App\Models\LandRoute;
 use App\Models\RouteFuelStop;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class RouteFuelStopController extends Controller
@@ -25,10 +26,13 @@ class RouteFuelStopController extends Controller
     public function create()
     {
         return Inertia::render('Teacher/Templates/RouteFuelStops/Create', [
-            'routes' => LandRoute::with(['fromLocation', 'toLocation'])
+            'routes' => LandRoute::with([
+                'fromLocation:id,name,city,country,type',
+                'toLocation:id,name,city,country,type',
+            ])
                 ->orderByDesc('id')
                 ->get(),
-            'fuelStations' => FuelStation::with('location')
+            'fuelStations' => FuelStation::with('location:id,name,city,country,type')
                 ->orderByDesc('id')
                 ->get(),
         ]);
@@ -36,12 +40,7 @@ class RouteFuelStopController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'land_route_id' => 'required|exists:land_routes,id',
-            'fuel_station_id' => 'required|exists:fuel_stations,id',
-            'distance_from_start_km' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
-        ]);
+        $validated = $this->validateRouteFuelStop($request);
 
         RouteFuelStop::create($validated);
 
@@ -54,10 +53,13 @@ class RouteFuelStopController extends Controller
 
         return Inertia::render('Teacher/Templates/RouteFuelStops/Edit', [
             'routeFuelStop' => $routeFuelStop,
-            'routes' => LandRoute::with(['fromLocation', 'toLocation'])
+            'routes' => LandRoute::with([
+                'fromLocation:id,name,city,country,type',
+                'toLocation:id,name,city,country,type',
+            ])
                 ->orderByDesc('id')
                 ->get(),
-            'fuelStations' => FuelStation::with('location')
+            'fuelStations' => FuelStation::with('location:id,name,city,country,type')
                 ->orderByDesc('id')
                 ->get(),
         ]);
@@ -67,12 +69,7 @@ class RouteFuelStopController extends Controller
     {
         $routeFuelStop = RouteFuelStop::findOrFail($id);
 
-        $validated = $request->validate([
-            'land_route_id' => 'required|exists:land_routes,id',
-            'fuel_station_id' => 'required|exists:fuel_stations,id',
-            'distance_from_start_km' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
-        ]);
+        $validated = $this->validateRouteFuelStop($request);
 
         $routeFuelStop->update($validated);
 
@@ -85,5 +82,30 @@ class RouteFuelStopController extends Controller
         $routeFuelStop->delete();
 
         return redirect()->route('teacher.templates.route-fuel-stops');
+    }
+
+    private function validateRouteFuelStop(Request $request): array
+    {
+        $validated = $request->validate([
+            'land_route_id' => 'required|exists:land_routes,id',
+            'fuel_station_id' => 'required|exists:fuel_stations,id',
+            'distance_from_start_km' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $route = LandRoute::query()->find($validated['land_route_id']);
+        $routeDistance = (float) ($route?->distance_km ?? 0);
+
+        if (
+            $route &&
+            $routeDistance > 0 &&
+            (float) $validated['distance_from_start_km'] > $routeDistance
+        ) {
+            throw ValidationException::withMessages([
+                'distance_from_start_km' => 'Uzpildes pieturas attālums nevar būt lielāks par visa maršruta garumu.',
+            ]);
+        }
+
+        return $validated;
     }
 }

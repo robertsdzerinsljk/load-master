@@ -131,7 +131,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array($requestedStep, $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sis solis sim scenarijam nav pieejams.',
+                'message' => 'Šis solis šim scenārijam nav pieejams.',
             ], 422);
         }
 
@@ -217,7 +217,7 @@ class SimulationAttemptController extends Controller
 
         if ($requestedStep === 'submit' && empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegsanas nepieciesams palaist simulaciju.',
+                'Pirms iesniegšanas nepieciešams palaist simulāciju.',
                 $attempt,
                 $availableSteps,
                 ($attempt->orderTemplate->evaluation_mode ?? 'practice') === 'exam',
@@ -230,8 +230,8 @@ class SimulationAttemptController extends Controller
 
             return $this->blockedSubmissionResponse(
                 $isExamMode
-                    ? 'Risinajumu nevar iesniegt, kamer tas neatbilst visam prasibam.'
-                    : 'Risinajumu nevar iesniegt, kamer tajaa ir kritiskas problemas.',
+                    ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'
+                    : 'Risinājumu nevar iesniegt, kamēr tajā ir kritiskas problēmas.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -243,7 +243,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Solis saglabats.',
+            'message' => 'Solis saglabāts.',
             'attempt' => $this->prepareAttemptForClient($attempt),
             'available_steps' => $availableSteps,
         ]);
@@ -313,7 +313,7 @@ class SimulationAttemptController extends Controller
         }
 
         return response()->json([
-            'message' => 'Melnraksts saglabats.',
+            'message' => 'Melnraksts saglabāts.',
             'attempt' => $this->prepareAttemptForClient($attempt),
             'available_steps' => $this->resolveAvailableSteps($attempt->orderTemplate),
         ]);
@@ -330,7 +330,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
+                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
             ], 422);
         }
 
@@ -348,7 +348,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Marsruta segments pievienots.',
+            'message' => 'Maršruta segments pievienots.',
             'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
@@ -364,7 +364,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
+                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
             ], 422);
         }
 
@@ -382,7 +382,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Marsruta segments nonemts.',
+            'message' => 'Maršruta segments noņemts.',
             'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
@@ -402,7 +402,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('route', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam marsruta veidosana nav pieejama.',
+                'message' => 'Šim scenārijam maršruta veidošana nav pieejama.',
             ], 422);
         }
 
@@ -415,7 +415,7 @@ class SimulationAttemptController extends Controller
 
         if ($currentIndex === false) {
             return response()->json([
-                'message' => 'Marsruta segments nav atrasts megjinajuma.',
+                'message' => 'Maršruta segments nav atrasts mēģinājumā.',
             ], 404);
         }
 
@@ -443,7 +443,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Marsruta segmenta seciba atjaunota.',
+            'message' => 'Maršruta segmenta secība atjaunota.',
             'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
@@ -459,7 +459,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
+                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
             ], 422);
         }
 
@@ -493,7 +493,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
+                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
             ], 422);
         }
 
@@ -530,7 +530,7 @@ class SimulationAttemptController extends Controller
 
         if (!in_array('fuel', $availableSteps, true)) {
             return response()->json([
-                'message' => 'Sim scenarijam degvielas planosana nav pieejama.',
+                'message' => 'Šim scenārijam degvielas plānošana nav pieejama.',
             ], 422);
         }
 
@@ -543,7 +543,7 @@ class SimulationAttemptController extends Controller
 
         if ($currentIndex === false) {
             return response()->json([
-                'message' => 'Degvielas pietura nav atrasta megjinajuma.',
+                'message' => 'Degvielas pietura nav atrasta mēģinājumā.',
             ], 404);
         }
 
@@ -571,7 +571,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Degvielas pieturu seciba atjaunota.',
+            'message' => 'Degvielas pieturu secība atjaunota.',
             'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
@@ -592,7 +592,7 @@ class SimulationAttemptController extends Controller
 
         if (empty($attempt->preview_result)) {
             return $this->blockedSubmissionResponse(
-                'Pirms iesniegsanas nepieciesams simulacijas aprekins.',
+                'Pirms iesniegšanas nepieciešams simulācijas aprēķins.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -603,8 +603,8 @@ class SimulationAttemptController extends Controller
         if (data_get($attempt->preview_result, 'result.is_valid') !== true) {
             return $this->blockedSubmissionResponse(
                 $isExamMode
-                    ? 'Risinajumu nevar iesniegt, kamer tas neatbilst visam prasibam.'
-                    : 'Risinajumu nevar iesniegt, kamer tajaa ir kritiskas problemas.',
+                    ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'
+                    : 'Risinājumu nevar iesniegt, kamēr tajā ir kritiskas problēmas.',
                 $attempt,
                 $availableSteps,
                 $isExamMode,
@@ -620,7 +620,7 @@ class SimulationAttemptController extends Controller
         $attempt->save();
 
         return response()->json([
-            'message' => 'Megjinajums iesniegts.',
+            'message' => 'Mēģinājums iesniegts.',
             'attempt' => $this->prepareAttemptForClient($attempt),
         ]);
     }
@@ -704,8 +704,8 @@ class SimulationAttemptController extends Controller
                 ? "/teacher/templates/order-templates/{$attempt->orderTemplate->id}"
                 : '/student',
             'backLabel' => $simulatorMode === 'teacher'
-                ? 'Atpakal uz sagatavi'
-                : 'Atpakal uz uzdevumiem',
+                ? 'Atpakaļ uz sagatavi'
+                : 'Atpakaļ uz uzdevumiem',
         ]);
     }
 
@@ -750,7 +750,7 @@ class SimulationAttemptController extends Controller
         }
 
         if (in_array('ship', $availableSteps, true) && !$attempt->selected_ship_id) {
-            $errors[] = 'Jaizvelas kugjis.';
+            $errors[] = 'Jāizvēlas kuģis.';
         }
 
         if (in_array('transport', $availableSteps, true) && !$attempt->selected_vehicle_count) {

@@ -1,13 +1,18 @@
 import { Head, usePage } from '@inertiajs/react';
-import TeacherLayout from '@/layouts/TeacherLayout';
 import BackButton from '@/components/BackButton';
 import FuelStationPresetForm from '@/components/FuelStationPresetForm';
+import TeacherLayout from '@/layouts/TeacherLayout';
 
 type LocationOption = {
     id: number;
     name: string;
+    type?: string | null;
     city?: string | null;
+    city_id?: number | null;
     country?: string | null;
+    address?: string | null;
+    latitude?: string | number | null;
+    longitude?: string | number | null;
 };
 
 type PageProps = {
@@ -31,13 +36,14 @@ export default function TeacherFuelStationsCreate() {
                     </h1>
 
                     <p className="mt-2 text-[16px] text-[#5b6b61]">
-                        Izveidojiet uzpildes vietas detaļas izvēlētai lokācijai
+                        Create a new fuel-station location or link an existing one from
+                        the shared location catalog.
                     </p>
                 </div>
 
                 <FuelStationPresetForm
                     locations={locations}
-                    submitLabel="Saglabāt uzpildes vietu"
+                    submitLabel="Saglabat uzpildes vietu"
                 />
             </TeacherLayout>
         </>

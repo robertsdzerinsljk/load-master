@@ -1,30 +1,31 @@
 import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     ArrowLeft,
     Boxes,
     CalendarDays,
     CheckCircle2,
+    ChevronDown,
+    CircleGauge,
     ClipboardList,
+    Clock3,
+    Euro,
+    FileText,
     Gauge,
+    Map,
     MapPinned,
     Package,
-    Route,
-    Ship,
-    Truck,
-    Thermometer,
-    ShieldCheck,
-    FileText,
-    Sparkles,
-    Play,
     Pencil,
-    AlertTriangle,
-    Euro,
-    Clock3,
-    CircleGauge,
-    Map,
+    Play,
+    Route,
+    ShieldCheck,
+    Ship,
+    Sparkles,
+    Thermometer,
+    Truck,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
 type RelatedName = {
     id: number;
@@ -187,11 +188,6 @@ function formatDate(value?: string | null) {
     }).format(date);
 }
 
-function formatNumber(value?: string | number | null, suffix = '') {
-    if (value === null || value === undefined || value === '') return '—';
-    return `${value}${suffix}`;
-}
-
 function formatDateTime(value?: string | null) {
     if (!value) return '—';
 
@@ -208,6 +204,11 @@ function formatDateTime(value?: string | null) {
         hour: '2-digit',
         minute: '2-digit',
     }).format(date);
+}
+
+function formatNumber(value?: string | number | null, suffix = '') {
+    if (value === null || value === undefined || value === '') return '—';
+    return `${value}${suffix}`;
 }
 
 function getTeacherTestStatusLabel(status?: string | null) {
@@ -239,56 +240,6 @@ function getTeacherTestStepLabel(step?: string | null) {
     return map[step] ?? step;
 }
 
-function TeacherTestBadge({ status }: { status?: string | null }) {
-    const current = status ?? 'teacher_testing';
-
-    const styleMap: Record<string, string> = {
-        teacher_testing: 'border-sky-200 bg-sky-50 text-sky-700',
-        teacher_test_submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        teacher_test_archived: 'border-slate-200 bg-slate-100 text-slate-700',
-    };
-
-    return (
-        <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
-                styleMap[current] ?? 'border-slate-200 bg-slate-100 text-slate-700'
-            }`}
-        >
-            {getTeacherTestStatusLabel(current)}
-        </span>
-    );
-}
-
-function qualityToneClasses(tone: 'info' | 'success' | 'warning' | 'danger') {
-    const map: Record<typeof tone, string> = {
-        info: 'border-sky-200 bg-sky-50 text-sky-800',
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        warning: 'border-amber-200 bg-amber-50 text-amber-800',
-        danger: 'border-red-200 bg-red-50 text-red-800',
-    };
-
-    return map[tone];
-}
-
-function readinessToneClasses(status: 'ready' | 'warning' | 'blocked') {
-    const map: Record<typeof status, string> = {
-        ready: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        warning: 'border-amber-200 bg-amber-50 text-amber-800',
-        blocked: 'border-red-200 bg-red-50 text-red-800',
-    };
-
-    return map[status];
-}
-
-function issueToneClasses(severity: 'critical' | 'warning') {
-    const map: Record<typeof severity, string> = {
-        critical: 'border-red-200 bg-red-50 text-red-800',
-        warning: 'border-amber-200 bg-amber-50 text-amber-800',
-    };
-
-    return map[severity];
-}
-
 function StatusBadge({ status }: { status: string }) {
     const labelMap: Record<string, string> = {
         draft: 'Melnraksts',
@@ -300,22 +251,16 @@ function StatusBadge({ status }: { status: string }) {
         ready: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     };
 
-    const label = labelMap[status] ?? status;
-
     return (
-        <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
-                styleMap[status] ?? 'border-slate-200 bg-slate-100 text-slate-700'
-            }`}
-        >
-            {label}
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${styleMap[status] ?? 'border-slate-200 bg-slate-100 text-slate-700'}`}>
+            {labelMap[status] ?? status}
         </span>
     );
 }
 
 function ScenarioTypeBadge({ type }: { type: string }) {
     const labelMap: Record<string, string> = {
-        general: 'Vispārējs scenārijs',
+        general: 'Vispārējs',
         fuel_planning: 'Uzpildes plānošana',
         port_restriction: 'Ostu ierobežojumi',
         cost_optimization: 'Izmaksu optimizācija',
@@ -323,117 +268,166 @@ function ScenarioTypeBadge({ type }: { type: string }) {
     };
 
     return (
-        <span className="inline-flex items-center rounded-full border border-[#d9ded9] bg-white px-3 py-1 text-[13px] font-medium text-[#182219]">
+        <span className="inline-flex items-center rounded-full border border-[#d9ded9] bg-white px-2.5 py-1 text-xs font-semibold text-[#182219]">
             {labelMap[type] ?? type}
         </span>
     );
 }
 
-function InfoCard({
-    label,
-    value,
-    icon,
-}: {
-    label: string;
-    value: string;
-    icon: React.ReactNode;
-}) {
-    return (
-        <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
-            <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
-                <span className="text-[#166a4d]">{icon}</span>
-                {label}
-            </div>
-            <div className="mt-2 text-[16px] font-semibold leading-6 text-[#182219]">{value}</div>
-        </div>
-    );
+function toneClasses(tone: 'info' | 'success' | 'warning' | 'danger' | 'critical' | 'ready' | 'blocked') {
+    const map: Record<string, string> = {
+        info: 'border-sky-200 bg-sky-50 text-sky-800',
+        success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        ready: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        warning: 'border-amber-200 bg-amber-50 text-amber-800',
+        danger: 'border-red-200 bg-red-50 text-red-800',
+        critical: 'border-red-200 bg-red-50 text-red-800',
+        blocked: 'border-red-200 bg-red-50 text-red-800',
+    };
+
+    return map[tone] ?? map.info;
 }
 
-function SectionCard({
+function Section({
     title,
     description,
     icon,
+    actions,
     children,
+    defaultOpen = true,
 }: {
     title: string;
     description?: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
+    icon: ReactNode;
+    actions?: ReactNode;
+    children: ReactNode;
+    defaultOpen?: boolean;
 }) {
-    return (
-        <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
-            <div className="flex items-start gap-4 border-b border-[#eef1ee] pb-5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#edf6f0] text-[#166a4d]">
-                    {icon}
-                </div>
+    const [open, setOpen] = useState(defaultOpen);
 
-                <div>
-                    <h2 className="text-[22px] font-semibold tracking-tight text-[#182219]">
-                        {title}
-                    </h2>
-                    {description ? (
-                        <p className="mt-1 text-[15px] leading-7 text-[#5b6b61]">{description}</p>
-                    ) : null}
-                </div>
+    return (
+        <section className="rounded-2xl border border-[#d9ded9] bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-4 border-b border-[#eef1ee] px-5 py-4">
+                <button
+                    type="button"
+                    onClick={() => setOpen((value) => !value)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#edf6f0] text-[#166a4d]">
+                        {icon}
+                    </span>
+
+                    <span className="min-w-0">
+                        <span className="block text-lg font-semibold tracking-tight text-[#182219]">
+                            {title}
+                        </span>
+                        {description ? (
+                            <span className="mt-0.5 block text-sm leading-5 text-[#5b6b61]">
+                                {description}
+                            </span>
+                        ) : null}
+                    </span>
+
+                    <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-[#7b887f] transition ${open ? 'rotate-180' : ''}`} />
+                </button>
+
+                {actions ? <div className="shrink-0">{actions}</div> : null}
             </div>
 
-            <div className="mt-5">{children}</div>
+            {open ? <div className="p-5">{children}</div> : null}
         </section>
     );
 }
 
-function ListBlock({
-    title,
-    items,
-    icon,
-}: {
-    title: string;
-    items: string[];
-    icon: React.ReactNode;
-}) {
-    return (
-        <SectionCard
-            title={title}
-            description="Saistītie elementi, kas iekļauti šajā scenārija karkasā."
-            icon={icon}
-        >
-            <div className="space-y-3 text-[15px] text-[#5b6b61]">
-                {items.length > 0 ? (
-                    items.map((item, index) => (
-                        <div
-                            key={`${title}-${index}`}
-                            className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] px-4 py-3"
-                        >
-                            {item}
-                        </div>
-                    ))
-                ) : (
-                    <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] px-4 py-3">
-                        Nav norādīts.
-                    </div>
-                )}
-            </div>
-        </SectionCard>
-    );
-}
-
-function PreviewCard({
+function MetricCard({
     label,
     value,
     icon,
+    dense = false,
 }: {
     label: string;
     value: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
+    dense?: boolean;
 }) {
     return (
-        <div className="rounded-2xl border border-[#e4e9e4] bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+        <div className={`rounded-xl border border-[#e4e9e4] bg-[#f8fbf9] ${dense ? 'px-3 py-2.5' : 'p-4'}`}>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#7b887f]">
                 <span className="text-[#166a4d]">{icon}</span>
                 {label}
             </div>
-            <div className="mt-2 text-[18px] font-semibold text-[#182219]">{value}</div>
+            <div className={`${dense ? 'mt-1 text-sm' : 'mt-2 text-base'} font-semibold leading-6 text-[#182219]`}>
+                {value}
+            </div>
         </div>
+    );
+}
+
+function InlineList({
+    items,
+    empty = 'Nav norādīts.',
+}: {
+    items: string[];
+    empty?: string;
+}) {
+    if (items.length === 0) {
+        return <span className="text-[#7b887f]">{empty}</span>;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            {items.map((item, index) => (
+                <span
+                    key={`${item}-${index}`}
+                    className="rounded-full border border-[#d9ded9] bg-[#f8fbf9] px-3 py-1.5 text-sm font-medium text-[#425247]"
+                >
+                    {item}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+function IssuePill({ issue }: { issue: ReadinessIssue }) {
+    return (
+        <div className={`rounded-xl border px-4 py-3 ${toneClasses(issue.severity)}`}>
+            <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                    <div className="text-sm font-semibold">{issue.title}</div>
+                    <p className="mt-1 text-sm leading-5">{issue.body}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ActionButton({
+    children,
+    variant = 'primary',
+    onClick,
+    disabled,
+}: {
+    children: ReactNode;
+    variant?: 'primary' | 'secondary' | 'soft';
+    onClick: () => void;
+    disabled?: boolean;
+}) {
+    const variants = {
+        primary: 'bg-[#166a4d] text-white hover:bg-[#135740]',
+        secondary: 'border border-[#d9ded9] bg-white text-[#182219] hover:bg-[#f7f9f7]',
+        soft: 'bg-[#DBE9F7] text-[#182219] hover:bg-[#cfe0f1]',
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]}`}
+        >
+            {children}
+        </button>
     );
 }
 
@@ -455,15 +449,10 @@ export default function Show() {
     const startLocation = (template.startLocation ?? template.start_location)?.name ?? '—';
     const endLocation = (template.endLocation ?? template.end_location)?.name ?? '—';
 
-    const temperatureMode =
-        (template.temperatureMode ?? template.temperature_mode)?.name ?? 'Nav norādīts';
+    const temperatureMode = (template.temperatureMode ?? template.temperature_mode)?.name ?? 'Nav norādīts';
+    const specialCondition = (template.specialCondition ?? template.special_condition)?.name ?? 'Nav norādīts';
 
-    const specialCondition =
-        (template.specialCondition ?? template.special_condition)?.name ?? 'Nav norādīts';
-
-    const transportNames =
-        (template.transportTemplates ?? template.transport_templates)?.map((item) => item.name) ?? [];
-
+    const transportNames = (template.transportTemplates ?? template.transport_templates)?.map((item) => item.name) ?? [];
     const shipNames = template.ships?.map((item) => item.name) ?? [];
     const portNames = template.ports?.map((item) => item.name) ?? [];
 
@@ -475,26 +464,17 @@ export default function Show() {
         return `${from} → ${to} (${distance} km)`;
     });
 
-    const scenarioSummary =
-        template.description ||
-        template.student_brief ||
-        'Šai uzdevuma sagatavei apraksts vēl nav pievienots.';
-
-    const openTeacherTestLabel = latestTeacherTest
-        ? latestTeacherTest.status === 'teacher_testing'
-            ? 'Atvērt aktīvo testu'
-            : 'Atvērt pēdējo testu'
-        : 'Testēt simulatorā';
+    const scenarioSummary = template.description || template.student_brief || 'Šai uzdevuma sagatavei apraksts vēl nav pievienots.';
 
     const compactMetrics = useMemo(() => {
         return [
             {
-                label: 'Maršruta sākums',
+                label: 'Sākums',
                 value: startLocation,
                 icon: <MapPinned className="h-4 w-4" />,
             },
             {
-                label: 'Maršruta beigas',
+                label: 'Beigas',
                 value: endLocation,
                 icon: <Route className="h-4 w-4" />,
             },
@@ -504,7 +484,7 @@ export default function Show() {
                 icon: <CalendarDays className="h-4 w-4" />,
             },
             {
-                label: 'Budžeta limits',
+                label: 'Budžets',
                 value: formatNumber(template.budget_limit, ' €'),
                 icon: <Euro className="h-4 w-4" />,
             },
@@ -517,19 +497,16 @@ export default function Show() {
         setPreviewData(null);
 
         try {
-            const response = await fetch(
-                `/teacher/templates/order-templates/${template.id}/preview`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: JSON.stringify({}),
-                    credentials: 'same-origin',
-                }
-            );
+            const response = await fetch(`/teacher/templates/order-templates/${template.id}/preview`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({}),
+                credentials: 'same-origin',
+            });
 
             const data = await response.json();
 
@@ -551,524 +528,379 @@ export default function Show() {
             <Head title="Uzdevuma sagataves priekšskatījums" />
 
             <TeacherLayout active="templates">
-                <div className="space-y-6">
+                <div className="mx-auto max-w-[1440px] space-y-5">
                     <button
                         type="button"
                         onClick={goBack}
-                        className="inline-flex items-center gap-2 text-[14px] font-medium text-[#5f6f65] transition hover:text-[#182219]"
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-[#5f6f65] transition hover:text-[#182219]"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Atpakaļ
                     </button>
 
-                    <section className="relative overflow-hidden rounded-[30px] border border-[#d9ded9] bg-white p-6 shadow-sm md:p-8">
-                        <div className="absolute right-0 top-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
-                        <div className="absolute bottom-0 right-16 hidden h-24 w-24 rounded-full bg-[#f6faf7] blur-2xl lg:block" />
+                    <section className="rounded-2xl border border-[#d9ded9] bg-white p-5 shadow-sm">
+                        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#edf6f0] text-[#166a4d]">
+                                        <ClipboardList className="h-5 w-5" />
+                                    </span>
 
-                        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                            <div className="max-w-4xl">
-                                <div className="flex flex-wrap items-start gap-4">
-                                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#edf6f0] text-[#166a4d]">
-                                        <ClipboardList className="h-7 w-7" />
-                                    </div>
-
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-[#182219] md:text-[34px]">
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-[#182219] md:text-3xl">
                                                 {template.title}
                                             </h1>
                                             <StatusBadge status={template.status} />
                                             <ScenarioTypeBadge type={template.scenario_type} />
                                         </div>
 
-                                        <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#5b6b61]">
-                                            Šeit pasniedzējs var pārskatīt pilnu scenārija karkasu,
-                                            novērtēt loģistikas nosacījumus un izmēģināt aprēķinu
-                                            pirms sagataves piešķiršanas studentiem.
+                                        <p className="mt-2 max-w-4xl text-sm leading-6 text-[#5b6b61]">
+                                            Pārskati scenārija svarīgāko informāciju, testē simulatorā un pārbaudi gatavību pirms piešķiršanas studentiem.
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                                     {compactMetrics.map((item) => (
-                                        <InfoCard
-                                            key={item.label}
-                                            label={item.label}
-                                            value={item.value}
-                                            icon={item.icon}
-                                        />
+                                        <MetricCard key={item.label} label={item.label} value={item.value} icon={item.icon} dense />
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="flex w-full shrink-0 flex-col gap-3 xl:w-auto">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        router.visit(
-                                            `/teacher/templates/order-templates/${template.id}/edit`
-                                        )
-                                    }
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-5 py-3 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[360px]">
+                                <ActionButton
+                                    variant="secondary"
+                                    onClick={() => router.visit(`/teacher/templates/order-templates/${template.id}/edit`)}
                                 >
                                     <Pencil className="h-4 w-4" />
-                                    Rediģēt sagatavi
-                                </button>
+                                    Rediģēt
+                                </ActionButton>
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        router.visit(
-                                            `/teacher/simulator/template/${template.id}`
-                                        )
-                                    }
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                <ActionButton
+                                    onClick={() => router.visit(`/teacher/simulator/template/${template.id}`)}
                                 >
                                     <Play className="h-4 w-4" />
-                                    Testēt simulatorā
-                                </button>
+                                    Testēt
+                                </ActionButton>
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        router.post(
-                                            `/teacher/simulator/template/${template.id}/fresh`
-                                        )
-                                    }
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-[#166A4D] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
+                                <ActionButton
+                                    onClick={() => router.post(`/teacher/simulator/template/${template.id}/fresh`)}
                                 >
                                     <Play className="h-4 w-4" />
                                     Jauns tests
-                                </button>
+                                </ActionButton>
 
-                                <button
-                                    type="button"
+                                <ActionButton
+                                    variant="soft"
                                     onClick={handleTryScenario}
                                     disabled={isTryingScenario}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#DBE9F7] px-5 py-3 text-[15px] font-medium text-black transition disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    <Play className="h-4 w-4" />
-                                    {isTryingScenario ? 'Notiek aprēķins...' : 'Aprēķināt scenāriju'}
-                                </button>
+                                    <Sparkles className="h-4 w-4" />
+                                    {isTryingScenario ? 'Rēķina...' : 'Aprēķināt'}
+                                </ActionButton>
                             </div>
                         </div>
                     </section>
 
-                    <SectionCard
-                        title="Skolotāja testēšana"
-                        description="Atver pēdējo simulatora testu vai sāc pilnīgi jaunu mēģinājumu, lai pārbaudītu scenāriju pirms piešķiršanas studentiem."
+                    <Section
+                        title="Skolotāja testēšana un gatavība"
+                        description="Šeit redzams tikai svarīgākais. Detalizētie brīdinājumi ir sagrupēti zemāk."
                         icon={<Play className="h-5 w-5" />}
                     >
-                        {latestTeacherTest ? (
-                            <div className="space-y-5">
-                                <div className="space-y-5">
-                                    <div className={`rounded-2xl border p-5 ${readinessToneClasses(readiness.status)}`}>
-                                        <div className="text-[12px] font-semibold uppercase tracking-[0.18em]">
+                        <div className="space-y-4">
+                            <div className={`rounded-xl border px-4 py-3 ${toneClasses(readiness.status)}`}>
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.16em]">
                                             Piešķiršanas gatavība
                                         </div>
-                                        <div className="mt-2 text-[22px] font-semibold">
-                                            {readiness.headline}
-                                        </div>
-                                        <p className="mt-3 max-w-3xl text-[15px] leading-7">
-                                            {readiness.summary}
-                                        </p>
+                                        <div className="mt-1 text-lg font-semibold">{readiness.headline}</div>
+                                        <p className="mt-1 max-w-4xl text-sm leading-6">{readiness.summary}</p>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                        <InfoCard
-                                            label="Statuss"
-                                            value={readiness.headline}
+                                    <div className="flex shrink-0 gap-2">
+                                        <span className="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold">
+                                            Kritiskas: {readiness.critical_count}
+                                        </span>
+                                        <span className="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold">
+                                            Brīdinājumi: {readiness.warning_count}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {readiness.issues.length > 0 ? (
+                                <details className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9]">
+                                    <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#182219]">
+                                        Parādīt problēmas un brīdinājumus ({readiness.issues.length})
+                                    </summary>
+
+                                    <div className="grid grid-cols-1 gap-3 border-t border-[#e4e9e4] p-4 lg:grid-cols-2">
+                                        {readiness.issues.map((issue, index) => (
+                                            <IssuePill key={`${issue.title}-${index}`} issue={issue} />
+                                        ))}
+                                    </div>
+                                </details>
+                            ) : null}
+
+                            {readiness.recommendations.length > 0 ? (
+                                <details className="rounded-xl border border-[#e4e9e4] bg-white">
+                                    <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#182219]">
+                                        Ieteikumi uzlabošanai ({readiness.recommendations.length})
+                                    </summary>
+
+                                    <div className="space-y-2 border-t border-[#e4e9e4] p-4">
+                                        {readiness.recommendations.map((recommendation, index) => (
+                                            <div key={`${recommendation}-${index}`} className="rounded-xl bg-[#f8fbf9] px-4 py-3 text-sm leading-6 text-[#425247]">
+                                                {recommendation}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
+                            ) : null}
+
+                            {latestTeacherTest ? (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                                        <MetricCard
+                                            label="Pēdējā testa statuss"
+                                            value={getTeacherTestStatusLabel(latestTeacherTest.status)}
                                             icon={<CheckCircle2 className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <InfoCard
-                                            label="Kritiskās problēmas"
-                                            value={String(readiness.critical_count)}
-                                            icon={<AlertTriangle className="h-4 w-4" />}
+                                        <MetricCard
+                                            label="Pēdējais solis"
+                                            value={getTeacherTestStepLabel(latestTeacherTest.current_step)}
+                                            icon={<ClipboardList className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <InfoCard
-                                            label="Brīdinājumi"
-                                            value={String(readiness.warning_count)}
-                                            icon={<ShieldCheck className="h-4 w-4" />}
+                                        <MetricCard
+                                            label="Punkti"
+                                            value={formatNumber(latestTeacherTest.score)}
+                                            icon={<Gauge className="h-4 w-4" />}
+                                            dense
+                                        />
+                                        <MetricCard
+                                            label="Iesniegts"
+                                            value={formatDateTime(latestTeacherTest.submitted_at)}
+                                            icon={<Clock3 className="h-4 w-4" />}
+                                            dense
                                         />
                                     </div>
 
-                                    {readiness.issues.length ? (
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            {readiness.issues.map((issue) => (
-                                                <div
-                                                    key={`${issue.severity}-${issue.title}`}
-                                                    className={`rounded-2xl border p-4 ${issueToneClasses(issue.severity)}`}
-                                                >
-                                                    <div className="text-[15px] font-semibold">
-                                                        {issue.title}
-                                                    </div>
-                                                    <p className="mt-2 text-[14px] leading-6">
-                                                        {issue.body}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : null}
-
-                                    {readiness.recommendations.length ? (
-                                        <div className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9] p-5">
-                                            <div className="text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
-                                                Ieteicamie nākamie soļi
-                                            </div>
-                                            <div className="mt-3 space-y-2">
-                                                {readiness.recommendations.map((recommendation, index) => (
-                                                    <div
-                                                        key={`${recommendation}-${index}`}
-                                                        className="rounded-xl border border-[#e4e9e4] bg-white px-4 py-3 text-[14px] leading-6 text-[#425247]"
-                                                    >
-                                                        {recommendation}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
-
-                                <div className="flex flex-col gap-4 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5 lg:flex-row lg:items-start lg:justify-between">
-                                    <div className="space-y-3">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <TeacherTestBadge status={latestTeacherTest.status} />
-                                            <div className="text-[14px] text-[#5b6b61]">
-                                                Pēdējoreiz atjaunots {formatDateTime(latestTeacherTest.updated_at)}
-                                            </div>
-                                        </div>
-
-                                        <div className="text-[20px] font-semibold text-[#182219]">
-                                            {openTeacherTestLabel}
-                                        </div>
-
-                                        <p className="max-w-2xl text-[15px] leading-7 text-[#5b6b61]">
-                                            Pēdējais tests ir pieejams šajā sagatavē. Vari turpināt no iepriekšējā stāvokļa vai sākt jaunu tīru mēģinājumu.
-                                        </p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <MetricCard label="Kopā testi" value={String(teacherTestStats.total)} icon={<Boxes className="h-4 w-4" />} dense />
+                                        <MetricCard label="Aktīvie" value={String(teacherTestStats.active)} icon={<Play className="h-4 w-4" />} dense />
+                                        <MetricCard label="Iesniegtie" value={String(teacherTestStats.submitted)} icon={<CheckCircle2 className="h-4 w-4" />} dense />
                                     </div>
 
-                                    <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                router.visit(`/teacher/simulator/${latestTeacherTest.id}`)
-                                            }
-                                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
-                                        >
-                                            <Play className="h-4 w-4" />
-                                            {openTeacherTestLabel}
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                router.post(`/teacher/simulator/template/${template.id}/fresh`)
-                                            }
-                                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-[#125740] px-5 py-3 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                                        >
-                                            <Play className="h-4 w-4" />
-                                            Jauns tests
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                    <InfoCard
-                                        label="Pēdējā testa statuss"
-                                        value={getTeacherTestStatusLabel(latestTeacherTest.status)}
-                                        icon={<CheckCircle2 className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Pēdējais solis"
-                                        value={getTeacherTestStepLabel(latestTeacherTest.current_step)}
-                                        icon={<ClipboardList className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Punkti"
-                                        value={formatNumber(latestTeacherTest.score)}
-                                        icon={<Gauge className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Iesniegts"
-                                        value={formatDateTime(latestTeacherTest.submitted_at)}
-                                        icon={<Clock3 className="h-4 w-4" />}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                    <InfoCard
-                                        label="Kopā testi"
-                                        value={String(teacherTestStats.total)}
-                                        icon={<Boxes className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Aktīvie testi"
-                                        value={String(teacherTestStats.active)}
-                                        icon={<Play className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Iesniegtie testi"
-                                        value={String(teacherTestStats.submitted)}
-                                        icon={<CheckCircle2 className="h-4 w-4" />}
-                                    />
-                                </div>
-                                {latestTeacherTest.qualitySummary ? (
-                                    <div className="space-y-4">
-                                        <div
-                                            className={`rounded-2xl border p-5 ${qualityToneClasses(
-                                                latestTeacherTest.qualitySummary.tone
-                                            )}`}
-                                        >
-                                            <div className="text-[12px] font-semibold uppercase tracking-[0.18em]">
+                                    {latestTeacherTest.qualitySummary ? (
+                                        <details className="rounded-xl border border-[#e4e9e4] bg-white">
+                                            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#182219]">
                                                 Scenārija kvalitātes signāls
-                                            </div>
-                                            <div className="mt-2 text-[22px] font-semibold">
-                                                {latestTeacherTest.qualitySummary.headline}
-                                            </div>
-                                            <p className="mt-3 max-w-3xl text-[15px] leading-7">
-                                                {latestTeacherTest.qualitySummary.summary}
-                                            </p>
-                                        </div>
+                                            </summary>
 
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                            {latestTeacherTest.qualitySummary.insights.map((insight) => (
-                                                <div
-                                                    key={insight.title}
-                                                    className={`rounded-2xl border p-4 ${qualityToneClasses(
-                                                        insight.tone
-                                                    )}`}
-                                                >
-                                                    <div className="text-[15px] font-semibold">
-                                                        {insight.title}
+                                            <div className="space-y-3 border-t border-[#e4e9e4] p-4">
+                                                <div className={`rounded-xl border px-4 py-3 ${toneClasses(latestTeacherTest.qualitySummary.tone)}`}>
+                                                    <div className="text-lg font-semibold">
+                                                        {latestTeacherTest.qualitySummary.headline}
                                                     </div>
-                                                    <p className="mt-2 text-[14px] leading-6">
-                                                        {insight.body}
+                                                    <p className="mt-1 text-sm leading-6">
+                                                        {latestTeacherTest.qualitySummary.summary}
                                                     </p>
                                                 </div>
-                                            ))}
-                                        </div>
+
+                                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                                                    {latestTeacherTest.qualitySummary.insights.map((insight) => (
+                                                        <div key={insight.title} className={`rounded-xl border p-3 ${toneClasses(insight.tone)}`}>
+                                                            <div className="text-sm font-semibold">{insight.title}</div>
+                                                            <p className="mt-1 text-sm leading-5">{insight.body}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </details>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-[#d9ded9] bg-[#f8fbf9] p-4">
+                                    <div className="text-base font-semibold text-[#182219]">
+                                        Vēl nav saglabātu skolotāja testu
                                     </div>
-                                ) : null}
-                            </div>
-                        ) : (
-                            <div className="rounded-2xl border border-dashed border-[#d9ded9] bg-[#f8fbf9] p-5">
-                                <div className="text-[18px] font-semibold text-[#182219]">
-                                    Vēl nav saglabātu skolotāja testu
+                                    <p className="mt-1 text-sm leading-6 text-[#5b6b61]">
+                                        Palaid simulatoru, lai pārbaudītu, kā šī sagatave uzvedas studenta plūsmā.
+                                    </p>
                                 </div>
-                                <p className="mt-2 max-w-2xl text-[15px] leading-7 text-[#5b6b61]">
-                                    Palaid simulatoru, lai pārbaudītu, kā šī sagatave uzvedas studenta plūsmā. Jaunais tests sāksies no tukša stāvokļa.
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        router.visit(`/teacher/simulator/template/${template.id}`)
-                                    }
-                                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
-                                >
-                                    <Play className="h-4 w-4" />
-                                    Testēt simulatorā
-                                </button>
-                            </div>
-                        )}
-                    </SectionCard>
+                            )}
+                        </div>
+                    </Section>
 
                     {(previewError || previewData) && (
-                        <SectionCard
-                            title="Scenārija preview"
-                            description="Priekšskatījums tam, kā sagataves loģika uzvedas aprēķinā. Tas palīdz ātri pamanīt problēmas vēl pirms uzdevuma piešķiršanas studentiem."
+                        <Section
+                            title="Scenārija aprēķina preview"
+                            description="Ātrs aprēķina rezultāts, lai nepārslogotu galveno skatu."
                             icon={<Sparkles className="h-5 w-5" />}
                         >
-                            {previewError && (
-                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] text-red-700">
-                                    <div className="flex items-center gap-2 font-medium">
+                            {previewError ? (
+                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    <div className="flex items-center gap-2 font-semibold">
                                         <AlertTriangle className="h-4 w-4" />
                                         {previewError}
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
-                            {previewData && (
-                                <>
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        <PreviewCard
+                            {previewData ? (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+                                        <MetricCard
                                             label="Maršruts"
                                             value={`${previewData.route?.from ?? '—'} → ${previewData.route?.to ?? '—'}`}
                                             icon={<Map className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <PreviewCard
+                                        <MetricCard
                                             label="Attālums"
                                             value={`${previewData.route?.distance_km ?? '—'} km`}
                                             icon={<Route className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <PreviewCard
+                                        <MetricCard
                                             label="Transports"
                                             value={previewData.transport?.name ?? '—'}
                                             icon={<Truck className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <PreviewCard
-                                            label="Nepieciešamās vienības"
+                                        <MetricCard
+                                            label="Vienības"
                                             value={`${previewData.result?.required_vehicles ?? '—'}`}
                                             icon={<Boxes className="h-4 w-4" />}
+                                            dense
                                         />
-                                        <PreviewCard
-                                            label="Brauciena laiks"
-                                            value={`${previewData.result?.trip_time_hours ?? '—'} h`}
-                                            icon={<Clock3 className="h-4 w-4" />}
-                                        />
-                                        <PreviewCard
-                                            label="Pilna cikla laiks"
-                                            value={`${previewData.result?.cycle_time_hours ?? '—'} h`}
-                                            icon={<CircleGauge className="h-4 w-4" />}
-                                        />
-                                        <PreviewCard
-                                            label="Bāzes izmaksas uz 1 transportu"
-                                            value={`${previewData.result?.base_cost_per_vehicle ?? '—'} €`}
-                                            icon={<Euro className="h-4 w-4" />}
-                                        />
-                                        <PreviewCard
-                                            label="Kopējās bāzes izmaksas"
-                                            value={`${previewData.result?.total_base_cost ?? '—'} €`}
-                                            icon={<Gauge className="h-4 w-4" />}
-                                        />
-                                        <PreviewCard
-                                            label="Uzpildes pieturas"
-                                            value={`${previewData.result?.fuel_stops_needed ?? '—'}`}
-                                            icon={<CheckCircle2 className="h-4 w-4" />}
-                                        />
-                                        <PreviewCard
-                                            label="Prognozētās kopējās izmaksas"
+                                        <MetricCard
+                                            label="Kopējās izmaksas"
                                             value={`${previewData.result?.estimated_total_cost ?? '—'} €`}
                                             icon={<Euro className="h-4 w-4" />}
+                                            dense
                                         />
                                     </div>
 
+                                    <details className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9]">
+                                        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#182219]">
+                                            Detalizēts aprēķins
+                                        </summary>
+
+                                        <div className="grid grid-cols-2 gap-3 border-t border-[#e4e9e4] p-4 lg:grid-cols-3">
+                                            <MetricCard label="Brauciena laiks" value={`${previewData.result?.trip_time_hours ?? '—'} h`} icon={<Clock3 className="h-4 w-4" />} dense />
+                                            <MetricCard label="Pilna cikla laiks" value={`${previewData.result?.cycle_time_hours ?? '—'} h`} icon={<CircleGauge className="h-4 w-4" />} dense />
+                                            <MetricCard label="Bāzes izmaksas / transports" value={`${previewData.result?.base_cost_per_vehicle ?? '—'} €`} icon={<Euro className="h-4 w-4" />} dense />
+                                            <MetricCard label="Kopējās bāzes izmaksas" value={`${previewData.result?.total_base_cost ?? '—'} €`} icon={<Gauge className="h-4 w-4" />} dense />
+                                            <MetricCard label="Uzpildes pieturas" value={`${previewData.result?.fuel_stops_needed ?? '—'}`} icon={<CheckCircle2 className="h-4 w-4" />} dense />
+                                        </div>
+                                    </details>
+
                                     {previewData.message ? (
-                                        <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] px-4 py-4 text-[15px] leading-7 text-[#425247]">
+                                        <div className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9] px-4 py-3 text-sm leading-6 text-[#425247]">
                                             {previewData.message}
                                         </div>
                                     ) : null}
-                                </>
-                            )}
-                        </SectionCard>
+                                </div>
+                            ) : null}
+                        </Section>
                     )}
 
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                        <SectionCard
+                    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+                        <Section
                             title="Scenārija kopsavilkums"
-                            description="Galvenā biznesa loģika un prasības, ko definē šī sagatave."
+                            description="Galvenā krava un biznesa prasības."
                             icon={<FileText className="h-5 w-5" />}
                         >
-                            <div className="space-y-5">
-                                <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-5">
-                                    <div className="flex items-center gap-2 text-[13px] font-medium uppercase tracking-wide text-[#7b887f]">
+                            <div className="space-y-4">
+                                <div className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
+                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#7b887f]">
                                         <Package className="h-4 w-4 text-[#166a4d]" />
                                         Apraksts
                                     </div>
-                                    <p className="mt-3 text-[15px] leading-7 text-[#425247]">
-                                        {scenarioSummary}
-                                    </p>
+                                    <p className="mt-2 text-sm leading-6 text-[#425247]">{scenarioSummary}</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <InfoCard
-                                        label="Kravas nosaukums"
-                                        value={template.cargo_name || 'Nav norādīts'}
-                                        icon={<Package className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Kravas veids"
-                                        value={template.cargo_type || 'Nav norādīts'}
-                                        icon={<Boxes className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Konteineri"
-                                        value={formatNumber(template.cargo_amount_containers)}
-                                        icon={<Boxes className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Tonnas"
-                                        value={formatNumber(template.cargo_amount_tons, ' t')}
-                                        icon={<Package className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Tilpums"
-                                        value={formatNumber(template.cargo_volume_m3, ' m³')}
-                                        icon={<Boxes className="h-4 w-4" />}
-                                    />
-                                    <InfoCard
-                                        label="Kravas vērtība"
-                                        value={formatNumber(template.cargo_value, ' €')}
-                                        icon={<Euro className="h-4 w-4" />}
-                                    />
+                                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                                    <MetricCard label="Krava" value={template.cargo_name || 'Nav norādīts'} icon={<Package className="h-4 w-4" />} dense />
+                                    <MetricCard label="Veids" value={template.cargo_type || 'Nav norādīts'} icon={<Boxes className="h-4 w-4" />} dense />
+                                    <MetricCard label="Konteineri" value={formatNumber(template.cargo_amount_containers)} icon={<Boxes className="h-4 w-4" />} dense />
+                                    <MetricCard label="Tonnas" value={formatNumber(template.cargo_amount_tons, ' t')} icon={<Package className="h-4 w-4" />} dense />
+                                    <MetricCard label="Tilpums" value={formatNumber(template.cargo_volume_m3, ' m³')} icon={<Boxes className="h-4 w-4" />} dense />
+                                    <MetricCard label="Vērtība" value={formatNumber(template.cargo_value, ' €')} icon={<Euro className="h-4 w-4" />} dense />
                                 </div>
                             </div>
-                        </SectionCard>
+                        </Section>
 
-                        <SectionCard
+                        <Section
                             title="Operatīvie nosacījumi"
-                            description="Svarīgākie ierobežojumi un plānošanas parametri, kas ietekmē izpildi."
+                            description="Ierobežojumi, kas ietekmē plānošanu."
                             icon={<ShieldCheck className="h-5 w-5" />}
                         >
-                            <div className="space-y-4">
-                                <InfoCard
-                                    label="Temperatūras režīms"
-                                    value={temperatureMode}
-                                    icon={<Thermometer className="h-4 w-4" />}
-                                />
-                                <InfoCard
-                                    label="Speciālais nosacījums"
-                                    value={specialCondition}
-                                    icon={<ShieldCheck className="h-4 w-4" />}
-                                />
-                                <InfoCard
-                                    label="Maksimālais braucienu skaits"
-                                    value={formatNumber(template.max_trips)}
-                                    icon={<Route className="h-4 w-4" />}
-                                />
-                                <InfoCard
-                                    label="Uzpildes plānošana"
-                                    value={template.requires_refuel_planning ? 'Nepieciešama' : 'Nav nepieciešama'}
-                                    icon={<Gauge className="h-4 w-4" />}
-                                />
-                                <InfoCard
-                                    label="Prioritāte"
-                                    value={template.priority || 'Nav norādīta'}
-                                    icon={<CheckCircle2 className="h-4 w-4" />}
-                                />
-                                <InfoCard
-                                    label="Pasniedzēja piezīmes"
-                                    value={template.teacher_notes || 'Nav pievienotas'}
-                                    icon={<FileText className="h-4 w-4" />}
-                                />
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                <MetricCard label="Temperatūra" value={temperatureMode} icon={<Thermometer className="h-4 w-4" />} dense />
+                                <MetricCard label="Speciālais nosacījums" value={specialCondition} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                                <MetricCard label="Maks. braucieni" value={formatNumber(template.max_trips)} icon={<Route className="h-4 w-4" />} dense />
+                                <MetricCard label="Uzpilde" value={template.requires_refuel_planning ? 'Nepieciešama' : 'Nav nepieciešama'} icon={<Gauge className="h-4 w-4" />} dense />
+                                <MetricCard label="Prioritāte" value={template.priority || 'Nav norādīta'} icon={<CheckCircle2 className="h-4 w-4" />} dense />
                             </div>
-                        </SectionCard>
+
+                            {template.teacher_notes ? (
+                                <details className="mt-3 rounded-xl border border-[#e4e9e4] bg-[#f8fbf9]">
+                                    <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#182219]">
+                                        Pasniedzēja piezīmes
+                                    </summary>
+                                    <div className="border-t border-[#e4e9e4] p-4 text-sm leading-6 text-[#425247]">
+                                        {template.teacher_notes}
+                                    </div>
+                                </details>
+                            ) : null}
+                        </Section>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                        <ListBlock
-                            title="Transporta veidi"
-                            items={transportNames}
-                            icon={<Truck className="h-5 w-5" />}
-                        />
+                    <Section
+                        title="Saistītie resursi"
+                        description="Transporti, kuģi, ostas un maršruti vienā kompaktā blokā."
+                        icon={<Truck className="h-5 w-5" />}
+                    >
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <Truck className="h-4 w-4 text-[#166a4d]" />
+                                    Transporta veidi
+                                </div>
+                                <InlineList items={transportNames} />
+                            </div>
 
-                        <ListBlock
-                            title="Kuģi"
-                            items={shipNames}
-                            icon={<Ship className="h-5 w-5" />}
-                        />
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <Ship className="h-4 w-4 text-[#166a4d]" />
+                                    Kuģi
+                                </div>
+                                <InlineList items={shipNames} />
+                            </div>
 
-                        <ListBlock
-                            title="Ostas"
-                            items={portNames}
-                            icon={<MapPinned className="h-5 w-5" />}
-                        />
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <MapPinned className="h-4 w-4 text-[#166a4d]" />
+                                    Ostas
+                                </div>
+                                <InlineList items={portNames} />
+                            </div>
 
-                        <ListBlock
-                            title="Sauszemes maršruti"
-                            items={routeLabels}
-                            icon={<Route className="h-5 w-5" />}
-                        />
-                    </div>
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <Route className="h-4 w-4 text-[#166a4d]" />
+                                    Sauszemes maršruti
+                                </div>
+                                <InlineList items={routeLabels} />
+                            </div>
+                        </div>
+                    </Section>
                 </div>
             </TeacherLayout>
         </>

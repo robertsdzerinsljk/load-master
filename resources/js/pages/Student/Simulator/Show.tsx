@@ -12,7 +12,6 @@ import RouteBuilderStep from '@/components/student/simulator/RouteBuilderStep';
 import ShipSelectionStep from '@/components/student/simulator/ShipSelectionStep';
 import SimulatorHeader from '@/components/student/simulator/SimulatorHeader';
 import SimulatorProgress from '@/components/student/simulator/SimulatorProgress';
-import SimulatorSummary from '@/components/student/simulator/SimulatorSummary';
 import TransportStep from '@/components/student/simulator/TransportStep';
 
 import {
@@ -1434,15 +1433,14 @@ export default function StudentSimulatorShow() {
                         availableSteps={availableSteps}
                     />
 
-                    <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-                        <div
-                            ref={setStepRef(currentStepKey)}
-                            className={`scroll-mt-24 space-y-6 ${
-                                highlightStep === currentStepKey
-                                    ? 'rounded-[24px] border-2 border-red-500 p-1 shadow-[0_0_0_4px_rgba(239,68,68,0.12)]'
-                                    : ''
-                            }`}
-                        >
+                    <div
+                        ref={setStepRef(currentStepKey)}
+                        className={`scroll-mt-24 space-y-6 ${
+                            highlightStep === currentStepKey
+                                ? 'rounded-[24px] border-2 border-red-500 p-1 shadow-[0_0_0_4px_rgba(239,68,68,0.12)]'
+                                : ''
+                        }`}
+                    >
                             {currentStepKey === 'intro' && (
                                 <IntroStep
                                     template={template}
@@ -1721,9 +1719,9 @@ export default function StudentSimulatorShow() {
 
                                     <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
                                         Šis risinājums ir sagatavots
-                                        iesniegšanai. Pārbaudi kopsavilkumu
-                                        labajā pusē un iesniedz gala variantu
-                                        pārbaudei.
+                                        iesniegšanai. Pārej vēlreiz cauri
+                                        galvenajām izvēlēm un iesniedz gala
+                                        variantu pārbaudei.
                                     </p>
 
                                     <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
@@ -1748,14 +1746,6 @@ export default function StudentSimulatorShow() {
                                     </div>
                                 </section>
                             )}
-                        </div>
-
-                        <div className="space-y-6">
-                            <SimulatorSummary
-                                template={template}
-                                attempt={attempt}
-                            />
-                        </div>
                     </div>
                 </div>
             </Layout>
