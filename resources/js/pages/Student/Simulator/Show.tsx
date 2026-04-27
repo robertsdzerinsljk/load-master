@@ -2,6 +2,7 @@ import StudentLayout from '@/layouts/StudentLayout';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 
 import FuelPlanningStep from '@/components/student/simulator/FuelPlanningStep';
 import HandlingSelectionPanel from '@/components/student/simulator/HandlingSelectionPanel';
@@ -53,7 +54,12 @@ export default function StudentSimulatorShow() {
     const backHref = page.props.backHref ?? '/student';
     const backLabel = page.props.backLabel ?? 'Atpakaļ uz uzdevumiem';
     const isExamMode = template.evaluation_mode === 'exam';
-    const Layout = simulatorMode === 'teacher' ? TeacherLayout : StudentLayout;
+    const Layout = (
+        simulatorMode === 'teacher' ? TeacherLayout : StudentLayout
+    ) as ComponentType<{
+        children: ReactNode;
+        active?: 'tasks' | 'attempts' | 'create' | 'orders' | 'students' | 'templates';
+    }>;
     const layoutProps =
         simulatorMode === 'teacher'
             ? ({ active: 'templates' } as const)

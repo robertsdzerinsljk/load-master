@@ -31,6 +31,21 @@ return new class extends Migration
                 'notes' => 'General-purpose crane handling for container and break-bulk cargo.',
             ],
             [
+                'name' => 'Gantry crane',
+                'code' => 'gantry_crane',
+                'category' => 'equipment',
+                'requires_equipment' => true,
+                'requires_operator' => true,
+                'supports_bulk' => false,
+                'supports_container' => true,
+                'supports_liquid' => false,
+                'supports_refrigerated' => true,
+                'supports_hazardous' => true,
+                'throughput_containers_per_hour' => 45,
+                'throughput_tons_per_hour' => 220,
+                'notes' => 'Container-focused gantry crane handling for port-side loading and unloading.',
+            ],
+            [
                 'name' => 'Conveyor',
                 'code' => 'conveyor',
                 'category' => 'equipment',
@@ -116,7 +131,7 @@ return new class extends Migration
         }
 
         DB::table('handling_methods')
-            ->whereIn('code', ['crane', 'conveyor', 'forklift', 'manual', 'pump'])
+            ->whereIn('code', ['crane', 'gantry_crane', 'conveyor', 'forklift', 'manual', 'pump'])
             ->delete();
     }
 };

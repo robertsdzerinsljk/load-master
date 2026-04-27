@@ -83,13 +83,11 @@ export default function PortPresetForm({
     id,
 }: Props) {
     const page = usePage<{
-        props: {
-            locations?: LocationOption[];
-            countries?: string[];
-            cities?: CityOption[];
-            handlingMethods?: HandlingMethodOption[];
-            errors?: Record<string, string>;
-        };
+        locations?: LocationOption[];
+        countries?: string[];
+        cities?: CityOption[];
+        handlingMethods?: HandlingMethodOption[];
+        errors?: Record<string, string>;
     }>();
     const locations = page.props.locations ?? [];
     const pageCountries = page.props.countries ?? [];

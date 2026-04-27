@@ -7,7 +7,7 @@ import ScrollToTopButton from '@/components/common/ScrollToTopButton';
 
 type StudentLayoutProps = {
     children: ReactNode;
-    active?: 'tasks' | 'attempts';
+    active?: 'tasks' | 'attempts' | 'create';
 };
 
 export default function StudentLayout({

@@ -70,10 +70,8 @@ export default function ShipPresetForm({
     id,
 }: Props) {
     const page = usePage<{
-        props: {
-            handlingMethods?: HandlingMethodOption[];
-            errors?: Record<string, string>;
-        };
+        handlingMethods?: HandlingMethodOption[];
+        errors?: Record<string, string>;
     }>();
     const handlingMethodOptions = page.props.handlingMethods ?? [];
     const errors = page.props.errors ?? {};

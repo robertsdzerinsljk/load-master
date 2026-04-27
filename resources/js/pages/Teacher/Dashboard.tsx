@@ -1,5 +1,6 @@
 import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, router, usePage } from '@inertiajs/react';
+import type { ReactNode } from 'react';
 import {
     ArrowRight,
     BookOpen,
@@ -107,7 +108,7 @@ function StatusBadge({ status }: { status: string }) {
         {
             label: string;
             className: string;
-            icon: JSX.Element;
+            icon: ReactNode;
         }
     > = {
         draft: {
@@ -168,7 +169,7 @@ function StatPill({
 }: {
     label: string;
     value: number;
-    icon: JSX.Element;
+    icon: ReactNode;
 }) {
     return (
         <div className="min-w-[128px] rounded-2xl border border-[#e1e7e2] bg-white/90 px-4 py-3 shadow-sm backdrop-blur">
@@ -224,7 +225,7 @@ function EmptyState({
     title,
     description,
 }: {
-    icon: JSX.Element;
+    icon: ReactNode;
     title: string;
     description: string;
 }) {

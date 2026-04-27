@@ -26,13 +26,18 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
 
-    // adjust this to however you store the user role
     return auth()->user()->role === 'teacher'
         ? redirect()->route('teacher.dashboard')
         : redirect()->route('student.dashboard');
-});
+})->name('home');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        return auth()->user()->role === 'teacher'
+            ? redirect()->route('teacher.dashboard')
+            : redirect()->route('student.dashboard');
+    })->name('dashboard');
+
     Route::get('/teacher', [TeacherDashboardController::class, 'index'])
         ->name('teacher.dashboard');
 
@@ -358,3 +363,5 @@ Route::middleware(['auth', 'role:student'])
         });
     });
 });
+
+require __DIR__.'/settings.php';

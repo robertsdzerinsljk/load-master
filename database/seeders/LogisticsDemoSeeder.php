@@ -1027,6 +1027,7 @@ class LogisticsDemoSeeder extends Seeder
         $handlingMethodIds = HandlingMethod::query()->pluck('id', 'code');
 
         $this->syncHandlingMethods($ports['Riga Port'], $handlingMethodIds, [
+            'gantry_crane' => ['is_loading' => true, 'is_unloading' => true],
             'crane' => ['is_loading' => true, 'is_unloading' => true],
             'forklift' => ['is_loading' => true, 'is_unloading' => true],
             'conveyor' => ['is_loading' => true, 'is_unloading' => true],
@@ -1034,6 +1035,7 @@ class LogisticsDemoSeeder extends Seeder
         ]);
 
         $this->syncHandlingMethods($ports['Liepaja Port'], $handlingMethodIds, [
+            'gantry_crane' => ['is_loading' => true, 'is_unloading' => true],
             'crane' => ['is_loading' => true, 'is_unloading' => true],
             'forklift' => ['is_loading' => true, 'is_unloading' => true],
             'conveyor' => ['is_loading' => true, 'is_unloading' => true],
@@ -1041,6 +1043,7 @@ class LogisticsDemoSeeder extends Seeder
         ]);
 
         $this->syncHandlingMethods($ports['Ventspils Port'], $handlingMethodIds, [
+            'gantry_crane' => ['is_loading' => true, 'is_unloading' => true],
             'crane' => ['is_loading' => true, 'is_unloading' => true],
             'forklift' => ['is_loading' => true, 'is_unloading' => true],
             'conveyor' => ['is_loading' => true, 'is_unloading' => true],
@@ -1049,6 +1052,7 @@ class LogisticsDemoSeeder extends Seeder
         ]);
 
         $this->syncHandlingMethods($ports['Klaipeda Port'], $handlingMethodIds, [
+            'gantry_crane' => ['is_loading' => true, 'is_unloading' => true],
             'crane' => ['is_loading' => true, 'is_unloading' => true],
             'forklift' => ['is_loading' => true, 'is_unloading' => true],
             'conveyor' => ['is_loading' => true, 'is_unloading' => true],
@@ -1056,6 +1060,7 @@ class LogisticsDemoSeeder extends Seeder
         ]);
 
         $this->syncHandlingMethods($ports['Helsinki Port'], $handlingMethodIds, [
+            'gantry_crane' => ['is_loading' => true, 'is_unloading' => true],
             'crane' => ['is_loading' => true, 'is_unloading' => true],
             'forklift' => ['is_loading' => true, 'is_unloading' => true],
             'manual' => ['is_loading' => true, 'is_unloading' => true],

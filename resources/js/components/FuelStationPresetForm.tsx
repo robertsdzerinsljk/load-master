@@ -51,11 +51,9 @@ export default function FuelStationPresetForm({
     id,
 }: Props) {
     const page = usePage<{
-        props: {
-            countries?: string[];
-            cities?: CityOption[];
-            errors?: Record<string, string>;
-        };
+        countries?: string[];
+        cities?: CityOption[];
+        errors?: Record<string, string>;
     }>();
     const countries = page.props.countries ?? [];
     const cities = page.props.cities ?? [];

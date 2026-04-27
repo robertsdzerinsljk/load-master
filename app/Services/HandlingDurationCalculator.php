@@ -24,6 +24,7 @@ class HandlingDurationCalculator
 
         $cargoTons = (float) ($template->cargo_amount_tons ?? 0);
         $cargoContainers = (float) ($template->cargo_amount_containers ?? 0);
+        $cargoMode = $this->normalizeCargoMode($template->cargo_mode ?? $template->cargo_type);
 
         $loadingTonsPerHour = $this->normalizeRate($loadingSelection['throughput_tons_per_hour'] ?? null);
         $loadingContainersPerHour = $this->normalizeRate($loadingSelection['throughput_containers_per_hour'] ?? null);
@@ -34,14 +35,16 @@ class HandlingDurationCalculator
             $cargoTons,
             $cargoContainers,
             $loadingTonsPerHour,
-            $loadingContainersPerHour
+            $loadingContainersPerHour,
+            $cargoMode
         );
 
         $unloadingMinutes = $this->calculateMinutes(
             $cargoTons,
             $cargoContainers,
             $unloadingTonsPerHour,
-            $unloadingContainersPerHour
+            $unloadingContainersPerHour,
+            $cargoMode
         );
 
         return [
@@ -62,14 +65,39 @@ class HandlingDurationCalculator
         float $cargoTons,
         float $cargoContainers,
         ?float $tonsPerHour,
-        ?float $containersPerHour
+        ?float $containersPerHour,
+        ?string $cargoMode
     ): ?float {
-        if ($cargoTons > 0 && $tonsPerHour !== null && $tonsPerHour > 0) {
-            return round(($cargoTons / $tonsPerHour) * 60, 2);
+        if ($cargoMode === 'containerized') {
+            if ($cargoContainers > 0 && $containersPerHour !== null && $containersPerHour > 0) {
+                return round(($cargoContainers / $containersPerHour) * 60, 2);
+            }
+
+            if ($cargoTons > 0 && $tonsPerHour !== null && $tonsPerHour > 0) {
+                return round(($cargoTons / $tonsPerHour) * 60, 2);
+            }
+
+            return null;
+        }
+
+        if ($cargoMode === 'bulk' || $cargoMode === 'liquid' || $cargoMode === 'break_bulk') {
+            if ($cargoTons > 0 && $tonsPerHour !== null && $tonsPerHour > 0) {
+                return round(($cargoTons / $tonsPerHour) * 60, 2);
+            }
+
+            if ($cargoContainers > 0 && $containersPerHour !== null && $containersPerHour > 0) {
+                return round(($cargoContainers / $containersPerHour) * 60, 2);
+            }
+
+            return null;
         }
 
         if ($cargoContainers > 0 && $containersPerHour !== null && $containersPerHour > 0) {
             return round(($cargoContainers / $containersPerHour) * 60, 2);
+        }
+
+        if ($cargoTons > 0 && $tonsPerHour !== null && $tonsPerHour > 0) {
+            return round(($cargoTons / $tonsPerHour) * 60, 2);
         }
 
         return null;
@@ -82,5 +110,20 @@ class HandlingDurationCalculator
         }
 
         return (float) $value;
+    }
+
+    private function normalizeCargoMode(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            'container', 'containers', 'containerized' => 'containerized',
+            'bulk', 'dry_bulk' => 'bulk',
+            'liquid', 'tank', 'tanker' => 'liquid',
+            'breakbulk', 'break_bulk', 'general' => 'break_bulk',
+            default => strtolower(trim($value)),
+        };
     }
 }

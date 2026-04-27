@@ -22,6 +22,16 @@ class ScenarioCompatibilityService
             'throughput_containers_per_hour' => 30.0,
             'throughput_tons_per_hour' => 180.0,
         ],
+        'gantry_crane' => [
+            'name' => 'Gantry crane',
+            'supports_bulk' => false,
+            'supports_container' => true,
+            'supports_liquid' => false,
+            'supports_refrigerated' => true,
+            'supports_hazardous' => true,
+            'throughput_containers_per_hour' => 45.0,
+            'throughput_tons_per_hour' => 220.0,
+        ],
         'conveyor' => [
             'name' => 'Conveyor',
             'supports_bulk' => true,
@@ -484,6 +494,7 @@ class ScenarioCompatibilityService
         $result = [];
 
         $capabilities = [
+            'gantry_crane' => (bool) $port->has_crane && ($cargo['mode'] ?? null) === 'containerized',
             'crane' => (bool) $port->has_crane,
             'conveyor' => (bool) $port->has_conveyor,
             'forklift' => (bool) $port->has_forklift,
@@ -727,11 +738,11 @@ class ScenarioCompatibilityService
             return false;
         }
 
-        if ($mode === 'palletized' && !in_array($code, ['crane', 'forklift', 'manual'], true)) {
+        if ($mode === 'palletized' && !in_array($code, ['crane', 'gantry_crane', 'forklift', 'manual'], true)) {
             return false;
         }
 
-        if ($mode === 'break_bulk' && !in_array($code, ['crane', 'forklift', 'manual'], true)) {
+        if ($mode === 'break_bulk' && !in_array($code, ['crane', 'gantry_crane', 'forklift', 'manual'], true)) {
             return false;
         }
 

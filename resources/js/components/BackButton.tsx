@@ -2,16 +2,23 @@ import { ArrowLeft } from 'lucide-react';
 
 type BackButtonProps = {
     label?: string;
+    href?: string;
     fallbackHref?: string;
     className?: string;
 };
 
 export default function BackButton({
-    label = 'Atpakaļ',
+    label = 'Atpakal',
+    href,
     fallbackHref = '/teacher',
     className = '',
 }: BackButtonProps) {
     const handleBack = () => {
+        if (href) {
+            window.location.href = href;
+            return;
+        }
+
         if (typeof window !== 'undefined' && window.history.length > 1) {
             window.history.back();
             return;
