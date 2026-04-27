@@ -271,6 +271,8 @@ Route::middleware(['auth'])->group(function () {
     ->name('teacher.attempts.show');
     Route::post('/teacher/assigned-tasks/{attempt}/feedback', [AssignedTaskController::class, 'saveFeedback'])
     ->name('teacher.assigned-tasks.feedback');
+    Route::delete('/teacher/assigned-tasks/{attempt}', [AssignedTaskController::class, 'destroy'])
+    ->name('teacher.assigned-tasks.destroy');
 
     Route::prefix('teacher/simulator')
         ->name('teacher.simulator.')

@@ -163,7 +163,7 @@ export default function IntroStep({ template, loading, onStart }: Props) {
     return (
         <div className="space-y-6">
             <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="max-w-3xl">
                         <div className="flex flex-wrap items-center gap-2">
                             <ScenarioBadge value={template.scenario_type} />
@@ -184,7 +184,7 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                             type="button"
                             onClick={onStart}
                             disabled={loading}
-                            className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full md:w-auto inline-flex items-center justify-center md:justify-start gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             Sākt risinājumu
                             <ArrowRight className="h-4 w-4" />

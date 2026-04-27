@@ -200,6 +200,12 @@ class AssignedTaskController extends Controller
         return back()->with('success', 'Atsauksme saglabāta.');
     }
 
+    public function destroy(SimulationAttempt $attempt)
+    {
+        $attempt->delete();
+        return back()->with('success', 'Uzdevums dzēsts.');
+    }
+
     private function resolvePreview(SimulationAttempt $attempt): array
     {
         $preview = is_array($attempt->preview_result) ? $attempt->preview_result : [];

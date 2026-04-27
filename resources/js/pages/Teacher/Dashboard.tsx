@@ -11,6 +11,7 @@ import {
     Eye,
     FileText,
     Package,
+    Trash2,
     Users,
 } from 'lucide-react';
 
@@ -303,20 +304,27 @@ function AssignmentRow({
 }: {
     task: DashboardProps['assignedTasks'][number];
 }) {
+    const handleDelete = () => {
+        if (!confirm(`Vai tiešām vēlaties dzēst uzdevumu "${task.template_title}"?`)) {
+            return;
+        }
+        router.delete(`/teacher/assigned-tasks/${task.id}`);
+    };
+
     return (
-        <button
-            type="button"
-            onClick={() => router.visit(`/teacher/assigned-tasks/${task.id}`)}
-            className="group w-full rounded-2xl border border-[#e4e9e4] bg-white p-4 text-left transition hover:border-[#c9d5cc] hover:bg-[#fbfdfb] hover:shadow-sm"
-        >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#e4e9e4] bg-white p-4 transition hover:border-[#c9d5cc] hover:bg-[#fbfdfb] hover:shadow-sm">
+            <button
+                type="button"
+                onClick={() => router.visit(`/teacher/assigned-tasks/${task.id}`)}
+                className="group min-w-0 flex-1 text-left"
+            >
+                <div className="flex flex-col gap-4">
                     <div className="flex items-start gap-3">
                         <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#edf6f0] text-[#166a4d]">
                             <ClipboardList className="h-5 w-5" />
                         </div>
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="truncate text-base font-semibold text-[#182219]">
                                     {task.template_title || 'Bez nosaukuma'}
@@ -336,15 +344,24 @@ function AssignmentRow({
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-[#166a4d]">
-                    <Eye className="h-4 w-4" />
-                    Skatīt mēģinājumu
-                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                    <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-[#166a4d]">
+                        <Eye className="h-4 w-4" />
+                        Skatīt mēģinājumu
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                    </div>
                 </div>
-            </div>
-        </button>
+            </button>
+
+            <button
+                type="button"
+                onClick={handleDelete}
+                className="shrink-0 rounded-lg border border-[#e5caca] bg-white p-2 text-[#b42318] transition hover:bg-[#fff5f5]"
+                title="Dzēst uzdevumu"
+            >
+                <Trash2 className="h-5 w-5" />
+            </button>
+        </div>
     );
 }
 
