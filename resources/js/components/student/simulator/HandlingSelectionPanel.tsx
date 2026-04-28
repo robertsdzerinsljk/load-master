@@ -32,10 +32,12 @@ function resolveSource(
     sources: HandlingSource[] | undefined,
     selectedSource: string,
 ) {
-    const enabledSources = (sources ?? []).filter((source) => source.enabled);
+    const allSources = sources ?? [];
+    const enabledSources = allSources.filter((source) => source.enabled);
 
     if (!enabledSources.length) {
         return {
+            allSources,
             enabledSources: [],
             activeSource: null as HandlingSource | null,
         };
@@ -47,6 +49,7 @@ function resolveSource(
         null;
 
     return {
+        allSources,
         enabledSources,
         activeSource,
     };
@@ -160,12 +163,12 @@ export default function HandlingSelectionPanel({
                 <DirectionCard
                     title="Iekrausana"
                     required={!!handlingContext?.loading?.required}
-                    sources={loadingState.enabledSources}
+                    sources={loadingState.allSources}
                     activeSourceKey={loadingState.activeSource?.key ?? ''}
                     selectedCode={selectedLoadingMethodCode}
                     onSourceChange={(value) => {
                         setLoadingMethodSource(value);
-                        const nextSource = loadingState.enabledSources.find(
+                        const nextSource = loadingState.allSources.find(
                             (source) => source.key === value,
                         );
 
@@ -185,12 +188,12 @@ export default function HandlingSelectionPanel({
                 <DirectionCard
                     title="Izkrausana"
                     required={!!handlingContext?.unloading?.required}
-                    sources={unloadingState.enabledSources}
+                    sources={unloadingState.allSources}
                     activeSourceKey={unloadingState.activeSource?.key ?? ''}
                     selectedCode={selectedUnloadingMethodCode}
                     onSourceChange={(value) => {
                         setUnloadingMethodSource(value);
-                        const nextSource = unloadingState.enabledSources.find(
+                        const nextSource = unloadingState.allSources.find(
                             (source) => source.key === value,
                         );
 
@@ -259,6 +262,7 @@ function DirectionCard({
 }) {
     const activeSource = sources.find((source) => source.key === activeSourceKey) ?? null;
     const options = activeSource?.methods ?? [];
+    const hasEnabledSources = sources.some((source) => source.enabled);
 
     return (
         <div className="rounded-[24px] border border-[#d9ded9] bg-[#fbfcfb] p-5">
@@ -289,11 +293,13 @@ function DirectionCard({
                                 key={source.key}
                                 type="button"
                                 onClick={() => onSourceChange(source.key)}
-                                disabled={loading}
+                                disabled={loading || !source.enabled}
                                 className={`rounded-full border px-3 py-2 text-[13px] font-medium transition ${
                                     activeSourceKey === source.key
                                         ? 'border-[#166a4d] bg-[#166a4d] text-white'
-                                        : 'border-[#d9ded9] bg-white text-[#182219] hover:bg-[#f7f9f7]'
+                                        : source.enabled
+                                          ? 'border-[#d9ded9] bg-white text-[#182219] hover:bg-[#f7f9f7]'
+                                          : 'cursor-not-allowed border-[#e4e7e4] bg-[#f4f6f4] text-[#94a097]'
                                 }`}
                             >
                                 {source.label}
@@ -309,7 +315,7 @@ function DirectionCard({
                     <select
                         value={selectedCode}
                         onChange={(event) => onCodeChange(event.target.value)}
-                        disabled={loading || !activeSource}
+                        disabled={loading || !activeSource || !hasEnabledSources}
                         className="mt-2 w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
                     >
                         <option value="">
@@ -321,8 +327,33 @@ function DirectionCard({
                             </option>
                         ))}
                     </select>
+                    {!hasEnabledSources ? (
+                        <p className="mt-2 text-[12px] leading-5 text-[#a15a12]">
+                            Sim virzienam nav nevienas pieejamas metodes. Pārbaudi resursu saderību un scenārija prasības.
+                        </p>
+                    ) : null}
                 </div>
             </div>
+
+            {!hasEnabledSources && sources.some((source) => (source.reasons ?? []).length > 0) ? (
+                <div className="mt-4 grid gap-3">
+                    {sources
+                        .filter((source) => (source.reasons ?? []).length > 0)
+                        .map((source) => (
+                            <div
+                                key={`${title}-${source.key}-reasons`}
+                                className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-[13px] leading-6 text-amber-800"
+                            >
+                                <div className="font-semibold">{source.label}</div>
+                                <div className="mt-2 space-y-1">
+                                    {(source.reasons ?? []).map((reason, index) => (
+                                        <div key={`${source.key}-${index}`}>{reason}</div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                </div>
+            ) : null}
 
             {activeSource ? (
                 <div className="mt-4 space-y-2">
