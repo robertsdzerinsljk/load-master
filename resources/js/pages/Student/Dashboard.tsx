@@ -5,11 +5,13 @@ import {
     ClipboardList,
     Clock3,
     FileText,
+    Fuel,
     MapPinned,
     Package,
     Play,
     Route,
     Search,
+    Snowflake,
     Truck,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -50,6 +52,28 @@ type TemplateItem = {
         id: number;
         name: string;
     }> | null;
+
+    temperatureMode?: {
+        id?: number;
+        name?: string | null;
+    } | null;
+    temperature_mode?: {
+        id?: number;
+        name?: string | null;
+    } | null;
+
+    fuelStations?: Array<{
+        id: number;
+        display_name?: string | null;
+        location_name?: string | null;
+        name?: string | null;
+    }> | null;
+    fuel_stations?: Array<{
+        id: number;
+        display_name?: string | null;
+        location_name?: string | null;
+        name?: string | null;
+    }> | null;
 };
 
 type PageProps = {
@@ -84,6 +108,10 @@ function getScenarioLabel(type?: string | null) {
         port_loading: 'Ostas iekraušana',
         simulation: 'Simulācija',
         general: 'Vispārējs scenārijs',
+        land_transport: 'Sauszemes transports',
+        land_to_port: 'Sauszeme → osta',
+        port_to_ship: 'Osta → kuģis',
+        full_chain: 'Pilna loģistikas ķēde',
     };
 
     return map[type] ?? type.replaceAll('_', ' ');
@@ -128,13 +156,37 @@ function EmptyState() {
     );
 }
 
+function summarizeFuelStops(template: TemplateItem) {
+    const fuelStops = template.fuelStations ?? template.fuel_stations ?? [];
+
+    if (fuelStops.length === 0) {
+        return 'Nav norādītas';
+    }
+
+    const labels = fuelStops
+        .slice(0, 2)
+        .map(
+            (station) =>
+                station.display_name ||
+                station.location_name ||
+                station.name ||
+                'Degvielas pietura',
+        );
+
+    if (fuelStops.length > 2) {
+        labels.push(`+${fuelStops.length - 2}`);
+    }
+
+    return labels.join(', ');
+}
+
 function TemplateRow({ template }: { template: TemplateItem }) {
-    const start = template?.startLocation?.name ?? template?.start_location?.name ?? '—';
-    const end = template?.endLocation?.name ?? template?.end_location?.name ?? '—';
+    const start = template.startLocation?.name ?? template.start_location?.name ?? '—';
+    const end = template.endLocation?.name ?? template.end_location?.name ?? '—';
 
     const transportNames =
-        template?.transportTemplates?.map((item) => item.name) ??
-        template?.transport_templates?.map((item) => item.name) ??
+        template.transportTemplates?.map((item) => item.name) ??
+        template.transport_templates?.map((item) => item.name) ??
         [];
 
     const transportSummary =
@@ -142,16 +194,23 @@ function TemplateRow({ template }: { template: TemplateItem }) {
 
     const quantity =
         [
-            template?.cargo_amount_containers
+            template.cargo_amount_containers
                 ? `${template.cargo_amount_containers} konteineri`
                 : null,
-            template?.cargo_amount_tons ? `${template.cargo_amount_tons} t` : null,
+            template.cargo_amount_tons ? `${template.cargo_amount_tons} t` : null,
         ]
             .filter(Boolean)
             .join(' • ') || 'Nav norādīts';
 
     const description =
-        template?.cargo_name || template?.cargo_type || 'Kravas informācija nav norādīta';
+        template.cargo_name || template.cargo_type || 'Kravas informācija nav norādīta';
+
+    const temperatureMode =
+        template.temperatureMode?.name ??
+        template.temperature_mode?.name ??
+        'Nav norādīts';
+
+    const fuelStopSummary = summarizeFuelStops(template);
 
     return (
         <div className="rounded-[26px] border border-[#d9ded9] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -165,11 +224,11 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h2 className="text-[20px] font-semibold tracking-tight text-[#182219]">
-                                    {template?.title || 'Uzdevums bez nosaukuma'}
+                                    {template.title || 'Uzdevums bez nosaukuma'}
                                 </h2>
 
                                 <span className="inline-flex items-center rounded-full border border-[#d9ded9] bg-white px-3 py-1 text-[13px] font-medium text-[#182219]">
-                                    {getScenarioLabel(template?.scenario_type)}
+                                    {getScenarioLabel(template.scenario_type)}
                                 </span>
                             </div>
 
@@ -197,8 +256,21 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                         />
                         <MetricChip
                             label="Termiņš"
-                            value={formatDate(template?.deadline_date)}
+                            value={formatDate(template.deadline_date)}
                             icon={<Clock3 className="h-4 w-4" />}
+                        />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <MetricChip
+                            label="Temperatūras režīms"
+                            value={temperatureMode}
+                            icon={<Snowflake className="h-4 w-4" />}
+                        />
+                        <MetricChip
+                            label="Degvielas pieturas"
+                            value={fuelStopSummary}
+                            icon={<Fuel className="h-4 w-4" />}
                         />
                     </div>
 
@@ -254,14 +326,20 @@ export default function StudentDashboard() {
 
         return templates.filter((template) => {
             const haystack = [
-                template?.title,
-                template?.cargo_name,
-                template?.cargo_type,
-                template?.scenario_type,
-                template?.startLocation?.name,
-                template?.start_location?.name,
-                template?.endLocation?.name,
-                template?.end_location?.name,
+                template.title,
+                template.cargo_name,
+                template.cargo_type,
+                template.scenario_type,
+                template.startLocation?.name,
+                template.start_location?.name,
+                template.endLocation?.name,
+                template.end_location?.name,
+                template.temperatureMode?.name,
+                template.temperature_mode?.name,
+                ...(template.fuelStations ?? template.fuel_stations ?? []).map(
+                    (station) =>
+                        station.display_name || station.location_name || station.name,
+                ),
             ]
                 .filter(Boolean)
                 .join(' ')

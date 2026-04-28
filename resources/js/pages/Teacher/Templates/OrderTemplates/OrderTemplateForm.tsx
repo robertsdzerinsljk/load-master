@@ -46,6 +46,14 @@ type ShipOption = {
     cargo_mode?: string | null;
 };
 
+type FuelStationOption = {
+    id: number;
+    fuel_type?: string | null;
+    price_per_liter?: number | string | null;
+    display_name?: string | null;
+    location_name?: string | null;
+};
+
 type HandlingMethodOption = {
     id: number;
     name: string;
@@ -93,6 +101,7 @@ type Options = {
     ports: PortOption[];
     transportTemplates: TransportOption[];
     ships: ShipOption[];
+    fuelStations: FuelStationOption[];
     handlingMethods: HandlingMethodOption[];
     landRoutes: LandRouteOption[];
     scenarioTypes: ScenarioOption[];
@@ -177,6 +186,8 @@ type InitialData = {
     ports?: Array<{ id: number }>;
     landRoutes?: Array<{ id: number }>;
     land_routes?: Array<{ id: number }>;
+    fuelStations?: Array<{ id: number }>;
+    fuel_stations?: Array<{ id: number }>;
 };
 
 type PreviewResponse = {
@@ -513,6 +524,11 @@ export default function OrderTemplateForm({
             (item) => item.id,
         ),
     );
+    const [fuelStationIds, setFuelStationIds] = useState<number[]>(
+        (initialData.fuelStations ?? initialData.fuel_stations ?? []).map(
+            (item) => item.id,
+        ),
+    );
 
     const [isTryingScenario, setIsTryingScenario] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
@@ -575,6 +591,7 @@ export default function OrderTemplateForm({
 
         if (!caps.fuel) {
             setRequiresRefuelPlanning(false);
+            setFuelStationIds([]);
         }
 
         if (!caps.port) {
@@ -738,6 +755,7 @@ export default function OrderTemplateForm({
         ship_ids: caps.ship ? shipIds : [],
         port_ids: caps.port ? portIds : [],
         land_route_ids: caps.route ? landRouteIds : [],
+        fuel_station_ids: caps.fuel ? fuelStationIds : [],
     });
 
     const handleSubmit = (event: React.FormEvent) => {
@@ -1528,6 +1546,41 @@ export default function OrderTemplateForm({
                                     toggleNumberSelection(
                                         shipIds,
                                         setShipIds,
+                                        value,
+                                    )
+                                }
+                            />
+                        ) : null}
+
+                        {caps.fuel ? (
+                            <SelectableGrid
+                                title="Suggested fuel stops"
+                                items={options.fuelStations.map((item) => ({
+                                    id: item.id,
+                                    title:
+                                        item.display_name ||
+                                        item.location_name ||
+                                        `Fuel stop #${item.id}`,
+                                    description:
+                                        [
+                                            item.location_name,
+                                            item.fuel_type
+                                                ? item.fuel_type.toUpperCase()
+                                                : null,
+                                            item.price_per_liter !== null &&
+                                            item.price_per_liter !== undefined &&
+                                            item.price_per_liter !== ''
+                                                ? `${item.price_per_liter} €/L`
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' • ') || 'No fuel details',
+                                }))}
+                                selected={fuelStationIds}
+                                onToggle={(value) =>
+                                    toggleNumberSelection(
+                                        fuelStationIds,
+                                        setFuelStationIds,
                                         value,
                                     )
                                 }

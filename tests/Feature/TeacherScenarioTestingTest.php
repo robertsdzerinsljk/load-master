@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\OrderTemplate;
+use App\Models\FuelStation;
+use App\Models\Location;
 use App\Models\SimulationAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,6 +103,82 @@ test('teacher simulator uses teacher navigation and routes', function () {
         ->assertJsonPath('attempt.current_step', 'transport');
 
     expect($attempt->refresh()->current_step)->toBe('transport');
+});
+
+test('teacher can save suggested fuel stops on a template', function () {
+    $teacher = User::factory()->create([
+        'role' => 'teacher',
+    ]);
+
+    $location = Location::query()->create([
+        'name' => 'Riga Ring Road',
+    ]);
+
+    $fuelStation = FuelStation::query()->create([
+        'location_id' => $location->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.61,
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Fuel stop persistence',
+        'scenario_type' => 'land_transport',
+        'evaluation_mode' => 'practice',
+        'status' => 'draft',
+    ]);
+
+    $this->actingAs($teacher)
+        ->put("/teacher/templates/order-templates/{$template->id}", [
+            'title' => 'Fuel stop persistence',
+            'scenario_type' => 'land_transport',
+            'evaluation_mode' => 'practice',
+            'status' => 'draft',
+            'fuel_station_ids' => [$fuelStation->id],
+        ])
+        ->assertRedirect("/teacher/templates/order-templates/{$template->id}");
+
+    expect($template->fresh()->fuelStations->pluck('id')->all())->toBe([$fuelStation->id]);
+});
+
+test('student simulator payload includes template fuel stop locations', function () {
+    $student = User::factory()->create([
+        'role' => 'student',
+    ]);
+
+    $location = Location::query()->create([
+        'name' => 'A7 Fuel Hub',
+    ]);
+
+    $fuelStation = FuelStation::query()->create([
+        'location_id' => $location->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.58,
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Fuel stop task visibility',
+        'scenario_type' => 'land_transport',
+        'evaluation_mode' => 'practice',
+        'status' => 'ready',
+    ]);
+
+    $template->fuelStations()->attach($fuelStation->id);
+
+    $attempt = SimulationAttempt::query()->create([
+        'order_template_id' => $template->id,
+        'user_id' => $student->id,
+        'status' => 'in_progress',
+        'current_step' => 'intro',
+    ]);
+
+    $this->actingAs($student)
+        ->get("/student/simulator/{$attempt->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Simulator/Show')
+            ->where('template.fuel_stations.0.id', $fuelStation->id)
+            ->where('template.fuel_stations.0.location_name', 'A7 Fuel Hub')
+            ->where('template.fuel_stations.0.fuel_type', 'diesel'));
 });
 
 test('teacher can start a fresh test and the previous active sandbox is archived', function () {

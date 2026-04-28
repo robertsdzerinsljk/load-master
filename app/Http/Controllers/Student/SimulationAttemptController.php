@@ -46,6 +46,13 @@ class SimulationAttemptController extends Controller
     public function indexTasks(Request $request): Response
     {
         $templates = OrderTemplate::query()
+            ->with([
+                'startLocation',
+                'endLocation',
+                'transportTemplates',
+                'temperatureMode',
+                'fuelStations.location',
+            ])
             ->latest('id')
             ->get();
 

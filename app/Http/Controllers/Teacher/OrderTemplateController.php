@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\FuelStation;
 use App\Models\HandlingMethod;
 use App\Models\LandRoute;
 use App\Models\Location;
@@ -78,6 +79,7 @@ class OrderTemplateController extends Controller
                 'ports',
                 'landRoutes.fromLocation',
                 'landRoutes.toLocation',
+                'fuelStations.location',
             ])
             ->findOrFail($id);
 
@@ -123,6 +125,7 @@ class OrderTemplateController extends Controller
             'ships:id',
             'ports:id',
             'landRoutes:id',
+            'fuelStations:id',
         ])->findOrFail($id);
 
         return Inertia::render('Teacher/Templates/OrderTemplates/Edit', [
@@ -488,6 +491,9 @@ class OrderTemplateController extends Controller
 
             'land_route_ids' => 'nullable|array',
             'land_route_ids.*' => 'integer|exists:land_routes,id',
+
+            'fuel_station_ids' => 'nullable|array',
+            'fuel_station_ids.*' => 'integer|exists:fuel_stations,id',
         ]);
     }
 
@@ -575,6 +581,12 @@ class OrderTemplateController extends Controller
                 ? ($validated['land_route_ids'] ?? [])
                 : []
         );
+
+        $template->fuelStations()->sync(
+            $this->allowsFuel($scenarioType)
+                ? ($validated['fuel_station_ids'] ?? [])
+                : []
+        );
     }
 
     protected function getOptions(?OrderTemplate $template = null): array
@@ -589,6 +601,11 @@ class OrderTemplateController extends Controller
             'ports' => Port::orderBy('country')->orderBy('name')->get(['id', 'name', 'country']),
             'transportTemplates' => TransportTemplate::orderBy('name')->get(['id', 'name', 'type']),
             'ships' => Ship::orderBy('name')->get(['id', 'name', 'cargo_type', 'cargo_mode']),
+            'fuelStations' => FuelStation::query()
+                ->with('location:id,name')
+                ->orderBy('fuel_type')
+                ->orderBy('id')
+                ->get(['id', 'location_id', 'fuel_type', 'price_per_liter']),
             'handlingMethods' => HandlingMethod::orderBy('name')->get(['id', 'name', 'code', 'category']),
             'landRoutes' => LandRoute::with([
                 'fromLocation:id,name,city,country,type',
@@ -818,6 +835,11 @@ class OrderTemplateController extends Controller
     }
 
     private function allowsRoute(string $type): bool
+    {
+        return in_array($type, ['land_transport', 'land_to_port', 'full_chain'], true);
+    }
+
+    private function allowsFuel(string $type): bool
     {
         return in_array($type, ['land_transport', 'land_to_port', 'full_chain'], true);
     }

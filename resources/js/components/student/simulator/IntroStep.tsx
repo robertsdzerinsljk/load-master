@@ -161,6 +161,7 @@ function SectionCard({
 
 export default function IntroStep({ template, loading, onStart }: Props) {
     const fullTemplateConfig = JSON.stringify(template, null, 2);
+    const suggestedFuelStops = template.fuelStations ?? template.fuel_stations ?? [];
 
     return (
         <div className="space-y-6">
@@ -331,6 +332,33 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                             value={template.status || 'Nav norādīts'}
                         />
                     </div>
+                </SectionCard>
+
+                <SectionCard
+                    title="Ieteiktās degvielas pieturas"
+                    subtitle="Šīs uzpildes vietas skolotājs ir pievienojis kā pieejamās pieturas degvielas plānošanas solim."
+                >
+                    {suggestedFuelStops.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {suggestedFuelStops.map((station, index) => (
+                                <DetailRow
+                                    key={`${station.id}-${index}`}
+                                    icon={<Truck className="h-4 w-4" />}
+                                    label={`Pietura ${index + 1}`}
+                                    value={
+                                        station.display_name ||
+                                        station.location_name ||
+                                        station.name ||
+                                        'Nav norādīts'
+                                    }
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-[#e4e9e4] bg-white p-4 text-[15px] text-[#5b6b61]">
+                            Konkrētas degvielas pieturas šim uzdevumam vēl nav pievienotas.
+                        </div>
+                    )}
                 </SectionCard>
 
                 <SectionCard

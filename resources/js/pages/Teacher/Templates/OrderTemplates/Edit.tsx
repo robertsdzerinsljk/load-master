@@ -8,6 +8,15 @@ type EditProps = {
 };
 
 export default function Edit({ template, options }: EditProps) {
+    const selectedTransportTemplates =
+        template.transportTemplates ?? template.transport_templates ?? [];
+    const selectedShips = template.ships ?? [];
+    const selectedPorts = template.ports ?? [];
+    const selectedLandRoutes =
+        template.landRoutes ?? template.land_routes ?? [];
+    const selectedFuelStations =
+        template.fuelStations ?? template.fuel_stations ?? [];
+
     return (
         <TeacherLayout>
             <Head title={`Rediģēt sagatavi — ${template.title}`} />
@@ -100,12 +109,14 @@ export default function Edit({ template, options }: EditProps) {
 
                             scenario_config: template.scenario_config ?? null,
 
-                            transportTemplates: template.transportTemplates ?? [],
-                            transport_templates: template.transportTemplates ?? [],
-                            ships: template.ships ?? [],
-                            ports: template.ports ?? [],
-                            landRoutes: template.landRoutes ?? [],
-                            land_routes: template.landRoutes ?? [],
+                            transportTemplates: selectedTransportTemplates,
+                            transport_templates: selectedTransportTemplates,
+                            ships: selectedShips,
+                            ports: selectedPorts,
+                            landRoutes: selectedLandRoutes,
+                            land_routes: selectedLandRoutes,
+                            fuelStations: selectedFuelStations,
+                            fuel_stations: selectedFuelStations,
                         }}
                     />
                 </div>
