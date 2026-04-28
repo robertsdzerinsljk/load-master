@@ -19,12 +19,14 @@ import {
     Pencil,
     Play,
     Route,
+    Settings2,
     ShieldCheck,
     Ship,
     Sparkles,
     Thermometer,
     Trash2,
     Truck,
+    Waves,
 } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 
@@ -60,10 +62,21 @@ type TemplateData = {
 
     cargo_name?: string | null;
     cargo_type?: string | null;
+    cargo_mode?: string | null;
     cargo_amount_containers?: number | string | null;
     cargo_amount_tons?: number | string | null;
     cargo_volume_m3?: number | string | null;
     cargo_value?: number | string | null;
+    requires_closed_space?: boolean | null;
+    requires_ventilation?: boolean | null;
+    requires_hazardous_support?: boolean | null;
+    allowed_ship_cargo_modes?: string[] | null;
+    forbidden_ship_cargo_modes?: string[] | null;
+    requires_loading_method_choice?: boolean | null;
+    requires_unloading_method_choice?: boolean | null;
+    allowed_handling_method_codes?: string[] | null;
+    required_handling_method_codes?: string[] | null;
+    scenario_config?: Record<string, unknown> | null;
 
     deadline_date?: string | null;
     budget_limit?: number | string | null;
@@ -210,6 +223,81 @@ function formatDateTime(value?: string | null) {
 function formatNumber(value?: string | number | null, suffix = '') {
     if (value === null || value === undefined || value === '') return '—';
     return `${value}${suffix}`;
+}
+
+function cargoModeLabel(value?: string | null) {
+    if (!value) return 'Nav norādīts';
+
+    const map: Record<string, string> = {
+        bulk: 'Beramkrava',
+        containerized: 'Konteinerizēta',
+        liquid: 'Šķidrā krava',
+        palletized: 'Paletizēta',
+        break_bulk: 'Break bulk',
+    };
+
+    return map[value] ?? value;
+}
+
+function formatList(values?: string[] | null, mapValue?: (value: string) => string) {
+    if (!values || values.length === 0) {
+        return 'Nav norādīts';
+    }
+
+    return values.map((value) => (mapValue ? mapValue(value) : value)).join(', ');
+}
+
+function formatMethodCode(value: string) {
+    return value.replaceAll('_', ' ');
+}
+
+function configSection(
+    template: TemplateData,
+    key: 'timing' | 'availability' | 'costs' | 'scoring' | 'compatibility',
+) {
+    const config = template.scenario_config;
+
+    if (!config || typeof config !== 'object') {
+        return {};
+    }
+
+    const value = config[key];
+
+    return value && typeof value === 'object'
+        ? (value as Record<string, unknown>)
+        : {};
+}
+
+function formatConfigMinutes(value: unknown) {
+    return value === null || value === undefined || value === ''
+        ? 'Nav norādīts'
+        : `${String(value)} min`;
+}
+
+function formatConfigCurrency(value: unknown, suffix = '') {
+    return value === null || value === undefined || value === ''
+        ? 'Nav norādīts'
+        : `${String(value)} €${suffix}`;
+}
+
+function formatConfigPlain(value: unknown) {
+    return value === null || value === undefined || value === ''
+        ? 'Nav norādīts'
+        : String(value);
+}
+
+function formatConfigHour(value: unknown) {
+    return value === null || value === undefined || value === ''
+        ? 'Nav norādīts'
+        : `${String(value)}:00`;
+}
+
+function formatConfigBoolean(value: unknown) {
+    return typeof value === 'boolean'
+        ? value
+            ? 'Jā'
+            : 'Nē'
+        : 'Nav norādīts';
 }
 
 function getTeacherTestStatusLabel(status?: string | null) {
@@ -474,6 +562,22 @@ export default function Show() {
     });
 
     const scenarioSummary = template.description || template.student_brief || 'Šai uzdevuma sagatavei apraksts vēl nav pievienots.';
+    const timing = configSection(template, 'timing');
+    const availability = configSection(template, 'availability');
+    const costs = configSection(template, 'costs');
+    const scoring = configSection(template, 'scoring');
+    const compatibility = configSection(template, 'compatibility');
+    const cargoProfile = cargoModeLabel(template.cargo_mode ?? template.cargo_type);
+    const allowedShipModes = formatList(template.allowed_ship_cargo_modes, cargoModeLabel);
+    const forbiddenShipModes = formatList(template.forbidden_ship_cargo_modes, cargoModeLabel);
+    const requiredHandlingMethods = formatList(
+        template.required_handling_method_codes,
+        formatMethodCode,
+    );
+    const allowedHandlingMethods = formatList(
+        template.allowed_handling_method_codes,
+        formatMethodCode,
+    );
 
     const compactMetrics = useMemo(() => {
         return [
@@ -845,6 +949,7 @@ export default function Show() {
                                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                                     <MetricCard label="Krava" value={template.cargo_name || 'Nav norādīts'} icon={<Package className="h-4 w-4" />} dense />
                                     <MetricCard label="Veids" value={template.cargo_type || 'Nav norādīts'} icon={<Boxes className="h-4 w-4" />} dense />
+                                    <MetricCard label="Kravas profils" value={cargoProfile} icon={<ShieldCheck className="h-4 w-4" />} dense />
                                     <MetricCard label="Konteineri" value={formatNumber(template.cargo_amount_containers)} icon={<Boxes className="h-4 w-4" />} dense />
                                     <MetricCard label="Tonnas" value={formatNumber(template.cargo_amount_tons, ' t')} icon={<Package className="h-4 w-4" />} dense />
                                     <MetricCard label="Tilpums" value={formatNumber(template.cargo_volume_m3, ' m³')} icon={<Boxes className="h-4 w-4" />} dense />
@@ -864,6 +969,9 @@ export default function Show() {
                                 <MetricCard label="Maks. braucieni" value={formatNumber(template.max_trips)} icon={<Route className="h-4 w-4" />} dense />
                                 <MetricCard label="Uzpilde" value={template.requires_refuel_planning ? 'Nepieciešama' : 'Nav nepieciešama'} icon={<Gauge className="h-4 w-4" />} dense />
                                 <MetricCard label="Prioritāte" value={template.priority || 'Nav norādīta'} icon={<CheckCircle2 className="h-4 w-4" />} dense />
+                                <MetricCard label="Slēgta telpa" value={template.requires_closed_space ? 'Jā' : 'Nē'} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                                <MetricCard label="Ventilācija" value={template.requires_ventilation ? 'Jā' : 'Nē'} icon={<Waves className="h-4 w-4" />} dense />
+                                <MetricCard label="Bīstamo kravu atbalsts" value={template.requires_hazardous_support ? 'Jā' : 'Nē'} icon={<AlertTriangle className="h-4 w-4" />} dense />
                             </div>
 
                             {template.teacher_notes ? (
@@ -878,6 +986,69 @@ export default function Show() {
                             ) : null}
                         </Section>
                     </div>
+
+                    <Section
+                        title="Scenārija noteikumi"
+                        description="Redzami tieši tie saderības un izvēļu nosacījumi, kurus students saņem uzdevumā."
+                        icon={<ShieldCheck className="h-5 w-5" />}
+                    >
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <ShieldCheck className="h-4 w-4 text-[#166a4d]" />
+                                    Kuģa kravas profili
+                                </div>
+                                <div className="space-y-3">
+                                    <MetricCard label="Atļautie profili" value={allowedShipModes} icon={<CheckCircle2 className="h-4 w-4" />} dense />
+                                    <MetricCard label="Aizliegtie profili" value={forbiddenShipModes} icon={<AlertTriangle className="h-4 w-4" />} dense />
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-[#e4e9e4] p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#182219]">
+                                    <Settings2 className="h-4 w-4 text-[#166a4d]" />
+                                    Handling prasības
+                                </div>
+                                <div className="space-y-3">
+                                    <MetricCard label="Obligāta iekraušanas metode" value={template.requires_loading_method_choice ? 'Jā' : 'Nē'} icon={<CheckCircle2 className="h-4 w-4" />} dense />
+                                    <MetricCard label="Obligāta izkraušanas metode" value={template.requires_unloading_method_choice ? 'Jā' : 'Nē'} icon={<CheckCircle2 className="h-4 w-4" />} dense />
+                                    <MetricCard label="Prasītās metodes" value={requiredHandlingMethods} icon={<Settings2 className="h-4 w-4" />} dense />
+                                    <MetricCard label="Atļautās metodes" value={allowedHandlingMethods} icon={<Settings2 className="h-4 w-4" />} dense />
+                                </div>
+                            </div>
+                        </div>
+                    </Section>
+
+                    <Section
+                        title="Pilnā uzdevuma konfigurācija"
+                        description="Pilns iestatījumu kopsavilkums saprotamā formā bez JSON lasīšanas."
+                        icon={<Sparkles className="h-5 w-5" />}
+                    >
+                        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                            <MetricCard label="Sākotnējā iekraušana" value={formatConfigMinutes(timing.loading_fixed_minutes)} icon={<Clock3 className="h-4 w-4" />} dense />
+                            <MetricCard label="Degvielas pietura" value={formatConfigMinutes(timing.fuel_stop_minutes)} icon={<Truck className="h-4 w-4" />} dense />
+                            <MetricCard label="Ostas apstrāde" value={formatConfigMinutes(timing.port_processing_minutes)} icon={<MapPinned className="h-4 w-4" />} dense />
+                            <MetricCard label="Iekraušana kuģī" value={formatConfigMinutes(timing.ship_loading_minutes)} icon={<Ship className="h-4 w-4" />} dense />
+                            <MetricCard label="Jūras tranzīts" value={formatConfigMinutes(timing.sea_transit_minutes)} icon={<Ship className="h-4 w-4" />} dense />
+                            <MetricCard label="Braukšana līdz atpūtai" value={formatConfigMinutes(timing.max_drive_minutes_before_rest)} icon={<Clock3 className="h-4 w-4" />} dense />
+                            <MetricCard label="Atpūtas pauze" value={formatConfigMinutes(timing.rest_minutes)} icon={<Clock3 className="h-4 w-4" />} dense />
+                            <MetricCard label="Ostas rinda" value={formatConfigMinutes(availability.port_queue_minutes)} icon={<CircleGauge className="h-4 w-4" />} dense />
+                            <MetricCard label="Kuģis gatavs" value={typeof availability.ship_ready_at === 'string' ? formatDateTime(availability.ship_ready_at) : 'Nav norādīts'} icon={<CalendarDays className="h-4 w-4" />} dense />
+                            <MetricCard label="Dienas darba likme" value={formatConfigCurrency(costs.labor_cost_per_hour_day, '/h')} icon={<Euro className="h-4 w-4" />} dense />
+                            <MetricCard label="Dienas tehnikas likme" value={formatConfigCurrency(costs.machine_cost_per_hour_day, '/h')} icon={<Euro className="h-4 w-4" />} dense />
+                            <MetricCard label="Nakts koeficients" value={formatConfigPlain(costs.night_shift_multiplier)} icon={<Gauge className="h-4 w-4" />} dense />
+                            <MetricCard label="Dienas maiņas sākums" value={formatConfigHour(costs.day_shift_start_hour)} icon={<CalendarDays className="h-4 w-4" />} dense />
+                            <MetricCard label="Nakts maiņas sākums" value={formatConfigHour(costs.night_shift_start_hour)} icon={<CalendarDays className="h-4 w-4" />} dense />
+                            <MetricCard label="Porta/cargo pārbaude" value={formatConfigBoolean(compatibility.enforce_port_cargo_support)} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                            <MetricCard label="Kuģa/cargo pārbaude" value={formatConfigBoolean(compatibility.enforce_ship_cargo_support)} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                            <MetricCard label="Porta/kuģa iegrime" value={formatConfigBoolean(compatibility.enforce_port_ship_draft)} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                            <MetricCard label="Handling saderība" value={formatConfigBoolean(compatibility.enforce_handling_compatibility)} icon={<ShieldCheck className="h-4 w-4" />} dense />
+                            <MetricCard label="Laika svars" value={formatConfigPlain(scoring.time_weight)} icon={<Gauge className="h-4 w-4" />} dense />
+                            <MetricCard label="Izmaksu svars" value={formatConfigPlain(scoring.cost_weight)} icon={<Gauge className="h-4 w-4" />} dense />
+                            <MetricCard label="Saderības svars" value={formatConfigPlain(scoring.compatibility_weight)} icon={<Gauge className="h-4 w-4" />} dense />
+                            <MetricCard label="Reisu svars" value={formatConfigPlain(scoring.trips_weight)} icon={<Gauge className="h-4 w-4" />} dense />
+                        </div>
+                    </Section>
 
                     <Section
                         title="Saistītie resursi"
