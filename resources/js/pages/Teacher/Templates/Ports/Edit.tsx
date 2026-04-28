@@ -1,7 +1,7 @@
-import BackButton from '@/components/BackButton';
-import TeacherLayout from '@/layouts/TeacherLayout';
-import PortPresetForm from '@/components/PortPresetForm';
 import { Head, usePage } from '@inertiajs/react';
+import BackButton from '@/components/BackButton';
+import PortPresetForm from '@/components/PortPresetForm';
+import TeacherLayout from '@/layouts/TeacherLayout';
 
 type Port = {
     id: number;
@@ -32,6 +32,16 @@ type Port = {
             notes?: string | null;
         };
     }>;
+    handling_methods?: Array<{
+        code: string;
+        pivot?: {
+            is_loading?: boolean | null;
+            is_unloading?: boolean | null;
+            throughput_override_containers_per_hour?: string | number | null;
+            throughput_override_tons_per_hour?: string | number | null;
+            notes?: string | null;
+        };
+    }>;
 };
 
 type PageProps = {
@@ -41,6 +51,7 @@ type PageProps = {
 export default function Edit() {
     const page = usePage<PageProps>();
     const port = page.props.port;
+    const handlingMethods = port.handlingMethods ?? port.handling_methods ?? [];
 
     return (
         <>
@@ -66,7 +77,7 @@ export default function Edit() {
                     initialData={{
                         ...port,
                         handling_methods:
-                            port.handlingMethods?.map((method) => ({
+                            handlingMethods.map((method) => ({
                                 code: method.code,
                                 is_loading: method.pivot?.is_loading ?? true,
                                 is_unloading: method.pivot?.is_unloading ?? true,

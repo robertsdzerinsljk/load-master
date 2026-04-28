@@ -100,3 +100,89 @@ test('container crane ports expose gantry crane as an inferred handling method',
     expect(collect($portMethodCodes)->pluck('code')->all())->toContain('gantry_crane');
     expect($compatibility['handling']['loading']['selected']['code'])->toBe('gantry_crane');
 });
+
+test('resource cargo incompatibility does not hide handling equipment choices', function () {
+    $template = OrderTemplate::query()->create([
+        'title' => 'Handling choice remains available',
+        'cargo_mode' => 'containerized',
+        'cargo_amount_containers' => 20,
+        'requires_loading_method_choice' => true,
+        'requires_unloading_method_choice' => true,
+    ]);
+
+    $port = Port::query()->create([
+        'name' => 'Equipment Only Port',
+        'country' => 'LV',
+        'supports_container' => false,
+        'supports_refrigerated' => true,
+        'supports_hazardous' => true,
+        'has_crane' => true,
+    ]);
+
+    $ship = Ship::query()->create([
+        'name' => 'Sparse Ship',
+        'cargo_mode' => null,
+        'supports_container' => false,
+        'capacity_containers' => 1000,
+        'draft_m' => 7,
+    ]);
+
+    $compatibility = app(ScenarioCompatibilityService::class)->inspect(
+        $template,
+        $port,
+        $ship
+    );
+
+    $loadingPortSource = collect($compatibility['handling']['loading']['sources'])
+        ->firstWhere('key', 'port');
+    $unloadingPortSource = collect($compatibility['handling']['unloading']['sources'])
+        ->firstWhere('key', 'port');
+
+    expect($compatibility['port']['compatible'])->toBeFalse();
+    expect($loadingPortSource['enabled'])->toBeTrue();
+    expect(collect($loadingPortSource['methods'])->pluck('code')->all())->toContain('crane');
+    expect($unloadingPortSource['enabled'])->toBeTrue();
+    expect(collect($unloadingPortSource['methods'])->pluck('code')->all())->toContain('crane');
+});
+
+test('handling choices fall back to scenario methods when resource has no matching methods', function () {
+    $template = OrderTemplate::query()->create([
+        'title' => 'Fallback handling choices',
+        'cargo_mode' => 'liquid',
+        'cargo_amount_tons' => 100,
+        'requires_loading_method_choice' => true,
+        'requires_unloading_method_choice' => true,
+    ]);
+
+    $port = Port::query()->create([
+        'name' => 'Dry Port',
+        'country' => 'LV',
+        'supports_liquid' => false,
+        'has_crane' => false,
+        'has_forklift' => false,
+        'has_pump' => false,
+        'has_conveyor' => false,
+    ]);
+
+    $ship = Ship::query()->create([
+        'name' => 'Dry Ship',
+        'supports_liquid' => false,
+        'has_onboard_crane' => false,
+    ]);
+
+    $compatibility = app(ScenarioCompatibilityService::class)->inspect(
+        $template,
+        $port,
+        $ship
+    );
+
+    $loadingPortSource = collect($compatibility['handling']['loading']['sources'])
+        ->firstWhere('key', 'port');
+    $unloadingShipSource = collect($compatibility['handling']['unloading']['sources'])
+        ->firstWhere('key', 'ship');
+
+    expect($loadingPortSource['enabled'])->toBeTrue();
+    expect(collect($loadingPortSource['methods'])->pluck('code')->all())->toContain('pump');
+    expect($unloadingShipSource['enabled'])->toBeTrue();
+    expect(collect($unloadingShipSource['methods'])->pluck('code')->all())->toContain('pump');
+});

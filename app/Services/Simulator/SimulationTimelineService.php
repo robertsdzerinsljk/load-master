@@ -485,7 +485,7 @@ class SimulationTimelineService
 
     private function appendDriveAndRestEvents(
         array &$events,
-        Carbon $current,
+        CarbonInterface $current,
         int $trip,
         string $from,
         string $to,
@@ -498,7 +498,7 @@ class SimulationTimelineService
         array $meta = [],
         int $dayShiftStartHour = 6,
         int $nightShiftStartHour = 20
-    ): Carbon {
+    ): CarbonInterface {
         if ($driveMinutes > 0 && $maxDriveMinutesBeforeRest > 0) {
             while ($drivingMinutesSinceRest > 0
                 && ($drivingMinutesSinceRest + $driveMinutes) > $maxDriveMinutesBeforeRest
@@ -599,8 +599,8 @@ class SimulationTimelineService
     }
 
     private function calculateEventExpense(
-        Carbon $start,
-        Carbon $end,
+        CarbonInterface $start,
+        CarbonInterface $end,
         int $durationMinutes,
         float $laborUnits,
         float $machineUnits,
@@ -634,8 +634,8 @@ class SimulationTimelineService
     }
 
     private function splitShiftMinutes(
-        Carbon $start,
-        Carbon $end,
+        CarbonInterface $start,
+        CarbonInterface $end,
         int $dayShiftStartHour,
         int $nightShiftStartHour
     ): array {
@@ -663,7 +663,7 @@ class SimulationTimelineService
         ];
     }
 
-    private function nextShiftBoundary(Carbon $current, int $dayShiftStartHour, int $nightShiftStartHour): Carbon
+    private function nextShiftBoundary(CarbonInterface $current, int $dayShiftStartHour, int $nightShiftStartHour): CarbonInterface
     {
         $dayBoundary = $current->copy()->setTime($dayShiftStartHour, 0);
         $nightBoundary = $current->copy()->setTime($nightShiftStartHour, 0);

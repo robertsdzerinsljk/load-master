@@ -281,6 +281,9 @@ export type PreviewResult = {
     route?: {
         segments_count?: number;
         distance_km?: number | string;
+        total_driven_distance_km?: number | string;
+        outbound_distance_km?: number | string;
+        return_distance_km?: number | string;
         start?: string;
         end?: string;
         segments?: Array<{
@@ -294,6 +297,11 @@ export type PreviewResult = {
     fuel?: {
         stops_count?: number;
         approx_leg_distance_km?: number | string;
+        max_range_km?: number | string;
+        total_driven_distance_km?: number | string;
+        estimated_tank_loads?: number;
+        estimated_refuel_events?: number;
+        assumes_depot_refuel?: boolean;
         stops?: Array<{
             id: number;
             name: string;
@@ -392,6 +400,9 @@ export type PreviewResult = {
         };
         cost_breakdown?: {
             transport_cost?: number | string | null;
+            fuel_cost?: number | string | null;
+            fuel_price_per_liter?: number | string | null;
+            fuel_price_source?: string | null;
             operations_cost?: number | string | null;
             day_operations_cost?: number | string | null;
             night_operations_cost?: number | string | null;
@@ -492,7 +503,10 @@ export function getStatusLabel(status?: string | null): string {
 }
 
 export function routeName(
-    route: Pick<RouteItem, 'fromLocation' | 'toLocation' | 'from_location' | 'to_location'>,
+    route: Pick<
+        RouteItem,
+        'fromLocation' | 'toLocation' | 'from_location' | 'to_location'
+    >,
     side: 'from' | 'to',
 ): string {
     const direct = side === 'from' ? route.fromLocation : route.toLocation;

@@ -37,6 +37,7 @@ class SimulationPreviewService
 
         $config = is_array($template->scenario_config) ? $template->scenario_config : [];
         $scoring = is_array($config['scoring'] ?? null) ? $config['scoring'] : [];
+        $costConfig = is_array($config['costs'] ?? null) ? $config['costs'] : [];
         $compatibilityRules = is_array($config['compatibility'] ?? null)
             ? $config['compatibility']
             : [];
@@ -75,17 +76,20 @@ class SimulationPreviewService
         $fuelPer100Km = (float) ($transport->fuel_consumption_per_100km ?? 28);
         $costPerKm = (float) ($transport->cost_per_km ?? 1.2);
         $maxRangeKm = (float) ($transport->max_range_km ?? 800);
+        $defaultFuelPricePerLiter = (float) ($costConfig['default_fuel_price_per_liter'] ?? 1.65);
 
         $totalDistanceKm = round(
             $segments->sum(fn ($segment) => (float) ($segment->distance_km ?? 0)),
             2
         );
+        $outboundDistanceKm = $totalDistanceKm * $requiredTrips;
+        $returnDistanceKm = $totalDistanceKm * max(0, $requiredTrips - 1);
+        $totalDrivenDistanceKm = round(($outboundDistanceKm + $returnDistanceKm) * $vehicleCount, 2);
 
         $requiredVehicles = (int) ceil($containerCount / max(1, $vehicleCapacity));
         $tripTimeHours = $avgSpeed > 0 ? round($totalDistanceKm / $avgSpeed, 2) : 0.0;
-        $fuelNeededLitersPerVehicle = round(($totalDistanceKm / 100) * $fuelPer100Km, 2);
-        $fuelNeededLiters = round($fuelNeededLitersPerVehicle * $vehicleCount, 2);
-        $transportCost = round(($totalDistanceKm * $costPerKm) * $vehicleCount, 2);
+        $fuelNeededLiters = round(($totalDrivenDistanceKm / 100) * $fuelPer100Km, 2);
+        $transportCost = round($totalDrivenDistanceKm * $costPerKm, 2);
 
         $hasEnoughVehicles = $vehicleCount >= $requiredVehicles;
         $chainValid = true;
@@ -120,6 +124,21 @@ class SimulationPreviewService
         $needsRefuel = $totalDistanceKm > $maxRangeKm;
         $rangePlanValid = $selectedFuelPlan['range_plan_valid'];
         $fuelSelectionsLogical = $selectedFuelPlan['logical'];
+        $fuelPrice = $this->resolveFuelPricePerLiter(
+            $selectedFuelPlan,
+            $fuelStations,
+            $mappedFuelStops,
+            $defaultFuelPricePerLiter
+        );
+        $fuelPricePerLiter = $fuelPrice['price'];
+        $fuelPriceSource = $fuelPrice['source'];
+        $fuelCost = round($fuelNeededLiters * $fuelPricePerLiter, 2);
+        $totalJourneyNeedsRefuel = $maxRangeKm > 0 && $totalDrivenDistanceKm > $maxRangeKm;
+        $estimatedTankLoads = $maxRangeKm > 0
+            ? (int) ceil($totalDrivenDistanceKm / $maxRangeKm)
+            : 1;
+        $estimatedRefuelEvents = max(0, $estimatedTankLoads - 1);
+        $assumesDepotRefuel = $totalJourneyNeedsRefuel && !$needsRefuel;
 
         if (!$hasEnoughVehicles) {
             $warnings[] = 'Izveleto transportu skaits nav pietiekams visai kravai.';
@@ -131,6 +150,14 @@ class SimulationPreviewService
 
         if (!$rangePlanValid) {
             $warnings[] = 'Pat ar izveleto degvielas pieturu skaitu marsruts ir parak gars starp uzpildem.';
+        }
+
+        if ($fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
+            $warnings[] = "Degvielas pieturai nav cenas; izmanto noklusejuma cenu {$fuelPricePerLiter} EUR/L.";
+        }
+
+        if ($assumesDepotRefuel) {
+            $warnings[] = "Kopejais nobraukums parsniedz vienas bakas distanci; aprekinats, ka starp reisiem vajadzigas {$estimatedRefuelEvents} uzpildes.";
         }
 
         foreach ($selectedFuelPlan['issues'] as $issue) {
@@ -199,7 +226,7 @@ class SimulationPreviewService
 
         $timeline = $this->timelineService->build($attempt);
         $operationsCost = round((float) data_get($timeline, 'costs.operations_total_eur', 0), 2);
-        $totalCost = round($transportCost + $operationsCost, 2);
+        $totalCost = round($transportCost + $fuelCost + $operationsCost, 2);
         $totalOperationHours = round(((int) ($timeline['summary']['total_minutes'] ?? 0)) / 60, 2);
         $delayMinutes = (int) ($timeline['summary']['delay_minutes'] ?? 0);
         $isWithinDeadline = (bool) ($timeline['summary']['is_within_deadline'] ?? true);
@@ -212,8 +239,6 @@ class SimulationPreviewService
             && $chainValid
             && $fuelSelectionsLogical
             && (!$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
-            && $resourceCompatibilityValid
-            && (!$enforceHandlingCompatibility || ($handlingValidation['valid'] ?? false))
             && $isWithinDeadline;
 
         $hints = [
@@ -231,12 +256,12 @@ class SimulationPreviewService
         }
 
         if (!$resourceCompatibilityValid) {
-            $hints['critical'][] = 'Ostas un kuga kombinacija nav korekta sim risinajumam.';
+            $hints['optimization'][] = 'Ostas un kuga kombinacija samazina risinajuma kvalitati un rada saderibas sodu.';
         }
 
         if ($enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
             foreach ($handlingValidation['errors'] ?? [] as $reason) {
-                $hints['critical'][] = $reason;
+                $hints['optimization'][] = $reason;
             }
         }
 
@@ -246,6 +271,14 @@ class SimulationPreviewService
 
         if (!$rangePlanValid) {
             $hints['critical'][] = 'Transporta darbibas radiuss tiek parsniegts starp uzpildem.';
+        }
+
+        if ($assumesDepotRefuel) {
+            $hints['info'][] = "Kopejais {$totalDrivenDistanceKm} km nobraukums neietilpst viena baka. Simulacija pienem {$estimatedRefuelEvents} uzpildes starp reisiem, jo marsruta viens virziens ietilpst transporta radiusa.";
+        }
+
+        if ($fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
+            $hints['info'][] = "Degvielas izmaksas aprekinatas ar noklusejuma cenu {$fuelPricePerLiter} EUR/L, jo izveletajai pieturai nav noradita cena.";
         }
 
         foreach ($selectedFuelPlan['issues'] as $issue) {
@@ -397,6 +430,9 @@ class SimulationPreviewService
             'route' => [
                 'segments_count' => $segments->count(),
                 'distance_km' => $totalDistanceKm,
+                'total_driven_distance_km' => $totalDrivenDistanceKm,
+                'outbound_distance_km' => round($outboundDistanceKm * $vehicleCount, 2),
+                'return_distance_km' => round($returnDistanceKm * $vehicleCount, 2),
                 'start' => $segments->first()?->fromLocation->name ?? '---',
                 'end' => $segments->last()?->toLocation->name ?? '---',
                 'segments' => $segments->map(function ($segment) {
@@ -411,6 +447,11 @@ class SimulationPreviewService
             ],
             'fuel' => [
                 'stops_count' => $fuelStopsCount,
+                'max_range_km' => $maxRangeKm,
+                'total_driven_distance_km' => $totalDrivenDistanceKm,
+                'estimated_tank_loads' => $estimatedTankLoads,
+                'estimated_refuel_events' => $estimatedRefuelEvents,
+                'assumes_depot_refuel' => $assumesDepotRefuel,
                 'stops' => $fuelStations->map(function ($station) use ($selectedFuelPlan) {
                     $matchedStop = collect($selectedFuelPlan['selected_positions'] ?? [])
                         ->firstWhere('station_id', $station->id);
@@ -489,6 +530,9 @@ class SimulationPreviewService
                 'score_breakdown' => $scoreBreakdown,
                 'cost_breakdown' => [
                     'transport_cost' => $transportCost,
+                    'fuel_cost' => $fuelCost,
+                    'fuel_price_per_liter' => $fuelPricePerLiter,
+                    'fuel_price_source' => $fuelPriceSource,
                     'operations_cost' => $operationsCost,
                     'day_operations_cost' => round((float) data_get($timeline, 'costs.day_operations_eur', 0), 2),
                     'night_operations_cost' => round((float) data_get($timeline, 'costs.night_operations_eur', 0), 2),
@@ -497,6 +541,56 @@ class SimulationPreviewService
                 'delay_minutes' => $delayMinutes,
                 'is_within_deadline' => $isWithinDeadline,
             ],
+        ];
+    }
+
+    private function resolveFuelPricePerLiter(
+        array $selectedFuelPlan,
+        $fuelStations,
+        array $mappedFuelStops,
+        float $defaultFuelPricePerLiter
+    ): array
+    {
+        $logicalStationPrices = collect($selectedFuelPlan['selected_positions'] ?? [])
+            ->filter(fn (array $position) => (bool) ($position['is_logical'] ?? false))
+            ->map(fn (array $position) => (float) data_get($position, 'station.price_per_liter', 0))
+            ->filter(fn (float $price) => $price > 0)
+            ->values();
+
+        if ($logicalStationPrices->isNotEmpty()) {
+            return [
+                'price' => round((float) $logicalStationPrices->avg(), 2),
+                'source' => 'selected_station',
+            ];
+        }
+
+        $selectedStationPrices = $fuelStations
+            ->map(fn ($station) => (float) ($station->price_per_liter ?? 0))
+            ->filter(fn (float $price) => $price > 0)
+            ->values();
+
+        if ($selectedStationPrices->isNotEmpty()) {
+            return [
+                'price' => round((float) $selectedStationPrices->avg(), 2),
+                'source' => 'selected_station',
+            ];
+        }
+
+        $routeStationPrices = collect($mappedFuelStops)
+            ->map(fn (array $stop) => (float) data_get($stop, 'station.price_per_liter', 0))
+            ->filter(fn (float $price) => $price > 0)
+            ->values();
+
+        if ($routeStationPrices->isNotEmpty()) {
+            return [
+                'price' => round((float) $routeStationPrices->avg(), 2),
+                'source' => 'route_station',
+            ];
+        }
+
+        return [
+            'price' => round(max(0.0, $defaultFuelPricePerLiter), 2),
+            'source' => 'default',
         ];
     }
 }

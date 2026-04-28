@@ -1,12 +1,21 @@
-import BackButton from '@/components/BackButton';
-import TeacherLayout from '@/layouts/TeacherLayout';
-import ShipPresetForm from '@/components/ShipPresetForm';
 import { Head, usePage } from '@inertiajs/react';
+import BackButton from '@/components/BackButton';
+import ShipPresetForm from '@/components/ShipPresetForm';
+import TeacherLayout from '@/layouts/TeacherLayout';
 
 type Ship = {
     id: number;
     name: string;
     cargo_type?: string | null;
+    cargo_mode?: string | null;
+    is_open_cargo?: boolean | null;
+    is_closed_cargo?: boolean | null;
+    supports_bulk?: boolean | null;
+    supports_container?: boolean | null;
+    supports_liquid?: boolean | null;
+    supports_refrigerated?: boolean | null;
+    supports_hazardous?: boolean | null;
+    has_onboard_crane?: boolean | null;
     capacity_containers?: string | number | null;
     capacity_tons?: string | number | null;
     draft_m?: string | number | null;
@@ -15,6 +24,26 @@ type Ship = {
     loading_capacity_containers_per_hour?: string | number | null;
     loading_capacity_tons_per_hour?: string | number | null;
     notes?: string | null;
+    handlingMethods?: Array<{
+        code: string;
+        pivot?: {
+            is_loading?: boolean | null;
+            is_unloading?: boolean | null;
+            throughput_override_containers_per_hour?: string | number | null;
+            throughput_override_tons_per_hour?: string | number | null;
+            notes?: string | null;
+        };
+    }>;
+    handling_methods?: Array<{
+        code: string;
+        pivot?: {
+            is_loading?: boolean | null;
+            is_unloading?: boolean | null;
+            throughput_override_containers_per_hour?: string | number | null;
+            throughput_override_tons_per_hour?: string | number | null;
+            notes?: string | null;
+        };
+    }>;
 };
 
 type PageProps = {
@@ -24,6 +53,7 @@ type PageProps = {
 export default function Edit() {
     const page = usePage<PageProps>();
     const ship = page.props.ship;
+    const handlingMethods = ship.handlingMethods ?? ship.handling_methods ?? [];
 
     return (
         <>
@@ -47,18 +77,20 @@ export default function Edit() {
                     isEdit
                     id={ship.id}
                     initialData={{
-                        name: ship.name ?? '',
-                        cargo_type: ship.cargo_type ?? '',
-                        capacity_containers: ship.capacity_containers ?? '',
-                        capacity_tons: ship.capacity_tons ?? '',
-                        draft_m: ship.draft_m ?? '',
-                        fuel_consumption_per_hour: ship.fuel_consumption_per_hour ?? '',
-                        speed_kmh: ship.speed_kmh ?? '',
-                        loading_capacity_containers_per_hour:
-                            ship.loading_capacity_containers_per_hour ?? '',
-                        loading_capacity_tons_per_hour:
-                            ship.loading_capacity_tons_per_hour ?? '',
-                        notes: ship.notes ?? '',
+                        ...ship,
+                        handling_methods: handlingMethods.map((method) => ({
+                            code: method.code,
+                            is_loading: method.pivot?.is_loading ?? true,
+                            is_unloading: method.pivot?.is_unloading ?? true,
+                            throughput_override_containers_per_hour:
+                                method.pivot
+                                    ?.throughput_override_containers_per_hour ??
+                                null,
+                            throughput_override_tons_per_hour:
+                                method.pivot?.throughput_override_tons_per_hour ??
+                                null,
+                            notes: method.pivot?.notes ?? null,
+                        })),
                     }}
                 />
             </TeacherLayout>

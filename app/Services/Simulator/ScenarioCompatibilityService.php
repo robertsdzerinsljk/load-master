@@ -378,7 +378,7 @@ class ScenarioCompatibilityService
         $includeShipSource = (bool) ($template->allow_ship_equipment ?? true);
 
         if ($includePortSource) {
-            $portMethods = $port && ($portCompatibility['compatible'] ?? false)
+            $portMethods = $port
                 ? $this->resolvePortMethods($port, $direction, $cargo, $template)
                 : [];
 
@@ -395,7 +395,7 @@ class ScenarioCompatibilityService
         }
 
         if ($includeShipSource) {
-            $shipMethods = $ship && ($shipCompatibility['compatible'] ?? false)
+            $shipMethods = $ship
                 ? $this->resolveShipMethods($ship, $direction, $cargo, $template)
                 : [];
 
@@ -424,7 +424,7 @@ class ScenarioCompatibilityService
             ? $this->mapConfiguredMethods($port->handlingMethods, 'port', $direction, $cargo, $template, $port, null)
             : $this->inferPortMethods($port, $direction, $cargo, $template);
 
-        return array_values($methods);
+        return array_values($methods ?: $this->fallbackMethodOptions('port', $template));
     }
 
     private function resolveShipMethods(
@@ -437,7 +437,30 @@ class ScenarioCompatibilityService
             ? $this->mapConfiguredMethods($ship->handlingMethods, 'ship', $direction, $cargo, $template, null, $ship)
             : $this->inferShipMethods($ship, $direction, $cargo, $template);
 
-        return array_values($methods);
+        return array_values($methods ?: $this->fallbackMethodOptions('ship', $template));
+    }
+
+    private function fallbackMethodOptions(string $source, OrderTemplate $template): array
+    {
+        $result = [];
+
+        foreach (self::DEFAULT_METHODS as $code => $definition) {
+            if (!$this->templateAllowsMethod($template, $code)) {
+                continue;
+            }
+
+            $result[] = [
+                'code' => $code,
+                'name' => $definition['name'],
+                'source' => $source,
+                'origin' => 'scenario_fallback',
+                'throughput_containers_per_hour' => $definition['throughput_containers_per_hour'] ?? null,
+                'throughput_tons_per_hour' => $definition['throughput_tons_per_hour'] ?? null,
+                'notes' => 'Available as a practice choice even when the selected resource profile does not expose a matching method.',
+            ];
+        }
+
+        return $this->uniqueMethodOptions($result);
     }
 
     private function mapConfiguredMethods(

@@ -1,5 +1,3 @@
-import StudentLayout from '@/layouts/StudentLayout';
-import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
@@ -16,15 +14,17 @@ import SimulatorProgress from '@/components/student/simulator/SimulatorProgress'
 import TransportStep from '@/components/student/simulator/TransportStep';
 
 import {
-    Attempt,
-    PageProps,
     simulatorSteps,
-    TimelineEvent,
-    TimelineSummary,
     attemptPortName,
     attemptShipName,
 } from '@/components/student/simulator/types';
-import type { SimulatorStepStatus } from '@/components/student/simulator/types';
+import type { SimulatorStepStatus ,
+    Attempt,
+    PageProps,
+    TimelineEvent,
+    TimelineSummary} from '@/components/student/simulator/types';
+import StudentLayout from '@/layouts/StudentLayout';
+import TeacherLayout from '@/layouts/TeacherLayout';
 
 function getCsrfToken() {
     return (
@@ -139,6 +139,7 @@ export default function StudentSimulatorShow() {
     useEffect(() => {
         if (!message) {
             setShowToast(false);
+
             return;
         }
 
@@ -190,6 +191,7 @@ export default function StudentSimulatorShow() {
         const idx = enabledStepDefs.findIndex(
             (step) => step.key === attempt.current_step,
         );
+
         return idx >= 0 ? idx : 0;
     }, [attempt.current_step, enabledStepDefs]);
     const currentStepNumber = currentStepIndex + 1;
@@ -488,8 +490,7 @@ export default function StudentSimulatorShow() {
         hasStep('fuel') && !!template.requires_refuel_planning;
     const isHandlingReady =
         (!loadingSelectionRequired || !!selectedLoadingMethodCode) &&
-        (!unloadingSelectionRequired || !!selectedUnloadingMethodCode) &&
-        handlingErrors.length === 0;
+        (!unloadingSelectionRequired || !!selectedUnloadingMethodCode);
 
     const canPreview = useMemo(() => {
         if (hasStep('transport')) {
@@ -535,6 +536,7 @@ export default function StudentSimulatorShow() {
 
     const hasPreview = !!attempt.preview_result;
     const isPreviewValid = attempt.preview_result?.result?.is_valid === true;
+    const showLegacyHandlingPanel = false as boolean;
 
     const stepStatuses = useMemo<Record<string, SimulatorStepStatus>>(() => {
         const statuses: Record<string, SimulatorStepStatus> = {};
@@ -932,6 +934,7 @@ export default function StudentSimulatorShow() {
                 }
 
                 setSaveState('error');
+
                 return;
             }
 
@@ -1019,6 +1022,7 @@ export default function StudentSimulatorShow() {
 
                 return;
             }
+
             syncAttemptResponse(data);
             markSaved();
 
@@ -1057,6 +1061,7 @@ export default function StudentSimulatorShow() {
 
             if (!response.ok) {
                 setMessage(data.message || 'Neizdevās pievienot segmentu.');
+
                 return;
             }
 
@@ -1093,6 +1098,7 @@ export default function StudentSimulatorShow() {
 
             if (!response.ok) {
                 setMessage(data.message || 'Neizdevās noņemt segmentu.');
+
                 return;
             }
 
@@ -1134,6 +1140,7 @@ export default function StudentSimulatorShow() {
 
             if (!response.ok) {
                 setMessage(data.message || 'Neizdevās pārvietot segmentu.');
+
                 return;
             }
 
@@ -1174,6 +1181,7 @@ export default function StudentSimulatorShow() {
                 setMessage(
                     data.message || 'Neizdevās pievienot degvielas pieturu.',
                 );
+
                 return;
             }
 
@@ -1212,6 +1220,7 @@ export default function StudentSimulatorShow() {
                 setMessage(
                     data.message || 'Neizdevās noņemt degvielas pieturu.',
                 );
+
                 return;
             }
 
@@ -1243,6 +1252,7 @@ export default function StudentSimulatorShow() {
 
         if (index <= currentIndex) {
             await saveStep(stepKey);
+
             return;
         }
 
@@ -1347,6 +1357,7 @@ export default function StudentSimulatorShow() {
                 setMessage(
                     data.message || 'Neizdevās pārvietot degvielas pieturu.',
                 );
+
                 return;
             }
 
@@ -1555,7 +1566,7 @@ export default function StudentSimulatorShow() {
                                         loading={loading}
                                     />
 
-                                    {false && (
+                                    {showLegacyHandlingPanel && (
                                         <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
                                         <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                             Kravas apstrāde

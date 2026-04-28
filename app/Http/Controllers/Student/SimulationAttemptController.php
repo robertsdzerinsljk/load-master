@@ -788,10 +788,6 @@ class SimulationAttemptController extends Controller
             if (($handlingContext['unloading']['required'] ?? false) && !$attempt->selected_unloading_method_code) {
                 $errors[] = 'Jaizvelas izkrausanas metode.';
             }
-
-            foreach ((array) ($handlingContext['validation']['errors'] ?? []) as $error) {
-                $errors[] = $error;
-            }
         }
 
         return array_values(array_unique(array_filter($errors)));
@@ -850,9 +846,38 @@ class SimulationAttemptController extends Controller
     private function prepareAttemptForClient(SimulationAttempt $attempt): SimulationAttempt
     {
         $this->loadAttemptStateRelations($attempt);
+        $this->refreshStalePreview($attempt);
         $this->appendHandlingContext($attempt);
 
         return $this->sanitizeAttemptForStudent($attempt);
+    }
+
+    private function refreshStalePreview(SimulationAttempt $attempt): void
+    {
+        if (!is_array($attempt->preview_result)) {
+            return;
+        }
+
+        $fuelCost = data_get($attempt->preview_result, 'result.cost_breakdown.fuel_cost');
+        $fuelLiters = data_get($attempt->preview_result, 'result.fuel_needed_liters');
+
+        if (
+            data_get($attempt->preview_result, 'route.total_driven_distance_km') !== null
+            && data_get($attempt->preview_result, 'fuel.estimated_refuel_events') !== null
+            && $fuelCost !== null
+            && !((float) $fuelLiters > 0 && (float) $fuelCost <= 0)
+        ) {
+            return;
+        }
+
+        $preview = $this->previewService->build($attempt);
+        $attempt->preview_result = $preview;
+        $attempt->total_cost = $preview['result']['total_cost'] ?? null;
+        $attempt->total_time_hours = $preview['result']['trip_time_hours'] ?? null;
+        $attempt->total_fuel_liters = $preview['result']['fuel_needed_liters'] ?? null;
+        $attempt->is_valid = $preview['result']['is_valid'] ?? null;
+        $attempt->score = $preview['result']['score'] ?? null;
+        $attempt->save();
     }
 
     private function resetHandlingState(SimulationAttempt $attempt): void

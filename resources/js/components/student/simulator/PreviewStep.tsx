@@ -238,7 +238,7 @@ export default function PreviewStep({
         <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="max-w-3xl">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                         <Sparkles className="h-3.5 w-3.5" />
                         {stepNumber}. solis
                     </div>
@@ -261,7 +261,9 @@ export default function PreviewStep({
                         disabled={loading || !canPreview}
                         className="inline-flex items-center gap-2 rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        {preview ? 'Pārrēķināt simulāciju' : 'Palaist simulāciju'}
+                        {preview
+                            ? 'Pārrēķināt simulāciju'
+                            : 'Palaist simulāciju'}
                         <ArrowRight className="h-4 w-4" />
                     </button>
 
@@ -269,7 +271,9 @@ export default function PreviewStep({
                         <>
                             <button
                                 type="button"
-                                onClick={() => setIsPlaying((current) => !current)}
+                                onClick={() =>
+                                    setIsPlaying((current) => !current)
+                                }
                                 className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
                             >
                                 {isPlaying ? (
@@ -327,13 +331,16 @@ export default function PreviewStep({
                         <MetricCard
                             label="Maršruts"
                             value={`${route?.start ?? '—'} → ${route?.end ?? '—'}`}
-                            detail={`${route?.segments_count ?? 0} posmi`}
+                            detail={`${formatMetric(route?.total_driven_distance_km ?? route?.distance_km, ' km')} kopa`}
                             icon={RouteIcon}
                         />
                         <MetricCard
                             label="Degviela"
-                            value={formatMetric(result?.fuel_needed_liters, ' L')}
-                            detail={`${fuel?.stops_count ?? 0} pieturas`}
+                            value={formatMetric(
+                                result?.fuel_needed_liters,
+                                ' L',
+                            )}
+                            detail={`${formatMetric(fuel?.estimated_refuel_events ?? fuel?.stops_count ?? 0)} uzpildes, ${formatMetric(result?.required_trips)} reisi`}
                             icon={Fuel}
                         />
                         <MetricCard
@@ -345,18 +352,24 @@ export default function PreviewStep({
                         <MetricCard
                             label="Kopējās izmaksas"
                             value={formatMetric(result?.total_cost, ' €')}
-                            detail="Pēc aprēķina"
+                            detail={`Degviela ${formatMetric(costBreakdown?.fuel_cost, ' €')}`}
                             icon={ClipboardCheck}
                         />
                         <MetricCard
                             label="Operāciju izmaksas"
-                            value={formatMetric(costBreakdown?.operations_cost, ' €')}
+                            value={formatMetric(
+                                costBreakdown?.operations_cost,
+                                ' €',
+                            )}
                             detail="Darbs, tehnika un maiņu laiks"
                             icon={Package}
                         />
                         <MetricCard
-                            label="Nakts piemaksa"
-                            value={formatMetric(costBreakdown?.night_operations_cost, ' €')}
+                            label="Nakts operacijas"
+                            value={formatMetric(
+                                costBreakdown?.night_operations_cost,
+                                ' €',
+                            )}
                             detail={`${timelineCosts?.night_operation_minutes ?? 0} min naktī`}
                             icon={Clock3}
                         />
@@ -364,12 +377,19 @@ export default function PreviewStep({
                             label="Reisi"
                             value={formatMetric(result?.required_trips)}
                             detail={
-                                result?.is_valid
-                                    ? 'Risinājums derīgs'
-                                    : 'Jāizlabo kritiskie punkti'
+                                Number(result?.required_trips ?? 0) > 1
+                                    ? 'Vairāki pārvadājumi'
+                                    : result?.is_valid
+                                      ? 'Risinājums derīgs'
+                                      : 'Jāizlabo kritiskie punkti'
                             }
                             icon={CheckCircle2}
-                            tone={result?.is_valid ? 'success' : 'warning'}
+                            tone={
+                                result?.is_valid &&
+                                Number(result?.required_trips ?? 0) <= 1
+                                    ? 'success'
+                                    : 'warning'
+                            }
                         />
                     </div>
 
@@ -377,7 +397,7 @@ export default function PreviewStep({
                         <div className="mt-6 rounded-[28px] border border-[#d7e5db] bg-[linear-gradient(135deg,#f8fbf9_0%,#eff7f2_100%)] p-5">
                             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                 <div className="max-w-2xl">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                         <ScanSearch className="h-3.5 w-3.5" />
                                         Simulācijas skats
                                     </div>
@@ -464,7 +484,8 @@ export default function PreviewStep({
                                             nodeX < tokenX - 16 ||
                                             (index === currentNodeIndex &&
                                                 eventProgress >= 0.98);
-                                        const isCurrent = index === currentNodeIndex;
+                                        const isCurrent =
+                                            index === currentNodeIndex;
 
                                         return (
                                             <div
@@ -483,7 +504,10 @@ export default function PreviewStep({
                                                             : '',
                                                     )}
                                                 >
-                                                    <NodeIcon kind={node.kind} className="h-6 w-6" />
+                                                    <NodeIcon
+                                                        kind={node.kind}
+                                                        className="h-6 w-6"
+                                                    />
                                                 </div>
 
                                                 <div className="rounded-2xl border border-white/80 bg-white/90 px-3 py-3 shadow-sm">
@@ -504,7 +528,7 @@ export default function PreviewStep({
                                 <div className="rounded-[24px] border border-[#d7e5db] bg-white/90 p-4 shadow-sm">
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div>
-                                            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+                                            <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                                                 Aktīvais notikums
                                             </div>
                                             <div className="mt-2 text-[18px] font-semibold text-[#182219]">
@@ -513,7 +537,9 @@ export default function PreviewStep({
                                             </div>
                                             <p className="mt-2 text-[14px] leading-6 text-[#5b6b61]">
                                                 {currentEvent
-                                                    ? describeEvent(currentEvent)
+                                                    ? describeEvent(
+                                                          currentEvent,
+                                                      )
                                                     : 'Kad palaidīsi simulāciju, šeit redzēsi pašreizējo notikumu un tā gaitu.'}
                                             </p>
                                         </div>
@@ -535,7 +561,9 @@ export default function PreviewStep({
                                         />
                                         <InfoPill
                                             icon={MapPinned}
-                                            label={formatEventWindow(currentEvent)}
+                                            label={formatEventWindow(
+                                                currentEvent,
+                                            )}
                                         />
                                         {currentEvent?.meta?.trip ? (
                                             <InfoPill
@@ -543,18 +571,20 @@ export default function PreviewStep({
                                                 label={`Reiss ${String(currentEvent.meta.trip)}`}
                                             />
                                         ) : null}
-                                        {typeof currentEvent?.meta?.expense_total_eur ===
-                                        'number' ? (
+                                        {typeof currentEvent?.meta
+                                            ?.expense_total_eur === 'number' ? (
                                             <InfoPill
                                                 icon={ClipboardCheck}
                                                 label={`Izmaksas ${formatMetric(currentEvent.meta.expense_total_eur as number, ' €')}`}
                                             />
                                         ) : null}
-                                        {typeof currentEvent?.meta?.phase === 'string' ? (
+                                        {typeof currentEvent?.meta?.phase ===
+                                        'string' ? (
                                             <InfoPill
                                                 icon={Clock3}
                                                 label={
-                                                    currentEvent.meta.phase === 'night'
+                                                    currentEvent.meta.phase ===
+                                                    'night'
                                                         ? 'Nakts maiņa'
                                                         : 'Dienas maiņa'
                                                 }
@@ -564,69 +594,79 @@ export default function PreviewStep({
 
                                     {streamEvents.length ? (
                                         <div className="mt-5 space-y-2">
-                                            {streamEvents.map((event, index) => {
-                                                const actualIndex =
-                                                    streamStartIndex + index;
-                                                const appearance = eventAppearance(
-                                                    event.type,
-                                                );
-                                                const StreamEventIcon =
-                                                    appearance.icon;
+                                            {streamEvents.map(
+                                                (event, index) => {
+                                                    const actualIndex =
+                                                        streamStartIndex +
+                                                        index;
+                                                    const appearance =
+                                                        eventAppearance(
+                                                            event.type,
+                                                        );
+                                                    const StreamEventIcon =
+                                                        appearance.icon;
 
-                                                return (
-                                                    <div
-                                                        key={`${event.type}-${event.start_at}-${actualIndex}`}
-                                                        className={cn(
-                                                            'flex items-center gap-3 rounded-2xl border px-3 py-3',
-                                                            actualIndex ===
-                                                                safeActiveEventIndex
-                                                                ? 'border-[#166a4d] bg-[#f3faf6]'
-                                                                : 'border-[#e4e9e4] bg-[#fbfcfb]',
-                                                        )}
-                                                    >
+                                                    return (
                                                         <div
+                                                            key={`${event.type}-${event.start_at}-${actualIndex}`}
                                                             className={cn(
-                                                                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border',
-                                                                appearance.accentClasses,
+                                                                'flex items-center gap-3 rounded-2xl border px-3 py-3',
+                                                                actualIndex ===
+                                                                    safeActiveEventIndex
+                                                                    ? 'border-[#166a4d] bg-[#f3faf6]'
+                                                                    : 'border-[#e4e9e4] bg-[#fbfcfb]',
                                                             )}
                                                         >
-                                                            <StreamEventIcon className="h-4 w-4" />
-                                                        </div>
-
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="truncate text-[14px] font-semibold text-[#182219]">
-                                                                {event.label}
+                                                            <div
+                                                                className={cn(
+                                                                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border',
+                                                                    appearance.accentClasses,
+                                                                )}
+                                                            >
+                                                                <StreamEventIcon className="h-4 w-4" />
                                                             </div>
-                                                            <div className="mt-1 text-[12px] text-[#6f7b74]">
-                                                            {formatEventWindow(event)}{' '}
-                                                            •{' '}
-                                                            {
-                                                                event.duration_minutes
-                                                            }{' '}
-                                                            min
-                                                            {typeof event.meta?.expense_total_eur ===
-                                                            'number'
-                                                                ? ` • ${formatMetric(event.meta.expense_total_eur as number, ' €')}`
-                                                                : ''}
-                                                        </div>
-                                                        </div>
 
-                                                        {actualIndex ===
-                                                        safeActiveEventIndex ? (
-                                                            <div className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#166a4d]">
-                                                                Šobrīd
-                                                                <ChevronRight className="h-3.5 w-3.5" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="truncate text-[14px] font-semibold text-[#182219]">
+                                                                    {
+                                                                        event.label
+                                                                    }
+                                                                </div>
+                                                                <div className="mt-1 text-[12px] text-[#6f7b74]">
+                                                                    {formatEventWindow(
+                                                                        event,
+                                                                    )}{' '}
+                                                                    •{' '}
+                                                                    {
+                                                                        event.duration_minutes
+                                                                    }{' '}
+                                                                    min
+                                                                    {typeof event
+                                                                        .meta
+                                                                        ?.expense_total_eur ===
+                                                                    'number'
+                                                                        ? ` • ${formatMetric(event.meta.expense_total_eur as number, ' €')}`
+                                                                        : ''}
+                                                                </div>
                                                             </div>
-                                                        ) : null}
-                                                    </div>
-                                                );
-                                            })}
+
+                                                            {actualIndex ===
+                                                            safeActiveEventIndex ? (
+                                                                <div className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#166a4d]">
+                                                                    Šobrīd
+                                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
                                         </div>
                                     ) : null}
                                 </div>
 
                                 <div className="rounded-[24px] border border-[#d7e5db] bg-white/90 p-4 shadow-sm">
-                                    <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+                                    <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                                         Diagnostika
                                     </div>
 
@@ -652,7 +692,7 @@ export default function PreviewStep({
                                                         group.classes,
                                                     )}
                                                 >
-                                                    <div className="text-[13px] font-semibold uppercase tracking-[0.16em]">
+                                                    <div className="text-[13px] font-semibold tracking-[0.16em] uppercase">
                                                         {group.title}
                                                     </div>
 
@@ -695,7 +735,7 @@ export default function PreviewStep({
             ) : canPreview ? (
                 <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
                     <div className="rounded-[24px] border border-[#d7e5db] bg-[linear-gradient(135deg,#f8fbf9_0%,#eff7f2_100%)] p-5">
-                        <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                        <div className="text-[12px] font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                             Gatavs palaišanai
                         </div>
 
@@ -713,7 +753,10 @@ export default function PreviewStep({
                         <div className="mt-5 flex flex-wrap items-center gap-2">
                             <InfoPill
                                 icon={Truck}
-                                label={attemptTransportName(attempt) ?? 'Transports izvēlēts'}
+                                label={
+                                    attemptTransportName(attempt) ??
+                                    'Transports izvēlēts'
+                                }
                             />
                             <InfoPill
                                 icon={RouteIcon}
@@ -739,7 +782,7 @@ export default function PreviewStep({
                     </div>
 
                     <div className="rounded-[24px] border border-[#d9ded9] bg-white p-5 shadow-sm">
-                        <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+                        <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                             Ko parādīsim
                         </div>
 
@@ -820,8 +863,7 @@ function buildSimulationTrack(attempt: Attempt) {
                 break;
             case 'fuel_stop':
                 nextIndex = appendTrackNode(nodes, currentIndex, {
-                    label:
-                        metaString(event.meta, 'station_name') ?? 'Uzpilde',
+                    label: metaString(event.meta, 'station_name') ?? 'Uzpilde',
                     subtitle:
                         metaString(event.meta, 'location_name') ??
                         'Degvielas pietura',
@@ -850,8 +892,7 @@ function buildSimulationTrack(attempt: Attempt) {
                         preview?.ship?.name ??
                         'Kuģis',
                     subtitle:
-                        metaString(event.meta, 'port_name') ??
-                        'Krava uz kuģa',
+                        metaString(event.meta, 'port_name') ?? 'Krava uz kuģa',
                     kind: 'ship',
                 });
                 break;
@@ -941,10 +982,7 @@ function fallbackTrackPosition(): TrackPosition {
     };
 }
 
-function metaString(
-    meta: TimelineEvent['meta'],
-    key: string,
-): string | null {
+function metaString(meta: TimelineEvent['meta'], key: string): string | null {
     const value = meta?.[key];
 
     return typeof value === 'string' && value.trim() !== '' ? value : null;
@@ -966,10 +1004,7 @@ function parseDriveLabel(label: string) {
     };
 }
 
-function formatMetric(
-    value: string | number | null | undefined,
-    suffix = '',
-) {
+function formatMetric(value: string | number | null | undefined, suffix = '') {
     if (value === null || value === undefined || value === '') {
         return '—';
     }
@@ -1051,59 +1086,51 @@ function eventAppearance(type: string | null) {
             return {
                 label: 'Iekraušana',
                 icon: Package,
-                accentClasses:
-                    'border-[#cfe3d8] bg-[#e9f5ef] text-[#166a4d]',
+                accentClasses: 'border-[#cfe3d8] bg-[#e9f5ef] text-[#166a4d]',
             };
         case 'drive':
         case 'return':
             return {
                 label: 'Pārvietojas',
                 icon: Truck,
-                accentClasses:
-                    'border-sky-200 bg-sky-50 text-sky-800',
+                accentClasses: 'border-sky-200 bg-sky-50 text-sky-800',
             };
         case 'fuel_stop':
             return {
                 label: 'Uzpilde',
                 icon: Fuel,
-                accentClasses:
-                    'border-amber-200 bg-amber-50 text-amber-800',
+                accentClasses: 'border-amber-200 bg-amber-50 text-amber-800',
             };
         case 'waiting':
         case 'port_processing':
             return {
                 label: 'Ostas posms',
                 icon: Anchor,
-                accentClasses:
-                    'border-violet-200 bg-violet-50 text-violet-800',
+                accentClasses: 'border-violet-200 bg-violet-50 text-violet-800',
             };
         case 'ship_loading':
             return {
                 label: 'Pārcelšana uz kuģi',
                 icon: Package,
-                accentClasses:
-                    'border-cyan-200 bg-cyan-50 text-cyan-800',
+                accentClasses: 'border-cyan-200 bg-cyan-50 text-cyan-800',
             };
         case 'sea_transit':
             return {
                 label: 'Jūras posms',
                 icon: Waves,
-                accentClasses:
-                    'border-teal-200 bg-teal-50 text-teal-800',
+                accentClasses: 'border-teal-200 bg-teal-50 text-teal-800',
             };
         case 'rest':
             return {
                 label: 'Atpūta',
                 icon: Clock3,
-                accentClasses:
-                    'border-[#d9ded9] bg-white text-[#5b6b61]',
+                accentClasses: 'border-[#d9ded9] bg-white text-[#5b6b61]',
             };
         default:
             return {
                 label: 'Simulācija',
                 icon: ScanSearch,
-                accentClasses:
-                    'border-[#d9ded9] bg-white text-[#5b6b61]',
+                accentClasses: 'border-[#d9ded9] bg-white text-[#5b6b61]',
             };
     }
 }
@@ -1206,7 +1233,7 @@ function MetricCard({
                       : 'border-[#d9ded9] bg-[#f8faf8]',
             )}
         >
-            <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+            <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                 <span className="text-[#166a4d]">
                     <Icon className="h-4 w-4" />
                 </span>
@@ -1220,13 +1247,7 @@ function MetricCard({
     );
 }
 
-function InfoPill({
-    icon: Icon,
-    label,
-}: {
-    icon: LucideIcon;
-    label: string;
-}) {
+function InfoPill({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
     return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d9ded9] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#506158]">
             <Icon className="h-3.5 w-3.5 text-[#166a4d]" />

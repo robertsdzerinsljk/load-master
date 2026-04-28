@@ -12,7 +12,10 @@ use App\Models\TransportTemplate;
 use App\Models\User;
 use App\Services\Simulator\SimulationPreviewService;
 use App\Services\Simulator\SimulationTimelineService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Date;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -194,6 +197,276 @@ test('timeline inserts logical fuel stops into the actual route order', function
     expect(data_get($driveEvents[0], 'meta.to_location_name'))->toBe('Panevezys Fuel Hub');
     expect(data_get($driveEvents[1], 'meta.from_location_name'))->toBe('Panevezys Fuel Hub');
     expect(data_get($fuelEvent, 'meta.distance_from_start_km'))->toBe(120.0);
+});
+
+test('timeline accepts immutable current dates when scenario start is omitted', function () {
+    Date::use(CarbonImmutable::class);
+
+    try {
+        $onRouteLocation = Location::query()->create([
+            'name' => 'Immutable Fuel Hub',
+            'country' => 'Lithuania',
+        ]);
+
+        $onRouteStation = FuelStation::query()->create([
+            'location_id' => $onRouteLocation->id,
+            'fuel_type' => 'diesel',
+            'price_per_liter' => 1.62,
+        ]);
+
+        $attempt = makeFuelPlanAttempt($onRouteStation, null);
+        $route = $attempt->routeSegments()->first();
+
+        RouteFuelStop::query()->create([
+            'land_route_id' => $route->id,
+            'fuel_station_id' => $onRouteStation->id,
+            'distance_from_start_km' => 120,
+        ]);
+
+        $timeline = app(SimulationTimelineService::class)->build($attempt->fresh());
+
+        expect($timeline['events'])->not->toBeEmpty();
+    } finally {
+        Date::useDefault();
+    }
+});
+
+test('preview treats resource and handling compatibility as scoring feedback instead of a blocker', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Practice Fuel Hub',
+        'country' => 'Lithuania',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->orderTemplate->update([
+        'requires_loading_method_choice' => true,
+        'requires_unloading_method_choice' => true,
+    ]);
+    $attempt->selectedPort->update([
+        'supports_container' => false,
+    ]);
+    $attempt->selectedShip->update([
+        'cargo_mode' => 'bulk',
+        'supports_container' => false,
+    ]);
+    $attempt->update([
+        'selected_loading_method_code' => 'gantry_crane',
+        'loading_method_source' => 'port',
+        'selected_unloading_method_code' => 'gantry_crane',
+        'unloading_method_source' => 'ship',
+    ]);
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.is_valid'))->toBeTrue();
+    expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
+        ->toContain('port_ship_compatibility');
+    expect(collect(data_get($preview, 'hints.optimization', []))->join(' '))
+        ->toContain('saderibas sodu');
+});
+
+test('preview fuel and transport cost scale with outbound and return trip distance', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Multi Trip Fuel Hub',
+        'country' => 'Lithuania',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->orderTemplate->update([
+        'cargo_amount_containers' => 25,
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.required_trips'))->toBe(3);
+    expect(data_get($preview, 'route.total_driven_distance_km'))->toBe(1200.0);
+    expect(data_get($preview, 'result.fuel_needed_liters'))->toBe(348.0);
+    expect(data_get($preview, 'fuel.estimated_refuel_events'))->toBe(1);
+    expect(data_get($preview, 'fuel.assumes_depot_refuel'))->toBeTrue();
+    expect(data_get($preview, 'result.cost_breakdown.fuel_cost'))->toBe(563.76);
+    expect(data_get($preview, 'result.cost_breakdown.transport_cost'))->toBe(1560.0);
+    expect(collect(data_get($preview, 'hints.info', []))->join(' '))
+        ->toContain('neietilpst viena baka');
+});
+
+test('selected fuel station price changes fuel cost and total cost', function () {
+    $cheapLocation = Location::query()->create([
+        'name' => 'Cheap Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+    $expensiveLocation = Location::query()->create([
+        'name' => 'Expensive Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $cheapStation = FuelStation::query()->create([
+        'location_id' => $cheapLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.20,
+    ]);
+    $expensiveStation = FuelStation::query()->create([
+        'location_id' => $expensiveLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.80,
+    ]);
+
+    $cheapAttempt = makeFuelPlanAttempt($cheapStation, '2026-04-28 08:00:00');
+    $expensiveAttempt = makeFuelPlanAttempt($expensiveStation, '2026-04-28 08:00:00');
+
+    foreach ([$cheapAttempt, $expensiveAttempt] as $attempt) {
+        $attempt->selectedTransportTemplate->update([
+            'max_range_km' => 1000,
+        ]);
+    }
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $cheapAttempt->routeSegments()->first()->id,
+        'fuel_station_id' => $cheapStation->id,
+        'distance_from_start_km' => 120,
+    ]);
+    RouteFuelStop::query()->create([
+        'land_route_id' => $expensiveAttempt->routeSegments()->first()->id,
+        'fuel_station_id' => $expensiveStation->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $cheapPreview = app(SimulationPreviewService::class)->build($cheapAttempt->fresh());
+    $expensivePreview = app(SimulationPreviewService::class)->build($expensiveAttempt->fresh());
+
+    expect(data_get($cheapPreview, 'result.fuel_needed_liters'))
+        ->toBe(data_get($expensivePreview, 'result.fuel_needed_liters'));
+    expect(data_get($cheapPreview, 'result.cost_breakdown.fuel_cost'))->toBe(83.52);
+    expect(data_get($expensivePreview, 'result.cost_breakdown.fuel_cost'))->toBe(125.28);
+    expect(data_get($expensivePreview, 'result.total_cost'))
+        ->toBeGreaterThan(data_get($cheapPreview, 'result.total_cost'));
+});
+
+test('preview uses a default fuel price when selected station has no price', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Unpriced Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => null,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00', [
+        'costs' => [
+            'default_fuel_price_per_liter' => 1.70,
+        ],
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $attempt->routeSegments()->first()->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.fuel_needed_liters'))->toBe(69.6);
+    expect(data_get($preview, 'result.cost_breakdown.fuel_price_per_liter'))->toBe(1.70);
+    expect(data_get($preview, 'result.cost_breakdown.fuel_price_source'))->toBe('default');
+    expect(data_get($preview, 'result.cost_breakdown.fuel_cost'))->toBe(118.32);
+    expect(collect(data_get($preview, 'hints.info', []))->join(' '))
+        ->toContain('noklusejuma cenu');
+});
+
+test('simulator page refreshes stored previews that use old distance metrics', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Stored Preview Fuel Hub',
+        'country' => 'Lithuania',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->orderTemplate->update([
+        'cargo_amount_containers' => 25,
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+    $attempt->update([
+        'preview_result' => [
+            'route' => [
+                'distance_km' => 240,
+                'start' => 'Riga Depot',
+                'end' => 'Klaipeda Terminal',
+            ],
+            'result' => [
+                'fuel_needed_liters' => 30.8,
+                'total_cost' => 280.99,
+                'required_trips' => 3,
+                'is_valid' => true,
+            ],
+            'timeline' => [
+                'summary' => [
+                    'total_minutes' => 60,
+                ],
+            ],
+            'hints' => [
+                'critical' => [],
+                'optimization' => [],
+                'info' => [],
+            ],
+        ],
+    ]);
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $this->actingAs(User::query()->findOrFail($attempt->user_id))
+        ->get("/student/simulator/{$attempt->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Simulator/Show')
+            ->where('attempt.preview_result.route.total_driven_distance_km', fn ($value) => (float) $value === 1200.0)
+            ->where('attempt.preview_result.result.fuel_needed_liters', fn ($value) => (float) $value === 348.0)
+            ->where('attempt.preview_result.result.cost_breakdown.transport_cost', fn ($value) => (float) $value === 1560.0));
 });
 
 test('night operations cost more than the same daytime operations', function () {
