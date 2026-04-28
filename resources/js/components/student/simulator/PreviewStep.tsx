@@ -84,6 +84,8 @@ export default function PreviewStep({
     const optimizationHints = preview?.hints?.optimization ?? [];
     const infoHints = preview?.hints?.info ?? [];
     const warnings = result?.warnings ?? [];
+    const costBreakdown = result?.cost_breakdown;
+    const timelineCosts = preview?.timeline?.costs;
 
     const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
     const [isPlaying, setIsPlaying] = useState(
@@ -316,7 +318,7 @@ export default function PreviewStep({
 
             {preview ? (
                 <>
-                    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-7">
                         <MetricCard
                             label="Maršruts"
                             value={`${route?.start ?? '—'} → ${route?.end ?? '—'}`}
@@ -340,6 +342,18 @@ export default function PreviewStep({
                             value={formatMetric(result?.total_cost, ' €')}
                             detail="Pēc aprēķina"
                             icon={ClipboardCheck}
+                        />
+                        <MetricCard
+                            label="Operāciju izmaksas"
+                            value={formatMetric(costBreakdown?.operations_cost, ' €')}
+                            detail="Darbs, tehnika un maiņu laiks"
+                            icon={Package}
+                        />
+                        <MetricCard
+                            label="Nakts piemaksa"
+                            value={formatMetric(costBreakdown?.night_operations_cost, ' €')}
+                            detail={`${timelineCosts?.night_operation_minutes ?? 0} min naktī`}
+                            icon={Clock3}
                         />
                         <MetricCard
                             label="Reisi"
@@ -524,6 +538,23 @@ export default function PreviewStep({
                                                 label={`Reiss ${String(currentEvent.meta.trip)}`}
                                             />
                                         ) : null}
+                                        {typeof currentEvent?.meta?.expense_total_eur ===
+                                        'number' ? (
+                                            <InfoPill
+                                                icon={ClipboardCheck}
+                                                label={`Izmaksas ${formatMetric(currentEvent.meta.expense_total_eur as number, ' €')}`}
+                                            />
+                                        ) : null}
+                                        {typeof currentEvent?.meta?.phase === 'string' ? (
+                                            <InfoPill
+                                                icon={Clock3}
+                                                label={
+                                                    currentEvent.meta.phase === 'night'
+                                                        ? 'Nakts maiņa'
+                                                        : 'Dienas maiņa'
+                                                }
+                                            />
+                                        ) : null}
                                     </div>
 
                                     {streamEvents.length ? (
@@ -562,15 +593,17 @@ export default function PreviewStep({
                                                                 {event.label}
                                                             </div>
                                                             <div className="mt-1 text-[12px] text-[#6f7b74]">
-                                                                {formatEventWindow(
-                                                                    event,
-                                                                )}{' '}
-                                                                •{' '}
-                                                                {
-                                                                    event.duration_minutes
-                                                                }{' '}
-                                                                min
-                                                            </div>
+                                                            {formatEventWindow(event)}{' '}
+                                                            •{' '}
+                                                            {
+                                                                event.duration_minutes
+                                                            }{' '}
+                                                            min
+                                                            {typeof event.meta?.expense_total_eur ===
+                                                            'number'
+                                                                ? ` • ${formatMetric(event.meta.expense_total_eur as number, ' €')}`
+                                                                : ''}
+                                                        </div>
                                                         </div>
 
                                                         {actualIndex ===

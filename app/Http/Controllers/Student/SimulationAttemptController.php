@@ -235,6 +235,17 @@ class SimulationAttemptController extends Controller
         if ($requestedStep === 'submit' && data_get($attempt->preview_result, 'result.is_valid') !== true) {
             $isExamMode = ($attempt->orderTemplate->evaluation_mode ?? 'practice') === 'exam';
 
+            if ($isExamMode) {
+                $attempt->current_step = $requestedStep;
+                $attempt->save();
+
+                return response()->json([
+                    'message' => 'Solis saglabāts.',
+                    'attempt' => $this->prepareAttemptForClient($attempt),
+                    'available_steps' => $availableSteps,
+                ]);
+            }
+
             return $this->blockedSubmissionResponse(
                 $isExamMode
                     ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'
@@ -607,7 +618,7 @@ class SimulationAttemptController extends Controller
             );
         }
 
-        if (data_get($attempt->preview_result, 'result.is_valid') !== true) {
+        if (!$isExamMode && data_get($attempt->preview_result, 'result.is_valid') !== true) {
             return $this->blockedSubmissionResponse(
                 $isExamMode
                     ? 'Risinājumu nevar iesniegt, kamēr tas neatbilst visām prasībām.'

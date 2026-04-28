@@ -299,6 +299,8 @@ export type PreviewResult = {
             name: string;
             location_name?: string | null;
             position?: number | null;
+            distance_from_start_km?: number | string | null;
+            is_logical?: boolean;
         }>;
     };
     port?: {
@@ -343,6 +345,14 @@ export type PreviewResult = {
     timeline?: {
         events?: TimelineEvent[];
         summary?: TimelineSummary;
+        costs?: {
+            operations_total_eur?: number | string | null;
+            day_operations_eur?: number | string | null;
+            night_operations_eur?: number | string | null;
+            day_operation_minutes?: number | null;
+            night_operation_minutes?: number | null;
+            night_shift_multiplier?: number | string | null;
+        };
     };
     hints?: {
         critical?: string[];
@@ -379,6 +389,12 @@ export type PreviewResult = {
             cost_weight?: number;
             compatibility_weight?: number;
             trips_weight?: number;
+        };
+        cost_breakdown?: {
+            transport_cost?: number | string | null;
+            operations_cost?: number | string | null;
+            day_operations_cost?: number | string | null;
+            night_operations_cost?: number | string | null;
         };
         warnings?: string[];
         delay_minutes?: number;

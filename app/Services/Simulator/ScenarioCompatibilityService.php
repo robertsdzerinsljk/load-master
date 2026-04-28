@@ -700,7 +700,7 @@ class ScenarioCompatibilityService
             return [];
         }
 
-        $shared = array_shift($codeSets);
+        $shared = $codeSets->shift();
 
         foreach ($codeSets as $codes) {
             $shared = array_values(array_intersect($shared, $codes));

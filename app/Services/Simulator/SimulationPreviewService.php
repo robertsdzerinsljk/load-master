@@ -10,6 +10,7 @@ class SimulationPreviewService
 {
     public function __construct(
         private readonly SimulationTimelineService $timelineService,
+        private readonly RouteFuelPlanService $routeFuelPlanService,
         private readonly ScenarioCompatibilityService $compatibilityService,
         private readonly HandlingValidator $handlingValidator,
         private readonly HandlingDurationCalculator $handlingDurationCalculator
@@ -25,6 +26,7 @@ class SimulationPreviewService
             'selectedShip.handlingMethods',
             'routeSegments.fromLocation',
             'routeSegments.toLocation',
+            'routeSegments.fuelStops.fuelStation.location',
             'fuelStations.location',
         ]);
 
@@ -83,7 +85,7 @@ class SimulationPreviewService
         $tripTimeHours = $avgSpeed > 0 ? round($totalDistanceKm / $avgSpeed, 2) : 0.0;
         $fuelNeededLitersPerVehicle = round(($totalDistanceKm / 100) * $fuelPer100Km, 2);
         $fuelNeededLiters = round($fuelNeededLitersPerVehicle * $vehicleCount, 2);
-        $totalCost = round(($totalDistanceKm * $costPerKm) * $vehicleCount, 2);
+        $transportCost = round(($totalDistanceKm * $costPerKm) * $vehicleCount, 2);
 
         $hasEnoughVehicles = $vehicleCount >= $requiredVehicles;
         $chainValid = true;
@@ -91,7 +93,7 @@ class SimulationPreviewService
 
         if ($segments->count() === 0) {
             $chainValid = false;
-            $warnings[] = 'Nav izvēlēts neviens maršruta segments.';
+            $warnings[] = 'Nav izvelets neviens marsruta segments.';
         }
 
         for ($i = 0; $i < $segments->count() - 1; $i++) {
@@ -100,30 +102,39 @@ class SimulationPreviewService
 
             if ($currentTo !== $nextFrom) {
                 $chainValid = false;
-                $warnings[] = 'Maršruta segmenti neveido nepārtrauktu ķēdi.';
+                $warnings[] = 'Marsruta segmenti neveido nepartrauktu kedi.';
                 break;
             }
         }
 
         $fuelStopsCount = $fuelStations->count();
-        $legsCount = max(1, $fuelStopsCount + 1);
-        $approxLegDistance = $legsCount > 0
-            ? round($totalDistanceKm / $legsCount, 2)
-            : $totalDistanceKm;
+        $mappedFuelStops = $this->routeFuelPlanService->mapRouteFuelStops($segments);
+        $selectedFuelPlan = $this->routeFuelPlanService->resolveSelectedFuelPlan(
+            $fuelStations,
+            $mappedFuelStops,
+            $totalDistanceKm,
+            $maxRangeKm
+        );
+        $approxLegDistance = $selectedFuelPlan['approx_leg_distance_km'];
 
         $needsRefuel = $totalDistanceKm > $maxRangeKm;
-        $rangePlanValid = $approxLegDistance <= $maxRangeKm;
+        $rangePlanValid = $selectedFuelPlan['range_plan_valid'];
+        $fuelSelectionsLogical = $selectedFuelPlan['logical'];
 
         if (!$hasEnoughVehicles) {
-            $warnings[] = 'Izvēlēto transportu skaits nav pietiekams visai kravai.';
+            $warnings[] = 'Izveleto transportu skaits nav pietiekams visai kravai.';
         }
 
         if ($needsRefuel && $fuelStopsCount === 0) {
-            $warnings[] = 'Maršruta attālums pārsniedz transporta darbības rādiusu, bet nav izvēlēta neviena degvielas pietura.';
+            $warnings[] = 'Marsruta attalums parsniedz transporta darbibas radiusu, bet nav izveleta neviena degvielas pietura.';
         }
 
         if (!$rangePlanValid) {
-            $warnings[] = 'Pat ar izvēlēto degvielas pieturu skaitu maršruts ir pārāk garš starp uzpildēm.';
+            $warnings[] = 'Pat ar izveleto degvielas pieturu skaitu marsruts ir parak gars starp uzpildem.';
+        }
+
+        foreach ($selectedFuelPlan['issues'] as $issue) {
+            $warnings[] = $issue;
         }
 
         $portDepth = (float) ($port->max_draft_m ?? 0);
@@ -142,12 +153,12 @@ class SimulationPreviewService
         $resourceCompatibilityValid = true;
 
         if (!$port) {
-            $warnings[] = 'Nav izvēlēta osta.';
+            $warnings[] = 'Nav izveleta osta.';
             $resourceCompatibilityValid = false;
         }
 
         if (!$ship) {
-            $warnings[] = 'Nav izvēlēts kuģis.';
+            $warnings[] = 'Nav izvelets kugis.';
             $resourceCompatibilityValid = false;
         }
 
@@ -176,7 +187,7 @@ class SimulationPreviewService
         }
 
         if ($ship && $containerCount > 0 && $shipCapacityContainers > 0 && $containerCount > $shipCapacityContainers) {
-            $warnings[] = 'Izvēlētā kuģa ietilpība nav pietiekama visai kravai.';
+            $warnings[] = 'Izveleta kuga ietilpiba nav pietiekama visai kravai.';
             $resourceCompatibilityValid = false;
         }
 
@@ -187,16 +198,19 @@ class SimulationPreviewService
         }
 
         $timeline = $this->timelineService->build($attempt);
+        $operationsCost = round((float) data_get($timeline, 'costs.operations_total_eur', 0), 2);
+        $totalCost = round($transportCost + $operationsCost, 2);
         $totalOperationHours = round(((int) ($timeline['summary']['total_minutes'] ?? 0)) / 60, 2);
         $delayMinutes = (int) ($timeline['summary']['delay_minutes'] ?? 0);
         $isWithinDeadline = (bool) ($timeline['summary']['is_within_deadline'] ?? true);
 
         if (!$isWithinDeadline) {
-            $warnings[] = "Piegāde nokavē termiņu par {$delayMinutes} minūtēm.";
+            $warnings[] = "Piegade nokave terminu par {$delayMinutes} minutem.";
         }
 
         $isValid = $hasEnoughVehicles
             && $chainValid
+            && $fuelSelectionsLogical
             && (!$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
             && $resourceCompatibilityValid
             && (!$enforceHandlingCompatibility || ($handlingValidation['valid'] ?? false))
@@ -209,15 +223,15 @@ class SimulationPreviewService
         ];
 
         if (!$hasEnoughVehicles) {
-            $hints['critical'][] = 'Izvēlēto transportu skaits nav pietiekams visai kravai.';
+            $hints['critical'][] = 'Izveleto transportu skaits nav pietiekams visai kravai.';
         }
 
         if (!$chainValid) {
-            $hints['critical'][] = 'Maršruta segmenti neveido nepārtrauktu ķēdi.';
+            $hints['critical'][] = 'Marsruta segmenti neveido nepartrauktu kedi.';
         }
 
         if (!$resourceCompatibilityValid) {
-            $hints['critical'][] = 'Ostas un kuģa kombinācija nav korekta šim risinājumam.';
+            $hints['critical'][] = 'Ostas un kuga kombinacija nav korekta sim risinajumam.';
         }
 
         if ($enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
@@ -227,23 +241,27 @@ class SimulationPreviewService
         }
 
         if ($needsRefuel && $fuelStopsCount === 0) {
-            $hints['critical'][] = 'Maršrutam nepieciešama uzpilde, bet nav izvēlēta neviena degvielas pietura.';
+            $hints['critical'][] = 'Marsrutam nepieciesama uzpilde, bet nav izveleta neviena degvielas pietura.';
         }
 
         if (!$rangePlanValid) {
-            $hints['critical'][] = 'Transporta darbības rādiuss tiek pārsniegts starp uzpildēm.';
+            $hints['critical'][] = 'Transporta darbibas radiuss tiek parsniegts starp uzpildem.';
+        }
+
+        foreach ($selectedFuelPlan['issues'] as $issue) {
+            $hints['critical'][] = $issue;
         }
 
         if (!$isWithinDeadline) {
-            $hints['critical'][] = "Risinājums nokavē termiņu par {$delayMinutes} minūtēm.";
+            $hints['critical'][] = "Risinajums nokave terminu par {$delayMinutes} minutem.";
         }
 
         if ($requiredTrips > 1) {
-            $hints['optimization'][] = "Risinājumam nepieciešami {$requiredTrips} reisi. Apsver lielāku kapacitāti vai vairāk transporta vienību.";
+            $hints['optimization'][] = "Risinajumam nepieciesami {$requiredTrips} reisi. Apsver lielaku kapacitati vai vairak transporta vienibu.";
         }
 
         if (!empty($timeline['events'])) {
-            $hints['info'][] = 'Timeline ir aprēķināts no secīgas notikumu ķēdes, ieskaitot apstrādes un gaidīšanas laikus.';
+            $hints['info'][] = 'Timeline ir aprekinats no secigas notikumu kedes, ieskaitot apstrades un gaidisanas laikus.';
         }
 
         $score = 100;
@@ -259,10 +277,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'deadline_delay',
-                'label' => 'Kavējums pret deadline',
+                'label' => 'Kavejums pret deadline',
                 'category' => 'time',
                 'amount' => $penalty,
-                'details' => "Kavējums: {$delayMinutes} min",
+                'details' => "Kavejums: {$delayMinutes} min",
             ];
         }
 
@@ -272,10 +290,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'insufficient_vehicles',
-                'label' => 'Nepietiek transporta vienību',
+                'label' => 'Nepietiek transporta vienibu',
                 'category' => 'cost',
                 'amount' => $penalty,
-                'details' => "Nepieciešami: {$requiredVehicles}, izvēlēti: {$vehicleCount}",
+                'details' => "Nepieciesami: {$requiredVehicles}, izveleti: {$vehicleCount}",
             ];
         }
 
@@ -285,10 +303,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'route_chain',
-                'label' => 'Maršruta ķēde nav nepārtraukta',
+                'label' => 'Marsruta kede nav nepartraukta',
                 'category' => 'compatibility',
                 'amount' => $penalty,
-                'details' => 'Segmenti neveido korektu secību',
+                'details' => 'Segmenti neveido korektu secibu',
             ];
         }
 
@@ -298,10 +316,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'port_ship_compatibility',
-                'label' => 'Ostas un kuģa nesaderība',
+                'label' => 'Ostas un kuga nesaderiba',
                 'category' => 'compatibility',
                 'amount' => $penalty,
-                'details' => 'Osta, kuģis vai kapacitāte nav savstarpēji korekta',
+                'details' => 'Osta, kugis vai kapacitate nav savstarpeji korekta',
             ];
         }
 
@@ -311,7 +329,7 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'handling_selection',
-                'label' => 'Kravas apstrādes nesaderība',
+                'label' => 'Kravas apstrades nesaderiba',
                 'category' => 'compatibility',
                 'amount' => $penalty,
                 'details' => implode(' ', $handlingValidation['errors'] ?? []),
@@ -324,10 +342,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'missing_fuel_stop',
-                'label' => 'Trūkst degvielas pieturas',
+                'label' => 'Trukst degvielas pieturas',
                 'category' => 'compatibility',
                 'amount' => $penalty,
-                'details' => 'Maršrutam vajadzīga uzpilde, bet nav izvēlēta neviena pietura',
+                'details' => 'Marsrutam vajadziga uzpilde, bet nav izveleta neviena pietura',
             ];
         }
 
@@ -337,10 +355,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'range_plan_invalid',
-                'label' => 'Pārāk lieli attālumi starp uzpildēm',
+                'label' => 'Parak lieli attalumi starp uzpildem',
                 'category' => 'compatibility',
                 'amount' => $penalty,
-                'details' => 'Transporta darbības rādiuss tiek pārsniegts',
+                'details' => 'Transporta darbibas radiuss tiek parsniegts',
             ];
         }
 
@@ -350,10 +368,10 @@ class SimulationPreviewService
 
             $scoreBreakdown['penalties'][] = [
                 'key' => 'too_many_trips',
-                'label' => 'Pārāk daudz reisu',
+                'label' => 'Parak daudz reisu',
                 'category' => 'trips',
                 'amount' => $penalty,
-                'details' => "Nepieciešami {$requiredTrips} reisi",
+                'details' => "Nepieciesami {$requiredTrips} reisi",
             ];
         }
 
@@ -374,18 +392,18 @@ class SimulationPreviewService
         return [
             'transport' => [
                 'id' => $transport?->id,
-                'name' => $transport?->name ?? '—',
+                'name' => $transport?->name ?? '---',
             ],
             'route' => [
                 'segments_count' => $segments->count(),
                 'distance_km' => $totalDistanceKm,
-                'start' => $segments->first()?->fromLocation->name ?? '—',
-                'end' => $segments->last()?->toLocation->name ?? '—',
+                'start' => $segments->first()?->fromLocation->name ?? '---',
+                'end' => $segments->last()?->toLocation->name ?? '---',
                 'segments' => $segments->map(function ($segment) {
                     return [
                         'id' => $segment->id,
-                        'from' => $segment->fromLocation->name ?? '—',
-                        'to' => $segment->toLocation->name ?? '—',
+                        'from' => $segment->fromLocation->name ?? '---',
+                        'to' => $segment->toLocation->name ?? '---',
                         'distance_km' => $segment->distance_km,
                         'position' => $segment->pivot->position ?? null,
                     ];
@@ -393,24 +411,29 @@ class SimulationPreviewService
             ],
             'fuel' => [
                 'stops_count' => $fuelStopsCount,
-                'stops' => $fuelStations->map(function ($station) {
+                'stops' => $fuelStations->map(function ($station) use ($selectedFuelPlan) {
+                    $matchedStop = collect($selectedFuelPlan['selected_positions'] ?? [])
+                        ->firstWhere('station_id', $station->id);
+
                     return [
                         'id' => $station->id,
-                        'name' => $station->display_name ?? $station->name ?? '—',
+                        'name' => $station->display_name ?? $station->name ?? '---',
                         'location_name' => $station->location_name ?? $station->location?->name ?? null,
                         'position' => $station->pivot->position ?? null,
+                        'distance_from_start_km' => $matchedStop['distance_from_start_km'] ?? null,
+                        'is_logical' => $matchedStop['is_logical'] ?? false,
                     ];
                 })->values(),
                 'approx_leg_distance_km' => $approxLegDistance,
             ],
             'port' => [
                 'id' => $port?->id,
-                'name' => $port?->name ?? '—',
+                'name' => $port?->name ?? '---',
                 'depth_m' => $portDepth ?: null,
             ],
             'ship' => [
                 'id' => $ship?->id,
-                'name' => $ship?->name ?? '—',
+                'name' => $ship?->name ?? '---',
                 'ship_type' => $ship?->ship_type ?? null,
                 'cargo_type' => $ship?->cargo_type ?? null,
                 'cargo_mode' => $ship?->cargo_mode ?? null,
@@ -464,6 +487,12 @@ class SimulationPreviewService
                     'trips_weight' => $tripsWeight,
                 ],
                 'score_breakdown' => $scoreBreakdown,
+                'cost_breakdown' => [
+                    'transport_cost' => $transportCost,
+                    'operations_cost' => $operationsCost,
+                    'day_operations_cost' => round((float) data_get($timeline, 'costs.day_operations_eur', 0), 2),
+                    'night_operations_cost' => round((float) data_get($timeline, 'costs.night_operations_eur', 0), 2),
+                ],
                 'warnings' => $warnings,
                 'delay_minutes' => $delayMinutes,
                 'is_within_deadline' => $isWithinDeadline,

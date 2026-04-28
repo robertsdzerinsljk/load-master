@@ -458,6 +458,11 @@ class OrderTemplateController extends Controller
             'timing_sea_transit_minutes' => 'nullable|integer|min:0|max:100000',
             'timing_max_drive_minutes_before_rest' => 'nullable|integer|min:0|max:100000',
             'timing_rest_minutes' => 'nullable|integer|min:0|max:100000',
+            'cost_day_shift_start_hour' => 'nullable|integer|min:0|max:23',
+            'cost_night_shift_start_hour' => 'nullable|integer|min:0|max:23',
+            'cost_labor_cost_per_hour_day' => 'nullable|numeric|min:0|max:100000',
+            'cost_machine_cost_per_hour_day' => 'nullable|numeric|min:0|max:100000',
+            'cost_night_shift_multiplier' => 'nullable|numeric|min:1|max:10',
 
             'waiting_port_queue_minutes' => 'nullable|integer|min:0|max:100000',
             'waiting_ship_ready_at' => 'nullable|date',
@@ -730,6 +735,24 @@ class OrderTemplateController extends Controller
             'ship_ready_at' => $validated['waiting_ship_ready_at'] ?? null,
         ];
 
+        $costConfig = [
+            'day_shift_start_hour' => isset($validated['cost_day_shift_start_hour'])
+                ? (int) $validated['cost_day_shift_start_hour']
+                : 6,
+            'night_shift_start_hour' => isset($validated['cost_night_shift_start_hour'])
+                ? (int) $validated['cost_night_shift_start_hour']
+                : 20,
+            'labor_cost_per_hour_day' => isset($validated['cost_labor_cost_per_hour_day'])
+                ? (float) $validated['cost_labor_cost_per_hour_day']
+                : 18,
+            'machine_cost_per_hour_day' => isset($validated['cost_machine_cost_per_hour_day'])
+                ? (float) $validated['cost_machine_cost_per_hour_day']
+                : 30,
+            'night_shift_multiplier' => isset($validated['cost_night_shift_multiplier'])
+                ? (float) $validated['cost_night_shift_multiplier']
+                : 1.35,
+        ];
+
         $scoring = [
             'time_weight' => isset($validated['scoring_time_weight'])
                 ? (int) $validated['scoring_time_weight']
@@ -763,6 +786,7 @@ class OrderTemplateController extends Controller
                     'ship' => false,
                 ],
                 'timing' => $timing,
+                'costs' => $costConfig,
                 'availability' => $availability,
                 'scoring' => $scoring,
                 'compatibility' => $compatibility,
@@ -777,6 +801,7 @@ class OrderTemplateController extends Controller
                     'ship' => false,
                 ],
                 'timing' => $timing,
+                'costs' => $costConfig,
                 'availability' => $availability,
                 'scoring' => $scoring,
                 'compatibility' => $compatibility,
@@ -791,6 +816,7 @@ class OrderTemplateController extends Controller
                     'ship' => true,
                 ],
                 'timing' => $timing,
+                'costs' => $costConfig,
                 'availability' => $availability,
                 'scoring' => $scoring,
                 'compatibility' => $compatibility,
@@ -805,12 +831,14 @@ class OrderTemplateController extends Controller
                     'ship' => true,
                 ],
                 'timing' => $timing,
+                'costs' => $costConfig,
                 'availability' => $availability,
                 'scoring' => $scoring,
                 'compatibility' => $compatibility,
             ],
             default => [
                 'timing' => $timing,
+                'costs' => $costConfig,
                 'availability' => $availability,
                 'scoring' => $scoring,
                 'compatibility' => $compatibility,

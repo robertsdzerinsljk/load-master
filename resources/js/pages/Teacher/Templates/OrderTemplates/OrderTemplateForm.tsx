@@ -163,6 +163,13 @@ type InitialData = {
             max_drive_minutes_before_rest?: number | string | null;
             rest_minutes?: number | string | null;
         } | null;
+        costs?: {
+            day_shift_start_hour?: number | string | null;
+            night_shift_start_hour?: number | string | null;
+            labor_cost_per_hour_day?: number | string | null;
+            machine_cost_per_hour_day?: number | string | null;
+            night_shift_multiplier?: number | string | null;
+        } | null;
         availability?: {
             port_queue_minutes?: number | string | null;
             ship_ready_at?: string | null;
@@ -437,6 +444,21 @@ export default function OrderTemplateForm({
         );
     const [timingRestMinutes, setTimingRestMinutes] = useState(
         String(initialData.scenario_config?.timing?.rest_minutes ?? 45),
+    );
+    const [costDayShiftStartHour, setCostDayShiftStartHour] = useState(
+        String(initialData.scenario_config?.costs?.day_shift_start_hour ?? 6),
+    );
+    const [costNightShiftStartHour, setCostNightShiftStartHour] = useState(
+        String(initialData.scenario_config?.costs?.night_shift_start_hour ?? 20),
+    );
+    const [costLaborCostPerHourDay, setCostLaborCostPerHourDay] = useState(
+        String(initialData.scenario_config?.costs?.labor_cost_per_hour_day ?? 18),
+    );
+    const [costMachineCostPerHourDay, setCostMachineCostPerHourDay] = useState(
+        String(initialData.scenario_config?.costs?.machine_cost_per_hour_day ?? 30),
+    );
+    const [costNightShiftMultiplier, setCostNightShiftMultiplier] = useState(
+        String(initialData.scenario_config?.costs?.night_shift_multiplier ?? 1.35),
     );
 
     const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
@@ -736,6 +758,16 @@ export default function OrderTemplateForm({
                 : Number(timingMaxDriveMinutesBeforeRest),
         timing_rest_minutes:
             timingRestMinutes === '' ? null : Number(timingRestMinutes),
+        cost_day_shift_start_hour:
+            costDayShiftStartHour === '' ? null : Number(costDayShiftStartHour),
+        cost_night_shift_start_hour:
+            costNightShiftStartHour === '' ? null : Number(costNightShiftStartHour),
+        cost_labor_cost_per_hour_day:
+            costLaborCostPerHourDay === '' ? null : Number(costLaborCostPerHourDay),
+        cost_machine_cost_per_hour_day:
+            costMachineCostPerHourDay === '' ? null : Number(costMachineCostPerHourDay),
+        cost_night_shift_multiplier:
+            costNightShiftMultiplier === '' ? null : Number(costNightShiftMultiplier),
         waiting_port_queue_minutes:
             waitingPortQueueMinutes === ''
                 ? null
@@ -1328,6 +1360,48 @@ export default function OrderTemplateForm({
                 />
 
                 <CompactGrid
+                    title="Day and night operation costs"
+                    description="Night work can cost more than daytime work for loading, fueling, port handling, and ship operations."
+                    fields={[
+                        {
+                            label: 'Day shift starts',
+                            value: costDayShiftStartHour,
+                            onChange: setCostDayShiftStartHour,
+                            error: errors.cost_day_shift_start_hour,
+                        },
+                        {
+                            label: 'Night shift starts',
+                            value: costNightShiftStartHour,
+                            onChange: setCostNightShiftStartHour,
+                            error: errors.cost_night_shift_start_hour,
+                        },
+                        {
+                            label: 'Labor €/h (day)',
+                            value: costLaborCostPerHourDay,
+                            onChange: setCostLaborCostPerHourDay,
+                            error: errors.cost_labor_cost_per_hour_day,
+                            step: '0.01',
+                        },
+                        {
+                            label: 'Machine €/h (day)',
+                            value: costMachineCostPerHourDay,
+                            onChange: setCostMachineCostPerHourDay,
+                            error: errors.cost_machine_cost_per_hour_day,
+                            step: '0.01',
+                        },
+                        {
+                            label: 'Night multiplier',
+                            value: costNightShiftMultiplier,
+                            onChange: setCostNightShiftMultiplier,
+                            error: errors.cost_night_shift_multiplier,
+                            type: 'number',
+                            min: '1',
+                            step: '0.01',
+                        },
+                    ]}
+                />
+
+                <CompactGrid
                     title="Scoring weights"
                     description="Keep the weights readable and grouped so future tuning does not need schema work."
                     fields={[
@@ -1826,6 +1900,8 @@ function CompactGrid({
         error?: string;
         disabled?: boolean;
         type?: string;
+        min?: string;
+        step?: string;
     }>;
 }) {
     return (
@@ -1841,8 +1917,16 @@ function CompactGrid({
                     <Field key={field.label} label={field.label} error={field.error}>
                         <input
                             type={field.type ?? 'number'}
-                            min={field.type === 'datetime-local' ? undefined : '0'}
-                            step={field.type === 'datetime-local' ? undefined : '1'}
+                            min={
+                                field.type === 'datetime-local'
+                                    ? undefined
+                                    : (field.min ?? '0')
+                            }
+                            step={
+                                field.type === 'datetime-local'
+                                    ? undefined
+                                    : (field.step ?? '1')
+                            }
                             value={field.value}
                             onChange={(event) => field.onChange(event.target.value)}
                             disabled={field.disabled}

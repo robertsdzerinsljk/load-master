@@ -69,7 +69,7 @@ test('practice mode rejects invalid submit attempts and keeps the attempt open',
     expect($attempt->current_step)->toBe('simulation');
 });
 
-test('exam mode rejects invalid submit attempts without exposing a target step', function () {
+test('exam mode allows invalid submit attempts without exposing hints or step redirects', function () {
     $student = User::factory()->create([
         'role' => 'student',
     ]);
@@ -78,10 +78,30 @@ test('exam mode rejects invalid submit attempts without exposing a target step',
 
     $this->actingAs($student)
         ->postJson("/student/simulator/attempt/{$attempt->id}/submit")
-        ->assertStatus(422)
-        ->assertJsonMissingPath('target_step');
+        ->assertOk()
+        ->assertJsonMissingPath('target_step')
+        ->assertJsonPath('attempt.status', 'submitted');
 
-    expect($attempt->refresh()->status)->toBe('in_progress');
+    expect($attempt->refresh()->status)->toBe('submitted');
+    expect($attempt->current_step)->toBe('submit');
+});
+
+test('exam mode can move to submit step even when preview is invalid', function () {
+    $student = User::factory()->create([
+        'role' => 'student',
+    ]);
+
+    $attempt = makeInvalidAttempt($student, 'exam');
+
+    $this->actingAs($student)
+        ->postJson("/student/simulator/attempt/{$attempt->id}/step", [
+            'current_step' => 'submit',
+        ])
+        ->assertOk()
+        ->assertJsonMissingPath('target_step')
+        ->assertJsonPath('attempt.current_step', 'submit');
+
+    expect($attempt->refresh()->current_step)->toBe('submit');
 });
 
 test('changing a planning step invalidates preview without nulling is_valid', function () {
