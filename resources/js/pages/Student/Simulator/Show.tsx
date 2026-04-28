@@ -21,6 +21,8 @@ import {
     simulatorSteps,
     TimelineEvent,
     TimelineSummary,
+    attemptPortName,
+    attemptShipName,
 } from '@/components/student/simulator/types';
 import type { SimulatorStepStatus } from '@/components/student/simulator/types';
 
@@ -1520,12 +1522,8 @@ export default function StudentSimulatorShow() {
                                     <HandlingSelectionPanel
                                         stepNumber={currentStepNumber}
                                         handlingContext={handlingContext}
-                                        selectedPortName={
-                                            attempt.selectedPort?.name ?? null
-                                        }
-                                        selectedShipName={
-                                            attempt.selectedShip?.name ?? null
-                                        }
+                                        selectedPortName={attemptPortName(attempt)}
+                                        selectedShipName={attemptShipName(attempt)}
                                         selectedLoadingMethodCode={
                                             selectedLoadingMethodCode
                                         }

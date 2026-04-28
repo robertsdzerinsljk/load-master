@@ -3,6 +3,8 @@
 use App\Models\OrderTemplate;
 use App\Models\FuelStation;
 use App\Models\Location;
+use App\Models\Port;
+use App\Models\Ship;
 use App\Models\SimulationAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,6 +105,60 @@ test('teacher simulator uses teacher navigation and routes', function () {
         ->assertJsonPath('attempt.current_step', 'transport');
 
     expect($attempt->refresh()->current_step)->toBe('transport');
+});
+
+test('teacher simulator payload keeps selected port and ship names for handling overview', function () {
+    $teacher = User::factory()->create([
+        'role' => 'teacher',
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Teacher handling payload',
+        'evaluation_mode' => 'practice',
+        'cargo_mode' => 'containerized',
+        'cargo_amount_containers' => 32,
+        'allowed_handling_method_codes' => ['gantry_crane', 'crane'],
+    ]);
+
+    $port = Port::query()->create([
+        'name' => 'Riga Container Port',
+        'country' => 'LV',
+        'supports_container' => true,
+        'supports_refrigerated' => true,
+        'supports_hazardous' => true,
+        'has_crane' => true,
+    ]);
+
+    $ship = Ship::query()->create([
+        'name' => 'Baltic Box Carrier',
+        'cargo_mode' => 'containerized',
+        'supports_container' => true,
+        'supports_refrigerated' => true,
+        'supports_hazardous' => true,
+        'capacity_containers' => 500,
+        'draft_m' => 7,
+    ]);
+
+    $attempt = SimulationAttempt::query()->create([
+        'order_template_id' => $template->id,
+        'user_id' => $teacher->id,
+        'status' => 'teacher_testing',
+        'current_step' => 'ship',
+        'selected_port_id' => $port->id,
+        'selected_ship_id' => $ship->id,
+    ]);
+
+    $this->actingAs($teacher)
+        ->get("/teacher/simulator/{$attempt->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Simulator/Show')
+            ->where('attempt.selected_port.name', 'Riga Container Port')
+            ->where('attempt.selected_ship.name', 'Baltic Box Carrier')
+            ->where('attempt.handling_context.loading.sources.0.key', 'port')
+            ->where('attempt.handling_context.loading.sources.0.resource_name', 'Riga Container Port')
+            ->where('attempt.handling_context.unloading.sources.1.key', 'ship')
+            ->where('attempt.handling_context.unloading.sources.1.resource_name', 'Baltic Box Carrier'));
 });
 
 test('teacher can save suggested fuel stops on a template', function () {

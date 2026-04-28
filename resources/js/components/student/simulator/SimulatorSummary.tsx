@@ -1,4 +1,9 @@
 import type { ReactNode } from 'react';
+import {
+    attemptPortName,
+    attemptShipName,
+    attemptTransportName,
+} from './types';
 import type { Attempt, Template } from './types';
 import { getStatusLabel, getStepTitle, routeName } from './types';
 
@@ -71,18 +76,18 @@ export default function SimulatorSummary({ template, attempt }: Props) {
                     <SummaryRow
                         label="Transports"
                         value={
-                            attempt.selectedTransportTemplate?.name ??
+                            attemptTransportName(attempt) ??
                             preview?.transport?.name ??
                             '—'
                         }
                     />
                     <SummaryRow
                         label="Osta"
-                        value={attempt.selectedPort?.name ?? preview?.port?.name ?? '—'}
+                        value={attemptPortName(attempt) ?? preview?.port?.name ?? '—'}
                     />
                     <SummaryRow
                         label="Kugjis"
-                        value={attempt.selectedShip?.name ?? preview?.ship?.name ?? '—'}
+                        value={attemptShipName(attempt) ?? preview?.ship?.name ?? '—'}
                     />
                     <SummaryRow label="Marsruta segmenti" value={formatValue(routeSegments.length)} />
                     <SummaryRow label="Degvielas pieturas" value={formatValue(fuelStops.length)} />

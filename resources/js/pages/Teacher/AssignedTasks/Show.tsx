@@ -104,12 +104,29 @@ type AttemptPageProps = {
             type?: string | null;
             capacity_containers?: number | string | null;
         } | null;
+        selected_transport_template?: {
+            id: number;
+            name: string;
+            type?: string | null;
+            capacity_containers?: number | string | null;
+        } | null;
         selectedPort?: {
             id: number;
             name: string;
             country?: string | null;
         } | null;
+        selected_port?: {
+            id: number;
+            name: string;
+            country?: string | null;
+        } | null;
         selectedShip?: {
+            id: number;
+            name: string;
+            cargo_type?: string | null;
+            ship_type?: string | null;
+        } | null;
+        selected_ship?: {
             id: number;
             name: string;
             cargo_type?: string | null;
@@ -564,9 +581,18 @@ export default function TeacherAssignedTaskShow() {
         .filter(Boolean)
         .join(' • ') || 'Nav norādīts';
 
-    const selectedTransport = attempt.selectedTransportTemplate?.name || 'Nav izvēlēts';
-    const selectedPort = attempt.selectedPort?.name || 'Nav izvēlēta';
-    const selectedShip = attempt.selectedShip?.name || 'Nav izvēlēts';
+    const selectedTransport =
+        attempt.selectedTransportTemplate?.name ||
+        attempt.selected_transport_template?.name ||
+        'Nav izvēlēts';
+    const selectedPort =
+        attempt.selectedPort?.name ||
+        attempt.selected_port?.name ||
+        'Nav izvēlēta';
+    const selectedShip =
+        attempt.selectedShip?.name ||
+        attempt.selected_ship?.name ||
+        'Nav izvēlēts';
 
     const result = attempt.preview_result?.result;
     const timeline = attempt.preview_result?.timeline;

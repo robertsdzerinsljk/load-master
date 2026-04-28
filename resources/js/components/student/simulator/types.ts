@@ -417,8 +417,11 @@ export type Attempt = {
     loading_duration_minutes?: string | number | null;
     unloading_duration_minutes?: string | number | null;
     selectedTransportTemplate?: NamedItem | null;
+    selected_transport_template?: NamedItem | null;
     selectedPort?: PortItem | null;
+    selected_port?: PortItem | null;
     selectedShip?: ShipItem | null;
+    selected_ship?: ShipItem | null;
     total_cost?: number | string | null;
     total_time_hours?: number | string | null;
     total_fuel_liters?: number | string | null;
@@ -496,4 +499,20 @@ export function routeName(
     const fallback = side === 'from' ? route.from_location : route.to_location;
 
     return direct?.name ?? fallback?.name ?? '—';
+}
+
+export function attemptTransportName(attempt: Attempt): string | null {
+    return (
+        attempt.selectedTransportTemplate?.name ??
+        attempt.selected_transport_template?.name ??
+        null
+    );
+}
+
+export function attemptPortName(attempt: Attempt): string | null {
+    return attempt.selectedPort?.name ?? attempt.selected_port?.name ?? null;
+}
+
+export function attemptShipName(attempt: Attempt): string | null {
+    return attempt.selectedShip?.name ?? attempt.selected_ship?.name ?? null;
 }

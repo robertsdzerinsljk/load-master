@@ -22,6 +22,11 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+    attemptPortName,
+    attemptShipName,
+    attemptTransportName,
+} from './types';
 import type { Attempt, TimelineEvent } from './types';
 import { EmptyBlock } from './ui';
 
@@ -708,7 +713,7 @@ export default function PreviewStep({
                         <div className="mt-5 flex flex-wrap items-center gap-2">
                             <InfoPill
                                 icon={Truck}
-                                label={attempt.selectedTransportTemplate?.name ?? 'Transports izvēlēts'}
+                                label={attemptTransportName(attempt) ?? 'Transports izvēlēts'}
                             />
                             <InfoPill
                                 icon={RouteIcon}
@@ -718,16 +723,16 @@ export default function PreviewStep({
                                 icon={Fuel}
                                 label={`${attempt.ordered_fuel_stations?.length ?? 0} degvielas pieturas`}
                             />
-                            {attempt.selectedPort?.name ? (
+                            {attemptPortName(attempt) ? (
                                 <InfoPill
                                     icon={Anchor}
-                                    label={attempt.selectedPort.name}
+                                    label={attemptPortName(attempt) ?? ''}
                                 />
                             ) : null}
-                            {attempt.selectedShip?.name ? (
+                            {attemptShipName(attempt) ? (
                                 <InfoPill
                                     icon={Ship}
-                                    label={attempt.selectedShip.name}
+                                    label={attemptShipName(attempt) ?? ''}
                                 />
                             ) : null}
                         </div>

@@ -78,8 +78,26 @@ export default function HandlingSelectionPanel({
     const portReasons = handlingContext?.resource_checks?.port?.reasons ?? [];
     const shipReasons = handlingContext?.resource_checks?.ship?.reasons ?? [];
     const pairReasons = handlingContext?.resource_checks?.pair?.reasons ?? [];
+    const derivedPortName =
+        selectedPortName ||
+        loadingSources.find((source) => source.key === 'port')?.resource_name ||
+        unloadingSources.find((source) => source.key === 'port')?.resource_name ||
+        null;
+    const derivedShipName =
+        selectedShipName ||
+        loadingSources.find((source) => source.key === 'ship')?.resource_name ||
+        unloadingSources.find((source) => source.key === 'ship')?.resource_name ||
+        null;
+    const hasAnyHandlingContext =
+        loadingSources.length > 0 ||
+        unloadingSources.length > 0 ||
+        loadingErrors.length > 0 ||
+        loadingWarnings.length > 0 ||
+        portReasons.length > 0 ||
+        shipReasons.length > 0 ||
+        pairReasons.length > 0;
 
-    if (!selectedPortName || !selectedShipName) {
+    if (!hasAnyHandlingContext && (!derivedPortName || !derivedShipName)) {
         return (
             <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
@@ -92,7 +110,7 @@ export default function HandlingSelectionPanel({
                 </h3>
 
                 <p className="mt-2 rounded-2xl border border-dashed border-[#d9ded9] bg-[#f8fbf9] px-4 py-4 text-[14px] leading-6 text-[#5b6b61]">
-                    Izvelies ostu un kugji, lai redzetu savietojamas iekrausanas un izkrausanas metodes.
+                    Izvelies ostu un kugi, lai redzetu savietojamas iekrausanas un izkrausanas metodes.
                 </p>
             </section>
         );
@@ -117,8 +135,16 @@ export default function HandlingSelectionPanel({
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                    <ResourcePill icon={<Anchor className="h-3.5 w-3.5" />} label="Osta" value={selectedPortName} />
-                    <ResourcePill icon={<Ship className="h-3.5 w-3.5" />} label="Kugjis" value={selectedShipName} />
+                    <ResourcePill
+                        icon={<Anchor className="h-3.5 w-3.5" />}
+                        label="Osta"
+                        value={derivedPortName ?? 'Nav ieladets nosaukums'}
+                    />
+                    <ResourcePill
+                        icon={<Ship className="h-3.5 w-3.5" />}
+                        label="Kugjis"
+                        value={derivedShipName ?? 'Nav ieladets nosaukums'}
+                    />
                 </div>
             </div>
 
