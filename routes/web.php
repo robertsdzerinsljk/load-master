@@ -139,6 +139,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('teacher.templates.order-templates.edit');
         Route::put('/{id}', [OrderTemplateController::class, 'update'])
             ->name('teacher.templates.order-templates.update');
+        Route::delete('/{id}', [OrderTemplateController::class, 'destroy'])
+            ->name('teacher.templates.order-templates.destroy');
     });
 
     /*

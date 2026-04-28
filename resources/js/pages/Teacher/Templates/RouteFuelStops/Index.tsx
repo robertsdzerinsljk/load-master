@@ -18,6 +18,9 @@ type RouteFuelStop = {
         } | null;
     } | null;
     fuelStation?: {
+        id?: number;
+        display_name?: string | null;
+        location_name?: string | null;
         location?: {
             name: string;
             city?: string | null;
@@ -109,7 +112,13 @@ export default function TeacherRouteFuelStopsIndex() {
                     {filtered.length > 0 ? (
                         filtered.map((item) => {
                             const routeLabel = `${item.landRoute?.fromLocation?.name ?? '—'} → ${item.landRoute?.toLocation?.name ?? '—'}`;
-                            const stationLabel = item.fuelStation?.location?.name ?? '—';
+                            const stationLabel =
+                                item.fuelStation?.location?.name ??
+                                item.fuelStation?.display_name ??
+                                item.fuelStation?.location_name ??
+                                (item.fuelStation?.id
+                                    ? `Uzpildes vieta #${item.fuelStation.id}`
+                                    : 'Uzpildes vieta');
 
                             return (
                                 <RouteFuelStopPresetCard

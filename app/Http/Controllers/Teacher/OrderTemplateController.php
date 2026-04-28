@@ -144,6 +144,28 @@ class OrderTemplateController extends Controller
         return redirect()->route('teacher.templates.order-templates.show', $template->id);
     }
 
+    public function destroy(int $id)
+    {
+        $template = OrderTemplate::query()->findOrFail($id);
+
+        $template->transportTemplates()->detach();
+        $template->ships()->detach();
+        $template->ports()->detach();
+        $template->landRoutes()->detach();
+        $template->fuelStations()->detach();
+        $template->assignedUsers()->detach();
+
+        SimulationAttempt::query()
+            ->where('order_template_id', $template->id)
+            ->delete();
+
+        $template->delete();
+
+        return redirect()
+            ->route('teacher.templates.order-templates')
+            ->with('success', 'Sagatave izdzēsta.');
+    }
+
     public function preview(Request $request, LandTransportCalculator $calculator)
     {
         $validated = $request->validate([

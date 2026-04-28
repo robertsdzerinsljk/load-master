@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\FuelStation;
 use App\Models\LandRoute;
+use App\Models\Location;
 use App\Models\RouteFuelStop;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +26,8 @@ class RouteFuelStopController extends Controller
 
     public function create()
     {
+        $this->ensureFuelStationsFromFuelLocations();
+
         return Inertia::render('Teacher/Templates/RouteFuelStops/Create', [
             'routes' => LandRoute::with([
                 'fromLocation:id,name,city,country,type',
@@ -50,6 +53,7 @@ class RouteFuelStopController extends Controller
     public function edit($id)
     {
         $routeFuelStop = RouteFuelStop::findOrFail($id);
+        $this->ensureFuelStationsFromFuelLocations();
 
         return Inertia::render('Teacher/Templates/RouteFuelStops/Edit', [
             'routeFuelStop' => $routeFuelStop,
@@ -107,5 +111,19 @@ class RouteFuelStopController extends Controller
         }
 
         return $validated;
+    }
+
+    private function ensureFuelStationsFromFuelLocations(): void
+    {
+        $missingFuelLocationIds = Location::query()
+            ->where('type', 'fuel_station')
+            ->whereDoesntHave('fuelStation')
+            ->pluck('id');
+
+        foreach ($missingFuelLocationIds as $locationId) {
+            FuelStation::query()->create([
+                'location_id' => $locationId,
+            ]);
+        }
     }
 }

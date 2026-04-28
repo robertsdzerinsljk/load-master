@@ -251,7 +251,15 @@ export type Template = {
         id: number;
         name: string;
     } | null;
+    temperature_mode?: {
+        id: number;
+        name: string;
+    } | null;
     specialCondition?: {
+        id: number;
+        name: string;
+    } | null;
+    special_condition?: {
         id: number;
         name: string;
     } | null;

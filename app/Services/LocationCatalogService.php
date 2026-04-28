@@ -68,6 +68,7 @@ class LocationCatalogService
         if ($types && count($types) > 0) {
             $query->where(function ($builder) use ($types, $includeIds) {
                 $builder->whereIn('type', $types);
+                $builder->orWhereNull('type');
 
                 if (count($includeIds) > 0) {
                     $builder->orWhereIn('id', $includeIds);

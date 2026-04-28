@@ -1437,6 +1437,8 @@ export default function StudentSimulatorShow() {
                         onPrev={goBackStep}
                         onNext={goNextStep}
                         availableSteps={availableSteps}
+                        hideNextButton={currentStepKey === 'intro'}
+                        isExamMode={isExamMode}
                     />
 
                     <div

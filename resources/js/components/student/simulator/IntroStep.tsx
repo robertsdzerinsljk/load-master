@@ -160,6 +160,8 @@ function SectionCard({
 }
 
 export default function IntroStep({ template, loading, onStart }: Props) {
+    const fullTemplateConfig = JSON.stringify(template, null, 2);
+
     return (
         <div className="space-y-6">
             <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
@@ -339,16 +341,40 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                         <DetailRow
                             icon={<Snowflake className="h-4 w-4" />}
                             label="Temperatūras režīms"
-                            value={template.temperatureMode?.name || 'Nav norādīts'}
+                            value={
+                                template.temperatureMode?.name ||
+                                template.temperature_mode?.name ||
+                                'Nav norādīts'
+                            }
                         />
                         <DetailRow
                             icon={<BadgeAlert className="h-4 w-4" />}
                             label="Īpašais nosacījums"
-                            value={template.specialCondition?.name || 'Nav norādīts'}
+                            value={
+                                template.specialCondition?.name ||
+                                template.special_condition?.name ||
+                                'Nav norādīts'
+                            }
                         />
                     </div>
                 </SectionCard>
             </div>
+
+            <SectionCard
+                title="Pilna uzdevuma konfigurācija"
+                subtitle="Šeit redzami visi skolotāja iestatījumi tieši tādā formā, kā tie tiek nodoti simulatoram."
+            >
+                <details className="rounded-2xl border border-[#d9ded9] bg-[#f8fbf9]">
+                    <summary className="cursor-pointer px-4 py-3 text-[14px] font-semibold text-[#182219]">
+                        Atvērt visus iestatījumus (JSON)
+                    </summary>
+                    <div className="border-t border-[#d9ded9] p-4">
+                        <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-[#e4e9e4] bg-white p-4 text-[12px] leading-5 text-[#2d3a31]">
+                            {fullTemplateConfig}
+                        </pre>
+                    </div>
+                </details>
+            </SectionCard>
         </div>
     );
 }

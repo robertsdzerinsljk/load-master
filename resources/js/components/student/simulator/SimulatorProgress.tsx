@@ -39,6 +39,8 @@ type Props = {
     onPrev?: () => void;
     onNext?: () => void;
     availableSteps: string[];
+    hideNextButton?: boolean;
+    isExamMode?: boolean;
 };
 
 type TimelinePhase = 'day' | 'night' | 'unknown';
@@ -427,6 +429,8 @@ export default function SimulatorProgress({
     onPrev,
     onNext,
     availableSteps,
+    hideNextButton = false,
+    isExamMode = false,
 }: Props) {
     const enabledSteps = simulatorSteps.filter((step) =>
         availableSteps.includes(step.key),
@@ -478,7 +482,12 @@ export default function SimulatorProgress({
         : 'border-red-200 bg-red-50 text-red-700';
 
     return (
-        <section className="overflow-hidden rounded-[28px] border border-[#d9ded9] bg-[linear-gradient(135deg,#ffffff_0%,#f7fbf8_48%,#eff7f2_100%)] p-5 shadow-sm md:p-6">
+        <section
+            className={cn(
+                'overflow-hidden rounded-[28px] border border-[#d9ded9] bg-[linear-gradient(135deg,#ffffff_0%,#f7fbf8_48%,#eff7f2_100%)] p-5 shadow-sm md:p-6',
+                isExamMode ? 'grayscale' : '',
+            )}
+        >
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="max-w-3xl">
                     <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-white/80 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
@@ -768,15 +777,17 @@ export default function SimulatorProgress({
                         Iepriekšējais solis
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={onNext}
-                        disabled={loading || safeStepIndex === totalSteps - 1}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-4 py-3 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        Nākamais solis
-                        <ChevronRight className="h-4 w-4" />
-                    </button>
+                    {!hideNextButton ? (
+                        <button
+                            type="button"
+                            onClick={onNext}
+                            disabled={loading || safeStepIndex === totalSteps - 1}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-4 py-3 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Nākamais solis
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </section>

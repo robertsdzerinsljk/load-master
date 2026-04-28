@@ -23,6 +23,7 @@ import {
     Ship,
     Sparkles,
     Thermometer,
+    Trash2,
     Truck,
 } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
@@ -446,6 +447,14 @@ export default function Show() {
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
 
+    const handleDeleteTemplate = () => {
+        if (!window.confirm('Vai tiešām dzēst šo sagatavi?')) {
+            return;
+        }
+
+        router.delete(`/teacher/templates/order-templates/${template.id}`);
+    };
+
     const startLocation = (template.startLocation ?? template.start_location)?.name ?? '—';
     const endLocation = (template.endLocation ?? template.end_location)?.name ?? '—';
 
@@ -575,6 +584,14 @@ export default function Show() {
                                 >
                                     <Pencil className="h-4 w-4" />
                                     Rediģēt
+                                </ActionButton>
+
+                                <ActionButton
+                                    variant="secondary"
+                                    onClick={handleDeleteTemplate}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Dzēst
                                 </ActionButton>
 
                                 <ActionButton

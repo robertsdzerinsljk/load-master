@@ -19,6 +19,7 @@ import {
     Thermometer,
     Truck,
     FileText,
+    Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -230,6 +231,14 @@ function TemplateRow({ template }: { template: TemplateItem }) {
     const specialCondition =
         (template.specialCondition ?? template.special_condition)?.name ?? 'Nav norādīts';
 
+    const handleDelete = () => {
+        if (!window.confirm('Vai tiešām dzēst šo sagatavi?')) {
+            return;
+        }
+
+        router.delete(`/teacher/templates/order-templates/${template.id}`);
+    };
+
     return (
         <div className="rounded-[26px] border border-[#d9ded9] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -323,6 +332,15 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                     >
                         <Pencil className="h-4 w-4" />
                         Rediģēt
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] font-medium text-red-700 transition hover:bg-red-100"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Dzēst
                     </button>
                 </div>
             </div>

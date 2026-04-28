@@ -50,11 +50,36 @@ export default function Edit({ template, options }: EditProps) {
 
                             cargo_name: template.cargo_name ?? '',
                             cargo_type: template.cargo_type ?? '',
+                            cargo_mode: template.cargo_mode ?? '',
                             cargo_amount_containers:
                                 template.cargo_amount_containers ?? '',
                             cargo_amount_tons: template.cargo_amount_tons ?? '',
                             cargo_volume_m3: template.cargo_volume_m3 ?? '',
                             cargo_value: template.cargo_value ?? '',
+                            requires_closed_space:
+                                template.requires_closed_space ?? false,
+                            requires_ventilation:
+                                template.requires_ventilation ?? false,
+                            requires_hazardous_support:
+                                template.requires_hazardous_support ?? false,
+                            allowed_ship_cargo_modes:
+                                template.allowed_ship_cargo_modes ?? [],
+                            forbidden_ship_cargo_modes:
+                                template.forbidden_ship_cargo_modes ?? [],
+                            requires_loading_method_choice:
+                                template.requires_loading_method_choice ?? false,
+                            requires_unloading_method_choice:
+                                template.requires_unloading_method_choice ?? false,
+                            allow_manual_handling:
+                                template.allow_manual_handling ?? true,
+                            allow_port_equipment:
+                                template.allow_port_equipment ?? true,
+                            allow_ship_equipment:
+                                template.allow_ship_equipment ?? true,
+                            allowed_handling_method_codes:
+                                template.allowed_handling_method_codes ?? [],
+                            required_handling_method_codes:
+                                template.required_handling_method_codes ?? [],
 
                             temperature_mode_id: template.temperature_mode_id ?? '',
                             special_condition_id: template.special_condition_id ?? '',
