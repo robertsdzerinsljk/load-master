@@ -258,48 +258,6 @@ export default function PreviewStep({
                         datu izklājumu.
                     </p>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={onPreview}
-                        disabled={loading || !canPreview}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {preview
-                            ? 'Pārrēķināt simulāciju'
-                            : 'Palaist simulāciju'}
-                        <ArrowRight className="h-4 w-4" />
-                    </button>
-
-                    {timelineEvents.length ? (
-                        <>
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setIsPlaying((current) => !current)
-                                }
-                                className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                            >
-                                {isPlaying ? (
-                                    <Pause className="h-4 w-4" />
-                                ) : (
-                                    <Play className="h-4 w-4" />
-                                )}
-                                {isPlaying ? 'Pauze' : 'Atskaņot'}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleRestart}
-                                className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
-                            >
-                                <RotateCcw className="h-4 w-4" />
-                                Sākt no jauna
-                            </button>
-                        </>
-                    ) : null}
-                </div>
             </div>
 
             <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -308,26 +266,6 @@ export default function PreviewStep({
                         ? 'Kad simulācija ir palaista, maršruts tiek attēlots kā viena notikumu līnija ar loģisku kustību starp punktiem.'
                         : 'Simulācija kļūs pieejama pēc transporta, maršruta, ostas un kuģa izvēles.'}
                 </div>
-
-                {timelineEvents.length ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                        {PLAYBACK_SPEEDS.map((speed) => (
-                            <button
-                                key={speed}
-                                type="button"
-                                onClick={() => setPlaybackSpeed(speed)}
-                                className={cn(
-                                    'rounded-full border px-3 py-1.5 text-[13px] font-semibold transition',
-                                    playbackSpeed === speed
-                                        ? 'border-[#166a4d] bg-[#166a4d] text-white'
-                                        : 'border-[#d9ded9] bg-white text-[#506158] hover:bg-[#f7f9f7]',
-                                )}
-                            >
-                                {speed}x
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
             </div>
 
             {preview ? (
@@ -419,17 +357,79 @@ export default function PreviewStep({
                                     </p>
                                 </div>
 
-                                <div
-                                    className={cn(
-                                        'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold',
-                                        result?.is_valid
-                                            ? 'border-[#cfe3d8] bg-[#e9f5ef] text-[#166a4d]'
-                                            : 'border-amber-200 bg-amber-50 text-amber-800',
-                                    )}
-                                >
-                                    {result?.is_valid
-                                        ? 'Simulācija gatava iesniegšanai'
-                                        : 'Simulācija atklāja labojamus punktus'}
+                                <div className="flex w-full flex-col gap-3 xl:w-auto xl:items-end">
+                                    <div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={onPreview}
+                                            disabled={loading || !canPreview}
+                                            className="inline-flex items-center gap-2 rounded-xl border border-[#166a4d] bg-white px-4 py-2.5 text-[14px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {preview
+                                                ? 'Pārrēķināt simulāciju'
+                                                : 'Palaist simulāciju'}
+                                            <ArrowRight className="h-4 w-4" />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setIsPlaying(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-2.5 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
+                                        >
+                                            {isPlaying ? (
+                                                <Pause className="h-4 w-4" />
+                                            ) : (
+                                                <Play className="h-4 w-4" />
+                                            )}
+                                            {isPlaying ? 'Pauze' : 'Atskaņot'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleRestart}
+                                            className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-2.5 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
+                                        >
+                                            <RotateCcw className="h-4 w-4" />
+                                            Sākt no jauna
+                                        </button>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
+                                        {PLAYBACK_SPEEDS.map((speed) => (
+                                            <button
+                                                key={speed}
+                                                type="button"
+                                                onClick={() =>
+                                                    setPlaybackSpeed(speed)
+                                                }
+                                                className={cn(
+                                                    'rounded-full border px-3 py-1.5 text-[13px] font-semibold transition',
+                                                    playbackSpeed === speed
+                                                        ? 'border-[#166a4d] bg-[#166a4d] text-white'
+                                                        : 'border-[#d9ded9] bg-white text-[#506158] hover:bg-[#f7f9f7]',
+                                                )}
+                                            >
+                                                {speed}x
+                                            </button>
+                                        ))}
+
+                                        <span
+                                            className={cn(
+                                                'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold',
+                                                result?.is_valid
+                                                    ? 'border-[#cfe3d8] bg-[#e9f5ef] text-[#166a4d]'
+                                                    : 'border-amber-200 bg-amber-50 text-amber-800',
+                                            )}
+                                        >
+                                            {result?.is_valid
+                                                ? 'Simulācija gatava iesniegšanai'
+                                                : 'Simulācija atklāja labojamus punktus'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -781,6 +781,16 @@ export default function PreviewStep({
                             punktiem, kur notiek uzpilde un kā piegāde nonāk
                             ostā vai uz kuģa.
                         </p>
+
+                        <button
+                            type="button"
+                            onClick={onPreview}
+                            disabled={loading || !canPreview}
+                            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Palaist simulāciju
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
 
                         <div className="mt-5 flex flex-wrap items-center gap-2">
                             <InfoPill

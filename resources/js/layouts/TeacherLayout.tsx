@@ -192,7 +192,7 @@ export default function TeacherLayout({
                 <button
                     type="button"
                     onClick={toggleSidebar}
-                    className="absolute top-[213px] -right-4 z-40 flex h-11 w-8 -translate-y-1/2 items-center justify-center rounded-r-full border border-l-0 border-[#145342] bg-[#1B6250] text-white shadow-sm transition hover:bg-[#164f41]"
+                    className="absolute top-[213px] -right-6 z-40 flex h-10 w-6 -translate-y-1/2 items-center justify-center rounded-r-full border border-l-0 border-[#145342] bg-[#1B6250] text-white shadow-sm transition hover:cursor-pointer hover:bg-[#164f41]"
                     aria-label={
                         collapsed
                             ? 'Atvērt sānu izvēlni'
@@ -200,9 +200,9 @@ export default function TeacherLayout({
                     }
                 >
                     {collapsed ? (
-                        <ChevronRight size={20} strokeWidth={2.6} />
+                        <ChevronRight size={20} strokeWidth={2.8} />
                     ) : (
-                        <ChevronLeft size={20} strokeWidth={2.6} />
+                        <ChevronLeft size={20} strokeWidth={2.8} />
                     )}
                 </button>
 
