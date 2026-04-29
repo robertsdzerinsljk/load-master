@@ -9,6 +9,7 @@ import {
     Clock3,
     Fuel,
     MapPinned,
+    Moon,
     Package,
     Pause,
     Play,
@@ -17,6 +18,7 @@ import {
     ScanSearch,
     Ship,
     Sparkles,
+    Sun,
     Truck,
     Waves,
 } from 'lucide-react';
@@ -109,8 +111,11 @@ export default function PreviewStep({
     const currentTrackPosition =
         track.positions[safeActiveEventIndex] ?? fallbackTrackPosition();
     const currentEventAppearance = eventAppearance(currentEvent?.type ?? null);
+    const currentPhaseAppearance = eventPhaseAppearance(currentEvent);
+    const currentEventExpenseLabel = eventExpenseLabel(currentEvent);
     const CurrentEventIcon = currentEventAppearance.icon;
     const CurrentTokenIcon = currentTrackPosition.tokenIcon;
+    const CurrentPhaseIcon = currentPhaseAppearance?.icon;
 
     useEffect(() => {
         if (!isPlaying || !currentEvent) {
@@ -544,13 +549,30 @@ export default function PreviewStep({
                                             </p>
                                         </div>
 
-                                        <div
-                                            className={cn(
-                                                'inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold',
-                                                currentEventAppearance.accentClasses,
-                                            )}
-                                        >
-                                            {currentEventAppearance.label}
+                                        <div className="flex flex-wrap gap-2">
+                                            <div
+                                                className={cn(
+                                                    'inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold',
+                                                    currentEventAppearance.accentClasses,
+                                                )}
+                                            >
+                                                {currentEventAppearance.label}
+                                            </div>
+
+                                            {currentPhaseAppearance &&
+                                            CurrentPhaseIcon ? (
+                                                <div
+                                                    className={cn(
+                                                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold',
+                                                        currentPhaseAppearance.classes,
+                                                    )}
+                                                >
+                                                    <CurrentPhaseIcon className="h-3.5 w-3.5" />
+                                                    {
+                                                        currentPhaseAppearance.label
+                                                    }
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
 
@@ -571,23 +593,10 @@ export default function PreviewStep({
                                                 label={`Reiss ${String(currentEvent.meta.trip)}`}
                                             />
                                         ) : null}
-                                        {typeof currentEvent?.meta
-                                            ?.expense_total_eur === 'number' ? (
+                                        {currentEventExpenseLabel ? (
                                             <InfoPill
                                                 icon={ClipboardCheck}
-                                                label={`Izmaksas ${formatMetric(currentEvent.meta.expense_total_eur as number, ' €')}`}
-                                            />
-                                        ) : null}
-                                        {typeof currentEvent?.meta?.phase ===
-                                        'string' ? (
-                                            <InfoPill
-                                                icon={Clock3}
-                                                label={
-                                                    currentEvent.meta.phase ===
-                                                    'night'
-                                                        ? 'Nakts maiņa'
-                                                        : 'Dienas maiņa'
-                                                }
+                                                label={currentEventExpenseLabel}
                                             />
                                         ) : null}
                                     </div>
@@ -603,8 +612,18 @@ export default function PreviewStep({
                                                         eventAppearance(
                                                             event.type,
                                                         );
+                                                    const phaseAppearance =
+                                                        eventPhaseAppearance(
+                                                            event,
+                                                        );
+                                                    const expenseLabel =
+                                                        eventExpenseLabel(
+                                                            event,
+                                                        );
                                                     const StreamEventIcon =
                                                         appearance.icon;
+                                                    const StreamPhaseIcon =
+                                                        phaseAppearance?.icon;
 
                                                     return (
                                                         <div
@@ -632,21 +651,34 @@ export default function PreviewStep({
                                                                         event.label
                                                                     }
                                                                 </div>
-                                                                <div className="mt-1 text-[12px] text-[#6f7b74]">
-                                                                    {formatEventWindow(
-                                                                        event,
-                                                                    )}{' '}
-                                                                    •{' '}
-                                                                    {
-                                                                        event.duration_minutes
-                                                                    }{' '}
-                                                                    min
-                                                                    {typeof event
-                                                                        .meta
-                                                                        ?.expense_total_eur ===
-                                                                    'number'
-                                                                        ? ` • ${formatMetric(event.meta.expense_total_eur as number, ' €')}`
-                                                                        : ''}
+                                                                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[#6f7b74]">
+                                                                    <span>
+                                                                        {formatEventWindow(
+                                                                            event,
+                                                                        )}{' '}
+                                                                        •{' '}
+                                                                        {
+                                                                            event.duration_minutes
+                                                                        }{' '}
+                                                                        min
+                                                                        {expenseLabel
+                                                                            ? ` • ${expenseLabel}`
+                                                                            : ''}
+                                                                    </span>
+                                                                    {phaseAppearance &&
+                                                                    StreamPhaseIcon ? (
+                                                                        <span
+                                                                            className={cn(
+                                                                                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                                                                                phaseAppearance.classes,
+                                                                            )}
+                                                                        >
+                                                                            <StreamPhaseIcon className="h-3 w-3" />
+                                                                            {
+                                                                                phaseAppearance.label
+                                                                            }
+                                                                        </span>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
 
@@ -1133,6 +1165,39 @@ function eventAppearance(type: string | null) {
                 accentClasses: 'border-[#d9ded9] bg-white text-[#5b6b61]',
             };
     }
+}
+
+function eventPhaseAppearance(event?: TimelineEvent | null) {
+    const phase = event?.meta?.phase;
+
+    if (phase === 'night') {
+        return {
+            label: 'Nakts maiņa',
+            icon: Moon,
+            classes: 'border-[#ced9f6] bg-[#eef4ff] text-[#31528b]',
+        };
+    }
+
+    if (phase === 'day') {
+        return {
+            label: 'Dienas maiņa',
+            icon: Sun,
+            classes: 'border-[#ead7a1] bg-[#fff7dc] text-[#8e630c]',
+        };
+    }
+
+    return null;
+}
+
+function eventExpenseLabel(event?: TimelineEvent | null) {
+    const expense = event?.meta?.expense_total_eur;
+    const isOperationalCosted = event?.meta?.is_operational_costed === true;
+
+    if (!isOperationalCosted || typeof expense !== 'number' || expense <= 0) {
+        return null;
+    }
+
+    return `Operācijas ${formatMetric(expense, ' €')}`;
 }
 
 function describeEvent(event: TimelineEvent) {

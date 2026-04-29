@@ -35,11 +35,29 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $displayName = $user
+            ? trim(collect([$user->first_name, $user->last_name])->filter()->join(' ')) ?: ($user->name ?: $user->email)
+            : null;
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'display_name' => $displayName,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'class_id' => $user->class_id,
+                    'email_verified_at' => $user->email_verified_at,
+                    'two_factor_enabled' => ! is_null($user->two_factor_secret),
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

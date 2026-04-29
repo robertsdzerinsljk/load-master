@@ -9,11 +9,9 @@ import {
     Clock3,
     Flag,
     Fuel,
-    Moon,
     Route,
     ScanSearch,
     ShipWheel,
-    Sun,
     Truck,
     X,
 } from 'lucide-react';
@@ -43,12 +41,9 @@ type Props = {
     isExamMode?: boolean;
 };
 
-type TimelinePhase = 'day' | 'night' | 'unknown';
-
 type StepTimelinePoint = {
     dateLabel: string | null;
     timeLabel: string | null;
-    phase: TimelinePhase;
     source: 'actual' | 'estimated' | 'none';
 };
 
@@ -144,39 +139,6 @@ function formatTimeLabel(value: Date) {
         hour: '2-digit',
         minute: '2-digit',
     }).format(value);
-}
-
-function resolveTimelinePhase(value: Date): TimelinePhase {
-    const hour = value.getHours();
-
-    if (hour >= 6 && hour < 20) {
-        return 'day';
-    }
-
-    return 'night';
-}
-
-function phaseAppearance(phase: TimelinePhase) {
-    switch (phase) {
-        case 'day':
-            return {
-                label: 'Diena',
-                icon: Sun,
-                classes: 'border-[#ead7a1] bg-[#fff7dc] text-[#8e630c]',
-            };
-        case 'night':
-            return {
-                label: 'Nakts',
-                icon: Moon,
-                classes: 'border-[#ced9f6] bg-[#eef4ff] text-[#31528b]',
-            };
-        default:
-            return {
-                label: 'Laiks nav zināms',
-                icon: Clock3,
-                classes: 'border-[#d9ded9] bg-white text-[#5b6b61]',
-            };
-    }
 }
 
 function statusChipClasses(tone?: SimulatorStepStatus['tone']) {
@@ -333,7 +295,6 @@ function emptyTimelinePoints(
             {
                 dateLabel: null,
                 timeLabel: null,
-                phase: 'unknown',
                 source: 'none',
             } satisfies StepTimelinePoint,
         ]),
@@ -408,7 +369,6 @@ function buildTimelinePoints(
                 {
                     dateLabel: formatDateLabel(resolvedDate),
                     timeLabel: formatTimeLabel(resolvedDate),
-                    phase: resolveTimelinePhase(resolvedDate),
                     source: actualDate ? 'actual' : 'estimated',
                 } satisfies StepTimelinePoint,
             ];
@@ -469,9 +429,7 @@ export default function SimulatorProgress({
     };
     const activeStatus = stepStatuses?.[activeStep.key];
     const activePoint = timelinePoints[activeStep.key];
-    const activePhase = phaseAppearance(activePoint?.phase ?? 'unknown');
     const ActiveStepIcon = activePresentation.icon;
-    const ActivePhaseIcon = activePhase.icon;
     const timelineHealthLabel = timelineSummary
         ? timelineSummary.is_within_deadline
             ? 'Termiņā'
@@ -542,11 +500,6 @@ export default function SimulatorProgress({
                                     icon: Flag,
                                 };
                                 const StepIcon = presentation.icon;
-                                const stepPoint = timelinePoints[step.key];
-                                const phase = phaseAppearance(
-                                    stepPoint?.phase ?? 'unknown',
-                                );
-                                const PhaseIcon = phase.icon;
                                 const status = stepStatuses?.[step.key];
                                 const indicator =
                                     resolveStatusIndicator(status);
@@ -572,19 +525,9 @@ export default function SimulatorProgress({
                                                 ? 'ring-2 ring-red-400/50'
                                                 : 'ring-1 ring-transparent',
                                         )}
-                                        title={`${phase.label} - ${indicator.label}`}
+                                        title={indicator.label}
                                     >
                                         <div className="relative flex flex-col items-center">
-                                            <span
-                                                className={cn(
-                                                    'mb-2 flex h-6 w-6 items-center justify-center rounded-full border text-[11px] shadow-sm',
-                                                    phase.classes,
-                                                )}
-                                                title={phase.label}
-                                            >
-                                                <PhaseIcon className="h-3.5 w-3.5" />
-                                            </span>
-
                                             <span
                                                 className={cn(
                                                     'flex h-14 w-14 items-center justify-center rounded-full border transition',
@@ -746,16 +689,6 @@ export default function SimulatorProgress({
                             </span>
                         ) : null}
 
-                        <span
-                            className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
-                                activePhase.classes,
-                            )}
-                        >
-                            <ActivePhaseIcon className="h-3.5 w-3.5" />
-                            {activePhase.label}
-                        </span>
-
                         {activePoint?.source !== 'none' ? (
                             <span className="inline-flex items-center rounded-full border border-[#d9ded9] bg-white px-3 py-1 text-xs font-semibold text-[#506158]">
                                 {activePoint.source === 'actual'
@@ -781,7 +714,9 @@ export default function SimulatorProgress({
                         <button
                             type="button"
                             onClick={onNext}
-                            disabled={loading || safeStepIndex === totalSteps - 1}
+                            disabled={
+                                loading || safeStepIndex === totalSteps - 1
+                            }
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-4 py-3 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Nākamais solis

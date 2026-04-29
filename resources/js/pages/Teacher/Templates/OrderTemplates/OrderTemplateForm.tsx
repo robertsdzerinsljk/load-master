@@ -234,6 +234,8 @@ type Props = {
     onCancel?: () => void;
 };
 
+const DRAFT_STORAGE_PREFIX = 'loadmaster.order-template-form';
+
 type ScenarioCapabilities = {
     transport: boolean;
     route: boolean;
@@ -347,16 +349,24 @@ export default function OrderTemplateForm({
     );
     const [scenarioFocus, setScenarioFocus] = useState(
         initialData.scenario_focus ??
-            getDefaultScenarioFocus(initialData.scenario_type ?? 'land_transport'),
+            getDefaultScenarioFocus(
+                initialData.scenario_type ?? 'land_transport',
+            ),
     );
     const [evaluationMode, setEvaluationMode] = useState(
         initialData.evaluation_mode ?? 'practice',
     );
     const [status, setStatus] = useState(initialData.status ?? 'draft');
     const [priority, setPriority] = useState(initialData.priority ?? '');
-    const [description, setDescription] = useState(initialData.description ?? '');
-    const [studentBrief, setStudentBrief] = useState(initialData.student_brief ?? '');
-    const [teacherNotes, setTeacherNotes] = useState(initialData.teacher_notes ?? '');
+    const [description, setDescription] = useState(
+        initialData.description ?? '',
+    );
+    const [studentBrief, setStudentBrief] = useState(
+        initialData.student_brief ?? '',
+    );
+    const [teacherNotes, setTeacherNotes] = useState(
+        initialData.teacher_notes ?? '',
+    );
 
     const [cargoName, setCargoName] = useState(initialData.cargo_name ?? '');
     const [cargoType, setCargoType] = useState(initialData.cargo_type ?? '');
@@ -415,33 +425,43 @@ export default function OrderTemplateForm({
     const [budgetLimit, setBudgetLimit] = useState(
         String(initialData.budget_limit ?? ''),
     );
-    const [maxTrips, setMaxTrips] = useState(String(initialData.max_trips ?? ''));
+    const [maxTrips, setMaxTrips] = useState(
+        String(initialData.max_trips ?? ''),
+    );
     const [requiresRefuelPlanning, setRequiresRefuelPlanning] = useState(
         Boolean(initialData.requires_refuel_planning ?? false),
     );
 
     const [timingLoadingFixedMinutes, setTimingLoadingFixedMinutes] = useState(
-        String(initialData.scenario_config?.timing?.loading_fixed_minutes ?? 45),
+        String(
+            initialData.scenario_config?.timing?.loading_fixed_minutes ?? 45,
+        ),
     );
     const [timingFuelStopMinutes, setTimingFuelStopMinutes] = useState(
         String(initialData.scenario_config?.timing?.fuel_stop_minutes ?? 20),
     );
-    const [timingPortProcessingMinutes, setTimingPortProcessingMinutes] = useState(
-        String(initialData.scenario_config?.timing?.port_processing_minutes ?? 60),
-    );
+    const [timingPortProcessingMinutes, setTimingPortProcessingMinutes] =
+        useState(
+            String(
+                initialData.scenario_config?.timing?.port_processing_minutes ??
+                    60,
+            ),
+        );
     const [timingShipLoadingMinutes, setTimingShipLoadingMinutes] = useState(
         String(initialData.scenario_config?.timing?.ship_loading_minutes ?? 90),
     );
     const [timingSeaTransitMinutes, setTimingSeaTransitMinutes] = useState(
         String(initialData.scenario_config?.timing?.sea_transit_minutes ?? 360),
     );
-    const [timingMaxDriveMinutesBeforeRest, setTimingMaxDriveMinutesBeforeRest] =
-        useState(
-            String(
-                initialData.scenario_config?.timing?.max_drive_minutes_before_rest ??
-                    270,
-            ),
-        );
+    const [
+        timingMaxDriveMinutesBeforeRest,
+        setTimingMaxDriveMinutesBeforeRest,
+    ] = useState(
+        String(
+            initialData.scenario_config?.timing
+                ?.max_drive_minutes_before_rest ?? 270,
+        ),
+    );
     const [timingRestMinutes, setTimingRestMinutes] = useState(
         String(initialData.scenario_config?.timing?.rest_minutes ?? 45),
     );
@@ -449,23 +469,35 @@ export default function OrderTemplateForm({
         String(initialData.scenario_config?.costs?.day_shift_start_hour ?? 6),
     );
     const [costNightShiftStartHour, setCostNightShiftStartHour] = useState(
-        String(initialData.scenario_config?.costs?.night_shift_start_hour ?? 20),
+        String(
+            initialData.scenario_config?.costs?.night_shift_start_hour ?? 20,
+        ),
     );
     const [costLaborCostPerHourDay, setCostLaborCostPerHourDay] = useState(
-        String(initialData.scenario_config?.costs?.labor_cost_per_hour_day ?? 18),
+        String(
+            initialData.scenario_config?.costs?.labor_cost_per_hour_day ?? 18,
+        ),
     );
     const [costMachineCostPerHourDay, setCostMachineCostPerHourDay] = useState(
-        String(initialData.scenario_config?.costs?.machine_cost_per_hour_day ?? 30),
+        String(
+            initialData.scenario_config?.costs?.machine_cost_per_hour_day ?? 30,
+        ),
     );
     const [costNightShiftMultiplier, setCostNightShiftMultiplier] = useState(
-        String(initialData.scenario_config?.costs?.night_shift_multiplier ?? 1.35),
+        String(
+            initialData.scenario_config?.costs?.night_shift_multiplier ?? 1.35,
+        ),
     );
 
     const [waitingPortQueueMinutes, setWaitingPortQueueMinutes] = useState(
-        String(initialData.scenario_config?.availability?.port_queue_minutes ?? 0),
+        String(
+            initialData.scenario_config?.availability?.port_queue_minutes ?? 0,
+        ),
     );
     const [waitingShipReadyAt, setWaitingShipReadyAt] = useState(
-        normalizeDateTime(initialData.scenario_config?.availability?.ship_ready_at),
+        normalizeDateTime(
+            initialData.scenario_config?.availability?.ship_ready_at,
+        ),
     );
 
     const [scoringTimeWeight, setScoringTimeWeight] = useState(
@@ -474,18 +506,23 @@ export default function OrderTemplateForm({
     const [scoringCostWeight, setScoringCostWeight] = useState(
         String(initialData.scenario_config?.scoring?.cost_weight ?? 25),
     );
-    const [scoringCompatibilityWeight, setScoringCompatibilityWeight] = useState(
-        String(initialData.scenario_config?.scoring?.compatibility_weight ?? 25),
-    );
+    const [scoringCompatibilityWeight, setScoringCompatibilityWeight] =
+        useState(
+            String(
+                initialData.scenario_config?.scoring?.compatibility_weight ??
+                    25,
+            ),
+        );
     const [scoringTripsWeight, setScoringTripsWeight] = useState(
         String(initialData.scenario_config?.scoring?.trips_weight ?? 15),
     );
 
-    const [requiresLoadingMethodChoice, setRequiresLoadingMethodChoice] = useState(
-        Boolean(initialData.requires_loading_method_choice ?? false),
-    );
+    const [requiresLoadingMethodChoice, setRequiresLoadingMethodChoice] =
+        useState(Boolean(initialData.requires_loading_method_choice ?? false));
     const [requiresUnloadingMethodChoice, setRequiresUnloadingMethodChoice] =
-        useState(Boolean(initialData.requires_unloading_method_choice ?? false));
+        useState(
+            Boolean(initialData.requires_unloading_method_choice ?? false),
+        );
     const [allowManualHandling, setAllowManualHandling] = useState(
         Boolean(initialData.allow_manual_handling ?? true),
     );
@@ -495,45 +532,51 @@ export default function OrderTemplateForm({
     const [allowShipEquipment, setAllowShipEquipment] = useState(
         Boolean(initialData.allow_ship_equipment ?? true),
     );
-    const [allowedHandlingMethodCodes, setAllowedHandlingMethodCodes] = useState<string[]>(
-        initialData.allowed_handling_method_codes ?? [],
+    const [allowedHandlingMethodCodes, setAllowedHandlingMethodCodes] =
+        useState<string[]>(initialData.allowed_handling_method_codes ?? []);
+    const [requiredHandlingMethodCodes, setRequiredHandlingMethodCodes] =
+        useState<string[]>(initialData.required_handling_method_codes ?? []);
+    const [allowedShipCargoModes, setAllowedShipCargoModes] = useState<
+        string[]
+    >(initialData.allowed_ship_cargo_modes ?? []);
+    const [forbiddenShipCargoModes, setForbiddenShipCargoModes] = useState<
+        string[]
+    >(initialData.forbidden_ship_cargo_modes ?? []);
+    const [
+        compatibilityEnforcePortCargoSupport,
+        setCompatibilityEnforcePortCargoSupport,
+    ] = useState(
+        initialData.scenario_config?.compatibility
+            ?.enforce_port_cargo_support ?? true,
     );
-    const [requiredHandlingMethodCodes, setRequiredHandlingMethodCodes] = useState<string[]>(
-        initialData.required_handling_method_codes ?? [],
+    const [
+        compatibilityEnforceShipCargoSupport,
+        setCompatibilityEnforceShipCargoSupport,
+    ] = useState(
+        initialData.scenario_config?.compatibility
+            ?.enforce_ship_cargo_support ?? true,
     );
-    const [allowedShipCargoModes, setAllowedShipCargoModes] = useState<string[]>(
-        initialData.allowed_ship_cargo_modes ?? [],
+    const [
+        compatibilityEnforcePortShipDraft,
+        setCompatibilityEnforcePortShipDraft,
+    ] = useState(
+        initialData.scenario_config?.compatibility?.enforce_port_ship_draft ??
+            true,
     );
-    const [forbiddenShipCargoModes, setForbiddenShipCargoModes] = useState<string[]>(
-        initialData.forbidden_ship_cargo_modes ?? [],
-    );
-    const [compatibilityEnforcePortCargoSupport, setCompatibilityEnforcePortCargoSupport] =
-        useState(
-            initialData.scenario_config?.compatibility?.enforce_port_cargo_support ??
-                true,
-        );
-    const [compatibilityEnforceShipCargoSupport, setCompatibilityEnforceShipCargoSupport] =
-        useState(
-            initialData.scenario_config?.compatibility?.enforce_ship_cargo_support ??
-                true,
-        );
-    const [compatibilityEnforcePortShipDraft, setCompatibilityEnforcePortShipDraft] =
-        useState(
-            initialData.scenario_config?.compatibility?.enforce_port_ship_draft ??
-                true,
-        );
     const [
         compatibilityEnforceHandlingCompatibility,
         setCompatibilityEnforceHandlingCompatibility,
     ] = useState(
-        initialData.scenario_config?.compatibility?.enforce_handling_compatibility ??
-            true,
+        initialData.scenario_config?.compatibility
+            ?.enforce_handling_compatibility ?? true,
     );
 
     const [transportTemplateIds, setTransportTemplateIds] = useState<number[]>(
-        (initialData.transportTemplates ?? initialData.transport_templates ?? []).map(
-            (item) => item.id,
-        ),
+        (
+            initialData.transportTemplates ??
+            initialData.transport_templates ??
+            []
+        ).map((item) => item.id),
     );
     const [shipIds, setShipIds] = useState<number[]>(
         initialData.ships?.map((item) => item.id) ?? [],
@@ -554,9 +597,16 @@ export default function OrderTemplateForm({
 
     const [isTryingScenario, setIsTryingScenario] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
-    const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+    const [previewData, setPreviewData] = useState<PreviewResponse | null>(
+        null,
+    );
+    const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+    const [restoredDraftAt, setRestoredDraftAt] = useState<string | null>(null);
 
-    const caps = useMemo(() => getScenarioCapabilities(scenarioType), [scenarioType]);
+    const caps = useMemo(
+        () => getScenarioCapabilities(scenarioType),
+        [scenarioType],
+    );
     const supportsHandling = caps.port && caps.ship;
     const cargoModeOptions =
         options.cargoModes && options.cargoModes.length
@@ -682,10 +732,12 @@ export default function OrderTemplateForm({
         cargo_mode: cargoMode || null,
         cargo_amount_containers:
             cargoAmountContainers === '' ? null : Number(cargoAmountContainers),
-        cargo_amount_tons: cargoAmountTons === '' ? null : Number(cargoAmountTons),
+        cargo_amount_tons:
+            cargoAmountTons === '' ? null : Number(cargoAmountTons),
         cargo_volume_m3: cargoVolumeM3 === '' ? null : Number(cargoVolumeM3),
         cargo_value: cargoValue === '' ? null : Number(cargoValue),
-        temperature_mode_id: temperatureModeId === '' ? null : Number(temperatureModeId),
+        temperature_mode_id:
+            temperatureModeId === '' ? null : Number(temperatureModeId),
         special_condition_id:
             specialConditionId === '' ? null : Number(specialConditionId),
         requires_closed_space: requiresClosedSpace,
@@ -761,13 +813,21 @@ export default function OrderTemplateForm({
         cost_day_shift_start_hour:
             costDayShiftStartHour === '' ? null : Number(costDayShiftStartHour),
         cost_night_shift_start_hour:
-            costNightShiftStartHour === '' ? null : Number(costNightShiftStartHour),
+            costNightShiftStartHour === ''
+                ? null
+                : Number(costNightShiftStartHour),
         cost_labor_cost_per_hour_day:
-            costLaborCostPerHourDay === '' ? null : Number(costLaborCostPerHourDay),
+            costLaborCostPerHourDay === ''
+                ? null
+                : Number(costLaborCostPerHourDay),
         cost_machine_cost_per_hour_day:
-            costMachineCostPerHourDay === '' ? null : Number(costMachineCostPerHourDay),
+            costMachineCostPerHourDay === ''
+                ? null
+                : Number(costMachineCostPerHourDay),
         cost_night_shift_multiplier:
-            costNightShiftMultiplier === '' ? null : Number(costNightShiftMultiplier),
+            costNightShiftMultiplier === ''
+                ? null
+                : Number(costNightShiftMultiplier),
         waiting_port_queue_minutes:
             waitingPortQueueMinutes === ''
                 ? null
@@ -790,16 +850,235 @@ export default function OrderTemplateForm({
         fuel_station_ids: caps.fuel ? fuelStationIds : [],
     });
 
+    type DraftPayload = Partial<ReturnType<typeof buildPayload>>;
+
+    const draftStorageKey = `${DRAFT_STORAGE_PREFIX}.${isEdit && id ? `edit.${id}` : 'create'}`;
+
+    const stringValue = (value: unknown) =>
+        value === null || value === undefined ? '' : String(value);
+
+    const booleanValue = (value: unknown, fallback = false) =>
+        typeof value === 'boolean' ? value : fallback;
+
+    const numberArrayValue = (value: unknown) =>
+        Array.isArray(value)
+            ? value
+                  .map((item) => Number(item))
+                  .filter((item) => Number.isFinite(item))
+            : [];
+
+    const stringArrayValue = (value: unknown) =>
+        Array.isArray(value)
+            ? value
+                  .map((item) => String(item))
+                  .filter((item) => item.length > 0)
+            : [];
+
+    const applyDraftPayload = (payload: DraftPayload) => {
+        setTitle(stringValue(payload.title));
+        setScenarioType(stringValue(payload.scenario_type) || 'land_transport');
+        setScenarioFocus(
+            stringValue(payload.scenario_focus) ||
+                getDefaultScenarioFocus(
+                    stringValue(payload.scenario_type) || 'land_transport',
+                ),
+        );
+        setEvaluationMode(stringValue(payload.evaluation_mode) || 'practice');
+        setStatus(stringValue(payload.status) || 'draft');
+        setPriority(stringValue(payload.priority));
+        setDescription(stringValue(payload.description));
+        setStudentBrief(stringValue(payload.student_brief));
+        setTeacherNotes(stringValue(payload.teacher_notes));
+        setCargoName(stringValue(payload.cargo_name));
+        setCargoType(stringValue(payload.cargo_type));
+        setCargoMode(stringValue(payload.cargo_mode));
+        setCargoAmountContainers(stringValue(payload.cargo_amount_containers));
+        setCargoAmountTons(stringValue(payload.cargo_amount_tons));
+        setCargoVolumeM3(stringValue(payload.cargo_volume_m3));
+        setCargoValue(stringValue(payload.cargo_value));
+        setTemperatureModeId(stringValue(payload.temperature_mode_id));
+        setSpecialConditionId(stringValue(payload.special_condition_id));
+        setRequiresClosedSpace(booleanValue(payload.requires_closed_space));
+        setRequiresVentilation(booleanValue(payload.requires_ventilation));
+        setRequiresHazardousSupport(
+            booleanValue(payload.requires_hazardous_support),
+        );
+        setAllowedShipCargoModes(
+            stringArrayValue(payload.allowed_ship_cargo_modes),
+        );
+        setForbiddenShipCargoModes(
+            stringArrayValue(payload.forbidden_ship_cargo_modes),
+        );
+        setRequiresLoadingMethodChoice(
+            booleanValue(payload.requires_loading_method_choice),
+        );
+        setRequiresUnloadingMethodChoice(
+            booleanValue(payload.requires_unloading_method_choice),
+        );
+        setAllowManualHandling(
+            booleanValue(payload.allow_manual_handling, true),
+        );
+        setAllowPortEquipment(booleanValue(payload.allow_port_equipment, true));
+        setAllowShipEquipment(booleanValue(payload.allow_ship_equipment, true));
+        setAllowedHandlingMethodCodes(
+            stringArrayValue(payload.allowed_handling_method_codes),
+        );
+        setRequiredHandlingMethodCodes(
+            stringArrayValue(payload.required_handling_method_codes),
+        );
+        setCompatibilityEnforcePortCargoSupport(
+            booleanValue(
+                payload.compatibility_enforce_port_cargo_support,
+                true,
+            ),
+        );
+        setCompatibilityEnforceShipCargoSupport(
+            booleanValue(
+                payload.compatibility_enforce_ship_cargo_support,
+                true,
+            ),
+        );
+        setCompatibilityEnforcePortShipDraft(
+            booleanValue(payload.compatibility_enforce_port_ship_draft, true),
+        );
+        setCompatibilityEnforceHandlingCompatibility(
+            booleanValue(
+                payload.compatibility_enforce_handling_compatibility,
+                true,
+            ),
+        );
+        setStartLocationId(stringValue(payload.start_location_id));
+        setEndLocationId(stringValue(payload.end_location_id));
+        setStartPortId(stringValue(payload.start_port_id));
+        setEndPortId(stringValue(payload.end_port_id));
+        setScenarioStartAt(stringValue(payload.scenario_start_at));
+        setDeadlineAt(stringValue(payload.deadline_at));
+        setDeadlineDate(stringValue(payload.deadline_date));
+        setBudgetLimit(stringValue(payload.budget_limit));
+        setMaxTrips(stringValue(payload.max_trips));
+        setRequiresRefuelPlanning(
+            booleanValue(payload.requires_refuel_planning),
+        );
+        setTimingLoadingFixedMinutes(
+            stringValue(payload.timing_loading_fixed_minutes),
+        );
+        setTimingFuelStopMinutes(stringValue(payload.timing_fuel_stop_minutes));
+        setTimingPortProcessingMinutes(
+            stringValue(payload.timing_port_processing_minutes),
+        );
+        setTimingShipLoadingMinutes(
+            stringValue(payload.timing_ship_loading_minutes),
+        );
+        setTimingSeaTransitMinutes(
+            stringValue(payload.timing_sea_transit_minutes),
+        );
+        setTimingMaxDriveMinutesBeforeRest(
+            stringValue(payload.timing_max_drive_minutes_before_rest),
+        );
+        setTimingRestMinutes(stringValue(payload.timing_rest_minutes));
+        setCostDayShiftStartHour(
+            stringValue(payload.cost_day_shift_start_hour),
+        );
+        setCostNightShiftStartHour(
+            stringValue(payload.cost_night_shift_start_hour),
+        );
+        setCostLaborCostPerHourDay(
+            stringValue(payload.cost_labor_cost_per_hour_day),
+        );
+        setCostMachineCostPerHourDay(
+            stringValue(payload.cost_machine_cost_per_hour_day),
+        );
+        setCostNightShiftMultiplier(
+            stringValue(payload.cost_night_shift_multiplier),
+        );
+        setWaitingPortQueueMinutes(
+            stringValue(payload.waiting_port_queue_minutes),
+        );
+        setWaitingShipReadyAt(stringValue(payload.waiting_ship_ready_at));
+        setScoringTimeWeight(stringValue(payload.scoring_time_weight));
+        setScoringCostWeight(stringValue(payload.scoring_cost_weight));
+        setScoringCompatibilityWeight(
+            stringValue(payload.scoring_compatibility_weight),
+        );
+        setScoringTripsWeight(stringValue(payload.scoring_trips_weight));
+        setTransportTemplateIds(
+            numberArrayValue(payload.transport_template_ids),
+        );
+        setShipIds(numberArrayValue(payload.ship_ids));
+        setPortIds(numberArrayValue(payload.port_ids));
+        setLandRouteIds(numberArrayValue(payload.land_route_ids));
+        setFuelStationIds(numberArrayValue(payload.fuel_station_ids));
+    };
+
+    const clearSavedDraft = () => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.localStorage.removeItem(draftStorageKey);
+        setRestoredDraftAt(null);
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            setHasRestoredDraft(true);
+            return;
+        }
+
+        const storedDraft = window.localStorage.getItem(draftStorageKey);
+
+        if (storedDraft) {
+            try {
+                const parsed = JSON.parse(storedDraft) as {
+                    payload?: DraftPayload;
+                    savedAt?: string;
+                };
+
+                if (parsed.payload) {
+                    applyDraftPayload(parsed.payload);
+                    setRestoredDraftAt(parsed.savedAt ?? null);
+                }
+            } catch {
+                window.localStorage.removeItem(draftStorageKey);
+            }
+        }
+
+        setHasRestoredDraft(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftStorageKey]);
+
+    useEffect(() => {
+        if (!hasRestoredDraft || typeof window === 'undefined') {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            window.localStorage.setItem(
+                draftStorageKey,
+                JSON.stringify({
+                    savedAt: new Date().toISOString(),
+                    payload: buildPayload(),
+                }),
+            );
+        }, 400);
+
+        return () => window.clearTimeout(timeout);
+    });
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
         const payload = buildPayload();
 
         if (isEdit && id) {
-            router.put(`/teacher/templates/order-templates/${id}`, payload);
+            router.put(`/teacher/templates/order-templates/${id}`, payload, {
+                onSuccess: clearSavedDraft,
+            });
             return;
         }
 
-        router.post('/teacher/templates/order-templates', payload);
+        router.post('/teacher/templates/order-templates', payload, {
+            onSuccess: clearSavedDraft,
+        });
     };
 
     const handleTryScenario = async () => {
@@ -808,16 +1087,19 @@ export default function OrderTemplateForm({
         setPreviewData(null);
 
         try {
-            const response = await fetch('/teacher/templates/order-templates/preview', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
+            const response = await fetch(
+                '/teacher/templates/order-templates/preview',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(buildPayload()),
+                    credentials: 'same-origin',
                 },
-                body: JSON.stringify(buildPayload()),
-                credentials: 'same-origin',
-            });
+            );
 
             const data = await response.json();
 
@@ -840,6 +1122,19 @@ export default function OrderTemplateForm({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="rounded-2xl border border-[#cfe3d8] bg-[#f3faf6] px-4 py-3 text-[14px] text-[#32523f]">
+                <span className="font-semibold">Draft autosave is on.</span>{' '}
+                {restoredDraftAt
+                    ? `Restored browser draft from ${new Intl.DateTimeFormat(
+                          'lv-LV',
+                          {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                          },
+                      ).format(new Date(restoredDraftAt))}.`
+                    : 'Changes are kept in this browser until the template is saved.'}
+            </div>
+
             <OrderTemplateFormSection
                 title="Basic info"
                 description="Start with the scenario type, its teaching goal, and the metadata that will control how the simulator opens."
@@ -859,7 +1154,9 @@ export default function OrderTemplateForm({
                     <Field label="Scenario type" error={errors.scenario_type}>
                         <select
                             value={scenarioType}
-                            onChange={(event) => setScenarioType(event.target.value)}
+                            onChange={(event) =>
+                                setScenarioType(event.target.value)
+                            }
                             className={inputClass}
                             required
                         >
@@ -874,7 +1171,9 @@ export default function OrderTemplateForm({
                     <Field label="Scenario focus" error={errors.scenario_focus}>
                         <select
                             value={scenarioFocus}
-                            onChange={(event) => setScenarioFocus(event.target.value)}
+                            onChange={(event) =>
+                                setScenarioFocus(event.target.value)
+                            }
                             className={inputClass}
                         >
                             <option value="">Auto</option>
@@ -886,10 +1185,15 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Evaluation mode" error={errors.evaluation_mode}>
+                    <Field
+                        label="Evaluation mode"
+                        error={errors.evaluation_mode}
+                    >
                         <select
                             value={evaluationMode}
-                            onChange={(event) => setEvaluationMode(event.target.value)}
+                            onChange={(event) =>
+                                setEvaluationMode(event.target.value)
+                            }
                             className={inputClass}
                             required
                         >
@@ -919,7 +1223,9 @@ export default function OrderTemplateForm({
                     <Field label="Priority" error={errors.priority}>
                         <select
                             value={priority}
-                            onChange={(event) => setPriority(event.target.value)}
+                            onChange={(event) =>
+                                setPriority(event.target.value)
+                            }
                             className={inputClass}
                         >
                             <option value="">None</option>
@@ -950,7 +1256,9 @@ export default function OrderTemplateForm({
                     <Field label="Student brief" error={errors.student_brief}>
                         <textarea
                             value={studentBrief}
-                            onChange={(event) => setStudentBrief(event.target.value)}
+                            onChange={(event) =>
+                                setStudentBrief(event.target.value)
+                            }
                             className={textareaClass}
                             placeholder="What the student should see when the simulator opens."
                         />
@@ -959,7 +1267,9 @@ export default function OrderTemplateForm({
                     <Field label="Teacher notes" error={errors.teacher_notes}>
                         <textarea
                             value={teacherNotes}
-                            onChange={(event) => setTeacherNotes(event.target.value)}
+                            onChange={(event) =>
+                                setTeacherNotes(event.target.value)
+                            }
                             className={textareaClass}
                             placeholder="Private notes about teaching intent, common failure points, or scoring assumptions."
                         />
@@ -976,7 +1286,9 @@ export default function OrderTemplateForm({
                         <input
                             type="text"
                             value={cargoName}
-                            onChange={(event) => setCargoName(event.target.value)}
+                            onChange={(event) =>
+                                setCargoName(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="Frozen food"
                         />
@@ -986,7 +1298,9 @@ export default function OrderTemplateForm({
                         <input
                             type="text"
                             value={cargoType}
-                            onChange={(event) => setCargoType(event.target.value)}
+                            onChange={(event) =>
+                                setCargoType(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="Container cargo"
                         />
@@ -995,7 +1309,9 @@ export default function OrderTemplateForm({
                     <Field label="Cargo mode" error={errors.cargo_mode}>
                         <select
                             value={cargoMode}
-                            onChange={(event) => setCargoMode(event.target.value)}
+                            onChange={(event) =>
+                                setCargoMode(event.target.value)
+                            }
                             className={inputClass}
                         >
                             <option value="">Unspecified</option>
@@ -1007,10 +1323,15 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Temperature mode" error={errors.temperature_mode_id}>
+                    <Field
+                        label="Temperature mode"
+                        error={errors.temperature_mode_id}
+                    >
                         <select
                             value={temperatureModeId}
-                            onChange={(event) => setTemperatureModeId(event.target.value)}
+                            onChange={(event) =>
+                                setTemperatureModeId(event.target.value)
+                            }
                             className={inputClass}
                         >
                             <option value="">None</option>
@@ -1022,12 +1343,17 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Containers" error={errors.cargo_amount_containers}>
+                    <Field
+                        label="Containers"
+                        error={errors.cargo_amount_containers}
+                    >
                         <input
                             type="number"
                             min="0"
                             value={cargoAmountContainers}
-                            onChange={(event) => setCargoAmountContainers(event.target.value)}
+                            onChange={(event) =>
+                                setCargoAmountContainers(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="500"
                         />
@@ -1039,7 +1365,9 @@ export default function OrderTemplateForm({
                             min="0"
                             step="0.01"
                             value={cargoAmountTons}
-                            onChange={(event) => setCargoAmountTons(event.target.value)}
+                            onChange={(event) =>
+                                setCargoAmountTons(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="10000"
                         />
@@ -1051,7 +1379,9 @@ export default function OrderTemplateForm({
                             min="0"
                             step="0.01"
                             value={cargoVolumeM3}
-                            onChange={(event) => setCargoVolumeM3(event.target.value)}
+                            onChange={(event) =>
+                                setCargoVolumeM3(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="120"
                         />
@@ -1063,16 +1393,23 @@ export default function OrderTemplateForm({
                             min="0"
                             step="0.01"
                             value={cargoValue}
-                            onChange={(event) => setCargoValue(event.target.value)}
+                            onChange={(event) =>
+                                setCargoValue(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="25000"
                         />
                     </Field>
 
-                    <Field label="Special condition" error={errors.special_condition_id}>
+                    <Field
+                        label="Special condition"
+                        error={errors.special_condition_id}
+                    >
                         <select
                             value={specialConditionId}
-                            onChange={(event) => setSpecialConditionId(event.target.value)}
+                            onChange={(event) =>
+                                setSpecialConditionId(event.target.value)
+                            }
                             className={inputClass}
                         >
                             <option value="">None</option>
@@ -1110,18 +1447,18 @@ export default function OrderTemplateForm({
                     ]}
                 />
 
-                    <SelectionPills
-                        title="Allowed ship cargo modes"
+                <SelectionPills
+                    title="Allowed ship cargo modes"
                     description="Optional whitelist. Leave empty to accept any compatible ship profile."
                     options={cargoModeOptions}
-                        selected={allowedShipCargoModes}
-                        onToggle={(value) =>
-                            toggleStringSelection(
-                                allowedShipCargoModes,
-                                setAllowedShipCargoModes,
-                                value,
-                            )
-                        }
+                    selected={allowedShipCargoModes}
+                    onToggle={(value) =>
+                        toggleStringSelection(
+                            allowedShipCargoModes,
+                            setAllowedShipCargoModes,
+                            value,
+                        )
+                    }
                     error={errors.allowed_ship_cargo_modes}
                 />
 
@@ -1129,34 +1466,45 @@ export default function OrderTemplateForm({
                     title="Forbidden ship cargo modes"
                     description="Optional blacklist for specific ship cargo profiles."
                     options={cargoModeOptions}
-                        selected={forbiddenShipCargoModes}
-                        onToggle={(value) =>
-                            toggleStringSelection(
-                                forbiddenShipCargoModes,
-                                setForbiddenShipCargoModes,
-                                value,
-                            )
-                        }
+                    selected={forbiddenShipCargoModes}
+                    onToggle={(value) =>
+                        toggleStringSelection(
+                            forbiddenShipCargoModes,
+                            setForbiddenShipCargoModes,
+                            value,
+                        )
+                    }
                     error={errors.forbidden_ship_cargo_modes}
                 />
             </OrderTemplateFormSection>
 
-            {(caps.startLocation || caps.endLocation || caps.startPort || caps.endPort) && (
+            {(caps.startLocation ||
+                caps.endLocation ||
+                caps.startPort ||
+                caps.endPort) && (
                 <OrderTemplateFormSection
                     title="Route and endpoints"
                     description="Only the fields needed for the selected scenario type stay visible."
                 >
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {caps.startLocation ? (
-                            <Field label="Start location" error={errors.start_location_id}>
+                            <Field
+                                label="Start location"
+                                error={errors.start_location_id}
+                            >
                                 <select
                                     value={startLocationId}
-                                    onChange={(event) => setStartLocationId(event.target.value)}
+                                    onChange={(event) =>
+                                        setStartLocationId(event.target.value)
+                                    }
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
                                     {sortedLocationOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
                                             {formatLocationOptionLabel(option)}
                                         </option>
                                     ))}
@@ -1165,15 +1513,23 @@ export default function OrderTemplateForm({
                         ) : null}
 
                         {caps.endLocation ? (
-                            <Field label="End location" error={errors.end_location_id}>
+                            <Field
+                                label="End location"
+                                error={errors.end_location_id}
+                            >
                                 <select
                                     value={endLocationId}
-                                    onChange={(event) => setEndLocationId(event.target.value)}
+                                    onChange={(event) =>
+                                        setEndLocationId(event.target.value)
+                                    }
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
                                     {sortedLocationOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
                                             {formatLocationOptionLabel(option)}
                                         </option>
                                     ))}
@@ -1182,15 +1538,23 @@ export default function OrderTemplateForm({
                         ) : null}
 
                         {caps.startPort ? (
-                            <Field label="Start port" error={errors.start_port_id}>
+                            <Field
+                                label="Start port"
+                                error={errors.start_port_id}
+                            >
                                 <select
                                     value={startPortId}
-                                    onChange={(event) => setStartPortId(event.target.value)}
+                                    onChange={(event) =>
+                                        setStartPortId(event.target.value)
+                                    }
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
                                     {sortedPortOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
                                             {formatPortOptionLabel(option)}
                                         </option>
                                     ))}
@@ -1202,12 +1566,17 @@ export default function OrderTemplateForm({
                             <Field label="End port" error={errors.end_port_id}>
                                 <select
                                     value={endPortId}
-                                    onChange={(event) => setEndPortId(event.target.value)}
+                                    onChange={(event) =>
+                                        setEndPortId(event.target.value)
+                                    }
                                     className={inputClass}
                                 >
                                     <option value="">None</option>
                                     {sortedPortOptions.map((option) => (
-                                        <option key={option.id} value={option.id}>
+                                        <option
+                                            key={option.id}
+                                            value={option.id}
+                                        >
                                             {formatPortOptionLabel(option)}
                                         </option>
                                     ))}
@@ -1223,29 +1592,44 @@ export default function OrderTemplateForm({
                 description="Group the operational limits and scoring weights so the scenario stays realistic without becoming a giant flat form."
             >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Field label="Scenario start" error={errors.scenario_start_at}>
+                    <Field
+                        label="Scenario start"
+                        error={errors.scenario_start_at}
+                    >
                         <input
                             type="datetime-local"
                             value={scenarioStartAt}
-                            onChange={(event) => setScenarioStartAt(event.target.value)}
+                            onChange={(event) =>
+                                setScenarioStartAt(event.target.value)
+                            }
                             className={inputClass}
                         />
                     </Field>
 
-                    <Field label="Deadline date/time" error={errors.deadline_at}>
+                    <Field
+                        label="Deadline date/time"
+                        error={errors.deadline_at}
+                    >
                         <input
                             type="datetime-local"
                             value={deadlineAt}
-                            onChange={(event) => setDeadlineAt(event.target.value)}
+                            onChange={(event) =>
+                                setDeadlineAt(event.target.value)
+                            }
                             className={inputClass}
                         />
                     </Field>
 
-                    <Field label="Fallback deadline date" error={errors.deadline_date}>
+                    <Field
+                        label="Fallback deadline date"
+                        error={errors.deadline_date}
+                    >
                         <input
                             type="date"
                             value={deadlineDate}
-                            onChange={(event) => setDeadlineDate(event.target.value)}
+                            onChange={(event) =>
+                                setDeadlineDate(event.target.value)
+                            }
                             className={inputClass}
                         />
                     </Field>
@@ -1256,7 +1640,9 @@ export default function OrderTemplateForm({
                             min="0"
                             step="0.01"
                             value={budgetLimit}
-                            onChange={(event) => setBudgetLimit(event.target.value)}
+                            onChange={(event) =>
+                                setBudgetLimit(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="15000"
                         />
@@ -1267,7 +1653,9 @@ export default function OrderTemplateForm({
                             type="number"
                             min="0"
                             value={maxTrips}
-                            onChange={(event) => setMaxTrips(event.target.value)}
+                            onChange={(event) =>
+                                setMaxTrips(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="2"
                         />
@@ -1518,13 +1906,15 @@ export default function OrderTemplateForm({
                             {
                                 label: 'Enforce port cargo support',
                                 checked: compatibilityEnforcePortCargoSupport,
-                                onChange: setCompatibilityEnforcePortCargoSupport,
+                                onChange:
+                                    setCompatibilityEnforcePortCargoSupport,
                                 error: errors.compatibility_enforce_port_cargo_support,
                             },
                             {
                                 label: 'Enforce ship cargo support',
                                 checked: compatibilityEnforceShipCargoSupport,
-                                onChange: setCompatibilityEnforceShipCargoSupport,
+                                onChange:
+                                    setCompatibilityEnforceShipCargoSupport,
                                 error: errors.compatibility_enforce_ship_cargo_support,
                             },
                             {
@@ -1535,8 +1925,10 @@ export default function OrderTemplateForm({
                             },
                             {
                                 label: 'Enforce handling compatibility',
-                                checked: compatibilityEnforceHandlingCompatibility,
-                                onChange: setCompatibilityEnforceHandlingCompatibility,
+                                checked:
+                                    compatibilityEnforceHandlingCompatibility,
+                                onChange:
+                                    setCompatibilityEnforceHandlingCompatibility,
                                 error: errors.compatibility_enforce_handling_compatibility,
                             },
                         ]}
@@ -1553,11 +1945,13 @@ export default function OrderTemplateForm({
                         {caps.transport ? (
                             <SelectableGrid
                                 title="Land transport"
-                                items={options.transportTemplates.map((item) => ({
-                                    id: item.id,
-                                    title: item.name,
-                                    description: item.type || 'No type',
-                                }))}
+                                items={options.transportTemplates.map(
+                                    (item) => ({
+                                        id: item.id,
+                                        title: item.name,
+                                        description: item.type || 'No type',
+                                    }),
+                                )}
                                 selected={transportTemplateIds}
                                 onToggle={(value) =>
                                     toggleNumberSelection(
@@ -1575,7 +1969,8 @@ export default function OrderTemplateForm({
                                 items={sortedLandRouteOptions.map((item) => ({
                                     id: item.id,
                                     title: formatRouteOptionLabel(item),
-                                    description: formatRouteOptionDescription(item),
+                                    description:
+                                        formatRouteOptionDescription(item),
                                 }))}
                                 selected={landRouteIds}
                                 onToggle={(value) =>
@@ -1613,7 +2008,10 @@ export default function OrderTemplateForm({
                                 items={options.ships.map((item) => ({
                                     id: item.id,
                                     title: item.name,
-                                    description: item.cargo_mode || item.cargo_type || 'No cargo profile',
+                                    description:
+                                        item.cargo_mode ||
+                                        item.cargo_type ||
+                                        'No cargo profile',
                                 }))}
                                 selected={shipIds}
                                 onToggle={(value) =>
@@ -1642,7 +2040,8 @@ export default function OrderTemplateForm({
                                                 ? item.fuel_type.toUpperCase()
                                                 : null,
                                             item.price_per_liter !== null &&
-                                            item.price_per_liter !== undefined &&
+                                            item.price_per_liter !==
+                                                undefined &&
                                             item.price_per_liter !== ''
                                                 ? `${item.price_per_liter} €/L`
                                                 : null,
@@ -1691,7 +2090,9 @@ export default function OrderTemplateForm({
                             />
                             <PreviewCard
                                 label="Required vehicles"
-                                value={previewData.result?.required_vehicles ?? '—'}
+                                value={
+                                    previewData.result?.required_vehicles ?? '—'
+                                }
                             />
                             <PreviewCard
                                 label="Trip time"
@@ -1715,12 +2116,17 @@ export default function OrderTemplateForm({
                             />
                             <PreviewCard
                                 label="Needs refuel"
-                                value={previewData.result?.needs_refuel ? 'Yes' : 'No'}
+                                value={
+                                    previewData.result?.needs_refuel
+                                        ? 'Yes'
+                                        : 'No'
+                                }
                             />
                             <PreviewCard
                                 label="Route valid"
                                 value={
-                                    previewData.result?.can_complete_with_current_route_data
+                                    previewData.result
+                                        ?.can_complete_with_current_route_data
                                         ? 'Yes'
                                         : 'No'
                                 }
@@ -1778,7 +2184,7 @@ function Field({
 }) {
     return (
         <div>
-            <label className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#6b7870]">
+            <label className="text-[13px] font-semibold tracking-[0.12em] text-[#6b7870] uppercase">
                 {label}
             </label>
             {children}
@@ -1807,7 +2213,9 @@ function ToggleGrid({
 }) {
     return (
         <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
-            <div className="text-[15px] font-semibold text-[#182219]">{title}</div>
+            <div className="text-[15px] font-semibold text-[#182219]">
+                {title}
+            </div>
             {description ? (
                 <p className="mt-1 text-[13px] leading-6 text-[#5b6b61]">
                     {description}
@@ -1823,12 +2231,18 @@ function ToggleGrid({
                             <input
                                 type="checkbox"
                                 checked={item.checked}
-                                onChange={(event) => item.onChange(event.target.checked)}
+                                onChange={(event) =>
+                                    item.onChange(event.target.checked)
+                                }
                                 className="mt-1 h-4 w-4 rounded border-[#cfd7d1] text-[#166a4d] focus:ring-[#166a4d]"
                             />
                             <span className="min-w-0">
-                                <span className="block font-medium">{item.label}</span>
-                                {item.error ? <FieldError error={item.error} /> : null}
+                                <span className="block font-medium">
+                                    {item.label}
+                                </span>
+                                {item.error ? (
+                                    <FieldError error={item.error} />
+                                ) : null}
                             </span>
                         </div>
                     </label>
@@ -1855,7 +2269,9 @@ function SelectionPills({
 }) {
     return (
         <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
-            <div className="text-[15px] font-semibold text-[#182219]">{title}</div>
+            <div className="text-[15px] font-semibold text-[#182219]">
+                {title}
+            </div>
             {description ? (
                 <p className="mt-1 text-[13px] leading-6 text-[#5b6b61]">
                     {description}
@@ -1906,7 +2322,9 @@ function CompactGrid({
 }) {
     return (
         <div className="rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
-            <div className="text-[15px] font-semibold text-[#182219]">{title}</div>
+            <div className="text-[15px] font-semibold text-[#182219]">
+                {title}
+            </div>
             {description ? (
                 <p className="mt-1 text-[13px] leading-6 text-[#5b6b61]">
                     {description}
@@ -1914,7 +2332,11 @@ function CompactGrid({
             ) : null}
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {fields.map((field) => (
-                    <Field key={field.label} label={field.label} error={field.error}>
+                    <Field
+                        key={field.label}
+                        label={field.label}
+                        error={field.error}
+                    >
                         <input
                             type={field.type ?? 'number'}
                             min={
@@ -1928,9 +2350,11 @@ function CompactGrid({
                                     : (field.step ?? '1')
                             }
                             value={field.value}
-                            onChange={(event) => field.onChange(event.target.value)}
+                            onChange={(event) =>
+                                field.onChange(event.target.value)
+                            }
                             disabled={field.disabled}
-                            className="mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d] disabled:opacity-60"
+                            className="mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] transition outline-none placeholder:text-[#94a197] focus:border-[#166a4d] disabled:opacity-60"
                         />
                     </Field>
                 ))}
@@ -1952,7 +2376,9 @@ function SelectableGrid({
 }) {
     return (
         <div>
-            <div className="text-[15px] font-semibold text-[#182219]">{title}</div>
+            <div className="text-[15px] font-semibold text-[#182219]">
+                {title}
+            </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {items.map((item) => {
                     const active = selected.includes(item.id);
@@ -2004,11 +2430,13 @@ function PreviewCard({
 }) {
     return (
         <div className="rounded-xl border border-[#d9ded9] bg-white p-4">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#7a877f]">
+            <div className="text-[12px] font-semibold tracking-[0.16em] text-[#7a877f] uppercase">
                 {label}
             </div>
             <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                {value !== null && value !== undefined && value !== '' ? value : '—'}
+                {value !== null && value !== undefined && value !== ''
+                    ? value
+                    : '—'}
             </div>
         </div>
     );

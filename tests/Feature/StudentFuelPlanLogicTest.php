@@ -90,6 +90,7 @@ function makeFuelPlanAttempt(
         'deadline_at' => now()->addDays(2),
         'scenario_start_at' => $scenarioStartAt ?? now(),
         'scenario_config' => $scenarioConfig,
+        'requires_refuel_planning' => true,
     ]);
 
     $attempt = SimulationAttempt::query()->create([
@@ -412,6 +413,19 @@ test('simulator hides the fuel step when refuel planning is disabled', function 
             'submit' => true,
         ],
     ]);
+    $attempt->fuelStations()->detach();
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+    $previewText = collect([
+        ...data_get($preview, 'result.warnings', []),
+        ...data_get($preview, 'hints.critical', []),
+        ...data_get($preview, 'hints.info', []),
+    ])->join(' ');
+
+    expect($previewText)->not->toContain('Degvielas');
+    expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
+        ->not->toContain('missing_fuel_stop')
+        ->not->toContain('range_plan_invalid');
 
     $this->actingAs(User::query()->findOrFail($attempt->user_id))
         ->get("/student/simulator/{$attempt->id}")

@@ -54,6 +54,7 @@ class SimulationPreviewService
         $enforcePortShipDraft = (bool) ($compatibilityRules['enforce_port_ship_draft'] ?? true);
         $enforceHandlingCompatibility = (bool) ($compatibilityRules['enforce_handling_compatibility'] ?? true);
         $routeStepEnabled = $this->isStepEnabled($template, 'route');
+        $fuelStepEnabled = $this->isStepEnabled($template, 'fuel');
         $portStepEnabled = $this->isStepEnabled($template, 'port');
         $shipStepEnabled = $this->isStepEnabled($template, 'ship');
 
@@ -174,24 +175,26 @@ class SimulationPreviewService
             $warnings[] = "Izveleti {$vehicleCount} transporti, bet kravnesibai pietiek ar {$requiredVehicles}.";
         }
 
-        if ($needsRefuel && $fuelStopsCount === 0) {
+        if ($fuelStepEnabled && $needsRefuel && $fuelStopsCount === 0) {
             $warnings[] = 'Marsruta attalums parsniedz transporta darbibas radiusu, bet nav izveleta neviena degvielas pietura.';
         }
 
-        if (!$rangePlanValid) {
+        if ($fuelStepEnabled && !$rangePlanValid) {
             $warnings[] = 'Pat ar izveleto degvielas pieturu skaitu marsruts ir parak gars starp uzpildem.';
         }
 
-        if ($fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
+        if ($fuelStepEnabled && $fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
             $warnings[] = "Degvielas pieturai nav cenas; izmanto noklusejuma cenu {$fuelPricePerLiter} EUR/L.";
         }
 
-        if ($assumesDepotRefuel) {
+        if ($fuelStepEnabled && $assumesDepotRefuel) {
             $warnings[] = "Kopejais nobraukums parsniedz vienas bakas distanci; aprekinats, ka starp reisiem vajadzigas {$estimatedRefuelEvents} uzpildes.";
         }
 
-        foreach ($selectedFuelPlan['issues'] as $issue) {
-            $warnings[] = $issue;
+        if ($fuelStepEnabled) {
+            foreach ($selectedFuelPlan['issues'] as $issue) {
+                $warnings[] = $issue;
+            }
         }
 
         $portDepth = (float) ($port->max_draft_m ?? 0);
@@ -269,8 +272,8 @@ class SimulationPreviewService
         $isValid = $hasEnoughVehicles
             && $chainValid
             && $routeEndpointsValid
-            && $fuelSelectionsLogical
-            && (!$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
+            && (!$fuelStepEnabled || $fuelSelectionsLogical)
+            && (!$fuelStepEnabled || !$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
             && $isWithinDeadline;
 
         $hints = [
@@ -305,24 +308,26 @@ class SimulationPreviewService
             }
         }
 
-        if ($needsRefuel && $fuelStopsCount === 0) {
+        if ($fuelStepEnabled && $needsRefuel && $fuelStopsCount === 0) {
             $hints['critical'][] = 'Marsrutam nepieciesama uzpilde, bet nav izveleta neviena degvielas pietura.';
         }
 
-        if (!$rangePlanValid) {
+        if ($fuelStepEnabled && !$rangePlanValid) {
             $hints['critical'][] = 'Transporta darbibas radiuss tiek parsniegts starp uzpildem.';
         }
 
-        if ($assumesDepotRefuel) {
+        if ($fuelStepEnabled && $assumesDepotRefuel) {
             $hints['info'][] = "Kopejais {$totalDrivenDistanceKm} km nobraukums neietilpst viena baka. Simulacija pienem {$estimatedRefuelEvents} uzpildes starp reisiem, jo marsruta viens virziens ietilpst transporta radiusa.";
         }
 
-        if ($fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
+        if ($fuelStepEnabled && $fuelNeededLiters > 0 && $fuelPriceSource === 'default') {
             $hints['info'][] = "Degvielas izmaksas aprekinatas ar noklusejuma cenu {$fuelPricePerLiter} EUR/L, jo izveletajai pieturai nav noradita cena.";
         }
 
-        foreach ($selectedFuelPlan['issues'] as $issue) {
-            $hints['critical'][] = $issue;
+        if ($fuelStepEnabled) {
+            foreach ($selectedFuelPlan['issues'] as $issue) {
+                $hints['critical'][] = $issue;
+            }
         }
 
         if (!$isWithinDeadline) {
@@ -422,7 +427,7 @@ class SimulationPreviewService
             ];
         }
 
-        if ($needsRefuel && $fuelStopsCount === 0) {
+        if ($fuelStepEnabled && $needsRefuel && $fuelStopsCount === 0) {
             $penalty = min($compatibilityWeight, 10);
             $score -= $penalty;
 
@@ -435,7 +440,7 @@ class SimulationPreviewService
             ];
         }
 
-        if (!$rangePlanValid) {
+        if ($fuelStepEnabled && !$rangePlanValid) {
             $penalty = min($compatibilityWeight, 10);
             $score -= $penalty;
 
