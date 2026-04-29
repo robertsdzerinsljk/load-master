@@ -245,8 +245,19 @@ test('preview treats resource and handling compatibility as scoring feedback ins
 
     $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
     $attempt->orderTemplate->update([
+        'scenario_type' => 'full_chain',
         'requires_loading_method_choice' => true,
         'requires_unloading_method_choice' => true,
+        'step_config' => [
+            'intro' => true,
+            'transport' => true,
+            'route' => true,
+            'fuel' => true,
+            'port' => true,
+            'ship' => true,
+            'simulation' => true,
+            'submit' => true,
+        ],
     ]);
     $attempt->selectedPort->update([
         'supports_container' => false,
@@ -276,6 +287,219 @@ test('preview treats resource and handling compatibility as scoring feedback ins
         ->toContain('port_ship_compatibility');
     expect(collect(data_get($preview, 'hints.optimization', []))->join(' '))
         ->toContain('saderibas sodu');
+});
+
+test('land transport preview does not require port or ship resources', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Land Only Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->update([
+        'selected_port_id' => null,
+        'selected_ship_id' => null,
+    ]);
+    $attempt->orderTemplate->update([
+        'scenario_type' => 'land_transport',
+        'step_config' => [
+            'intro' => true,
+            'transport' => true,
+            'route' => true,
+            'fuel' => true,
+            'port' => false,
+            'ship' => false,
+            'simulation' => true,
+            'submit' => true,
+        ],
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.is_valid'))->toBeTrue();
+    expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
+        ->not->toContain('port_ship_compatibility');
+});
+
+test('missing ship warning is shown once in Latvian', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Ship Missing Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->update([
+        'selected_ship_id' => null,
+    ]);
+    $attempt->orderTemplate->update([
+        'scenario_type' => 'full_chain',
+        'step_config' => [
+            'intro' => true,
+            'transport' => true,
+            'route' => true,
+            'fuel' => true,
+            'port' => true,
+            'ship' => true,
+            'simulation' => true,
+            'submit' => true,
+        ],
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $warnings = collect(data_get(app(SimulationPreviewService::class)->build($attempt->fresh()), 'result.warnings', []));
+
+    expect($warnings->filter(fn (string $warning) => $warning === 'Nav izvēlēts kuģis.')->count())->toBe(1);
+    expect($warnings->contains('Ship is not selected.'))->toBeFalse();
+    expect($warnings->contains('Port and ship must both be selected before compatibility can be verified.'))->toBeFalse();
+});
+
+test('simulator hides the fuel step when refuel planning is disabled', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Hidden Fuel Step Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->orderTemplate->update([
+        'requires_refuel_planning' => false,
+        'step_config' => [
+            'intro' => true,
+            'transport' => true,
+            'route' => true,
+            'fuel' => true,
+            'port' => false,
+            'ship' => false,
+            'simulation' => true,
+            'submit' => true,
+        ],
+    ]);
+
+    $this->actingAs(User::query()->findOrFail($attempt->user_id))
+        ->get("/student/simulator/{$attempt->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Simulator/Show')
+            ->where('availableSteps', fn ($steps) => !in_array('fuel', collect($steps)->all(), true)));
+});
+
+test('preview flags a selected route that does not match task start and end locations', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Endpoint Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $route = $attempt->routeSegments()->first();
+
+    $attempt->orderTemplate->update([
+        'start_location_id' => $route->to_location_id,
+        'end_location_id' => $route->from_location_id,
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'max_range_km' => 1000,
+    ]);
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.is_valid'))->toBeFalse();
+    expect(data_get($preview, 'route.endpoint_valid'))->toBeFalse();
+    expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
+        ->toContain('route_endpoints');
+    expect(collect(data_get($preview, 'hints.critical', []))->join(' '))
+        ->toContain('sakuma un gala');
+});
+
+test('preview penalizes selecting more vehicles than the cargo needs', function () {
+    $stationLocation = Location::query()->create([
+        'name' => 'Over Fleet Fuel Hub',
+        'country' => 'Latvia',
+    ]);
+
+    $station = FuelStation::query()->create([
+        'location_id' => $stationLocation->id,
+        'fuel_type' => 'diesel',
+        'price_per_liter' => 1.62,
+    ]);
+
+    $attempt = makeFuelPlanAttempt($station, '2026-04-28 08:00:00');
+    $attempt->update([
+        'selected_vehicle_count' => 4,
+    ]);
+    $attempt->orderTemplate->update([
+        'cargo_amount_containers' => 20,
+    ]);
+    $attempt->selectedTransportTemplate->update([
+        'capacity_containers' => 10,
+        'max_range_km' => 1000,
+    ]);
+
+    $route = $attempt->routeSegments()->first();
+
+    RouteFuelStop::query()->create([
+        'land_route_id' => $route->id,
+        'fuel_station_id' => $station->id,
+        'distance_from_start_km' => 120,
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.required_vehicles'))->toBe(2);
+    expect(data_get($preview, 'result.selected_vehicles'))->toBe(4);
+    expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
+        ->toContain('too_many_vehicles');
+    expect(collect(data_get($preview, 'hints.optimization', []))->join(' '))
+        ->toContain('neefektivi');
 });
 
 test('preview fuel and transport cost scale with outbound and return trip distance', function () {

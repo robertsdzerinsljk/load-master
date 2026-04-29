@@ -732,19 +732,26 @@ class SimulationAttemptController extends Controller
         $config = $template->step_config ?? [];
 
         if (!is_array($config) || empty($config)) {
-            return self::STEP_ORDER;
-        }
+            $enabled = self::STEP_ORDER;
+        } else {
+            $enabled = [];
 
-        $enabled = [];
+            foreach (self::STEP_ORDER as $step) {
+                if (($config[$step] ?? false) === true) {
+                    $enabled[] = $step;
+                }
+            }
 
-        foreach (self::STEP_ORDER as $step) {
-            if (($config[$step] ?? false) === true) {
-                $enabled[] = $step;
+            if (empty($enabled)) {
+                $enabled = self::STEP_ORDER;
             }
         }
 
-        if (empty($enabled)) {
-            return self::STEP_ORDER;
+        if (!$template->requires_refuel_planning) {
+            $enabled = array_values(array_filter(
+                $enabled,
+                fn (string $step) => $step !== 'fuel'
+            ));
         }
 
         return $enabled;
@@ -863,6 +870,7 @@ class SimulationAttemptController extends Controller
 
         if (
             data_get($attempt->preview_result, 'route.total_driven_distance_km') !== null
+            && data_get($attempt->preview_result, 'route.endpoint_valid') !== null
             && data_get($attempt->preview_result, 'fuel.estimated_refuel_events') !== null
             && $fuelCost !== null
             && !((float) $fuelLiters > 0 && (float) $fuelCost <= 0)

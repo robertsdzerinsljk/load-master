@@ -18,11 +18,13 @@ import {
     attemptPortName,
     attemptShipName,
 } from '@/components/student/simulator/types';
-import type { SimulatorStepStatus ,
+import type {
+    SimulatorStepStatus,
     Attempt,
     PageProps,
     TimelineEvent,
-    TimelineSummary} from '@/components/student/simulator/types';
+    TimelineSummary,
+} from '@/components/student/simulator/types';
 import StudentLayout from '@/layouts/StudentLayout';
 import TeacherLayout from '@/layouts/TeacherLayout';
 
@@ -60,7 +62,13 @@ export default function StudentSimulatorShow() {
         simulatorMode === 'teacher' ? TeacherLayout : StudentLayout
     ) as ComponentType<{
         children: ReactNode;
-        active?: 'tasks' | 'attempts' | 'create' | 'orders' | 'students' | 'templates';
+        active?:
+            | 'tasks'
+            | 'attempts'
+            | 'create'
+            | 'orders'
+            | 'students'
+            | 'templates';
     }>;
     const layoutProps =
         simulatorMode === 'teacher'
@@ -166,6 +174,10 @@ export default function StudentSimulatorShow() {
         template.fuelStations ?? template.fuel_stations ?? [];
     const availablePorts = template.ports ?? [];
     const availableShips = template.ships ?? [];
+    const templateStartLocation =
+        template.startLocation ?? template.start_location ?? null;
+    const templateEndLocation =
+        template.endLocation ?? template.end_location ?? null;
     const selectedSegments = attempt.ordered_route_segments ?? [];
     const selectedFuelStations = attempt.ordered_fuel_stations ?? [];
     const handlingContext = attempt.handling_context ?? null;
@@ -223,19 +235,22 @@ export default function StudentSimulatorShow() {
 
     useEffect(() => {
         const loadingSources =
-            handlingContext?.loading?.sources?.filter((source) => source.enabled) ??
-            [];
+            handlingContext?.loading?.sources?.filter(
+                (source) => source.enabled,
+            ) ?? [];
         const unloadingSources =
-            handlingContext?.unloading?.sources?.filter((source) => source.enabled) ??
-            [];
+            handlingContext?.unloading?.sources?.filter(
+                (source) => source.enabled,
+            ) ?? [];
         const nextLoadingSource =
             loadingSources.find((source) => source.key === loadingMethodSource)
                 ?.key ??
             loadingSources[0]?.key ??
             '';
         const nextUnloadingSource =
-            unloadingSources.find((source) => source.key === unloadingMethodSource)
-                ?.key ??
+            unloadingSources.find(
+                (source) => source.key === unloadingMethodSource,
+            )?.key ??
             unloadingSources[0]?.key ??
             '';
 
@@ -354,7 +369,9 @@ export default function StudentSimulatorShow() {
             data.attempt.selected_unloading_method_code ?? '',
         );
         setLoadingMethodSource(data.attempt.loading_method_source ?? 'port');
-        setUnloadingMethodSource(data.attempt.unloading_method_source ?? 'ship');
+        setUnloadingMethodSource(
+            data.attempt.unloading_method_source ?? 'ship',
+        );
 
         if (
             Array.isArray(data.available_steps) &&
@@ -391,9 +408,11 @@ export default function StudentSimulatorShow() {
     const resolvePenaltyStep = (penaltyKey?: string | null): string | null => {
         switch (penaltyKey) {
             case 'insufficient_vehicles':
+            case 'too_many_vehicles':
             case 'too_many_trips':
                 return pickEarliestAvailableStep('transport', 'simulation');
             case 'route_chain':
+            case 'route_endpoints':
             case 'deadline_delay':
                 return pickEarliestAvailableStep('route', 'simulation');
             case 'missing_fuel_stop':
@@ -426,13 +445,13 @@ export default function StudentSimulatorShow() {
             hasStep('port') && !selectedPortId ? 'port' : null,
             hasStep('ship') && !selectedShipId ? 'ship' : null,
             hasStep('ship') &&
-            loadingSelectionRequired &&
-            !selectedLoadingMethodCode
+                loadingSelectionRequired &&
+                !selectedLoadingMethodCode
                 ? 'ship'
                 : null,
             hasStep('ship') &&
-            unloadingSelectionRequired &&
-            !selectedUnloadingMethodCode
+                unloadingSelectionRequired &&
+                !selectedUnloadingMethodCode
                 ? 'ship'
                 : null,
             hasStep('ship') && handlingErrors.length ? 'ship' : null,
@@ -666,8 +685,7 @@ export default function StudentSimulatorShow() {
                       detail: 'Izvēlies kuģi',
                   }
                 : !isHandlingReady &&
-                    ((loadingSelectionRequired &&
-                        !selectedLoadingMethodCode) ||
+                    ((loadingSelectionRequired && !selectedLoadingMethodCode) ||
                         (unloadingSelectionRequired &&
                             !selectedUnloadingMethodCode))
                   ? {
@@ -680,19 +698,18 @@ export default function StudentSimulatorShow() {
                           label: 'JÄizlabo',
                           tone: 'danger',
                           detail:
-                              handlingErrors[0] ??
-                              'Apstrades plans nav derigs',
+                              handlingErrors[0] ?? 'Apstrades plans nav derigs',
                       }
-                  : practiceProblemSteps.has('ship')
-                    ? {
-                          label: 'Jāizlabo',
-                          tone: 'danger',
-                          detail: 'Kuģis nav saderīgs ar risinājumu',
-                      }
-                    : {
-                          label: 'Pabeigts',
-                          tone: 'success',
-                      };
+                    : practiceProblemSteps.has('ship')
+                      ? {
+                            label: 'Jāizlabo',
+                            tone: 'danger',
+                            detail: 'Kuģis nav saderīgs ar risinājumu',
+                        }
+                      : {
+                            label: 'Pabeigts',
+                            tone: 'success',
+                        };
         }
 
         if (hasStep('simulation')) {
@@ -707,8 +724,7 @@ export default function StudentSimulatorShow() {
                       ? {
                             label: 'Jāpalaiž',
                             tone: 'warning',
-                            detail:
-                                'Palaid simulāciju un apskati notikumu ķēdi',
+                            detail: 'Palaid simulāciju un apskati notikumu ķēdi',
                         }
                       : isPreviewValid
                         ? {
@@ -1462,112 +1478,116 @@ export default function StudentSimulatorShow() {
                                 : ''
                         }`}
                     >
-                            {currentStepKey === 'intro' && (
-                                <IntroStep
-                                    template={template}
-                                    loading={loading}
-                                    onStart={() => saveStep(introNextStep)}
-                                />
-                            )}
+                        {currentStepKey === 'intro' && (
+                            <IntroStep
+                                template={template}
+                                loading={loading}
+                                onStart={() => saveStep(introNextStep)}
+                            />
+                        )}
 
-                            {currentStepKey === 'transport' && (
-                                <TransportStep
+                        {currentStepKey === 'transport' && (
+                            <TransportStep
+                                stepNumber={currentStepNumber}
+                                transports={transports}
+                                selectedTransportId={selectedTransportId}
+                                setSelectedTransportId={setSelectedTransportId}
+                                vehicleCount={vehicleCount}
+                                setVehicleCount={setVehicleCount}
+                                selectedTransport={selectedTransport}
+                                loading={loading}
+                                onSave={() => saveStep(transportNextStep)}
+                            />
+                        )}
+
+                        {currentStepKey === 'route' && (
+                            <RouteBuilderStep
+                                stepNumber={currentStepNumber}
+                                availableSegments={availableSegments}
+                                selectedSegments={selectedSegments}
+                                expectedStartName={
+                                    templateStartLocation?.name ?? null
+                                }
+                                expectedEndName={
+                                    templateEndLocation?.name ?? null
+                                }
+                                loading={loading}
+                                onAddSegment={addRouteSegment}
+                                onRemoveSegment={removeRouteSegment}
+                                onMoveSegment={moveRouteSegment}
+                            />
+                        )}
+
+                        {currentStepKey === 'fuel' && (
+                            <FuelPlanningStep
+                                stepNumber={currentStepNumber}
+                                availableStations={availableFuelStations}
+                                selectedStations={selectedFuelStations}
+                                loading={loading}
+                                onAddStation={addFuelStation}
+                                onRemoveStation={removeFuelStation}
+                                onMoveStation={moveFuelStation}
+                            />
+                        )}
+
+                        {currentStepKey === 'port' && (
+                            <PortSelectionStep
+                                stepNumber={currentStepNumber}
+                                ports={availablePorts}
+                                selectedPortId={selectedPortId}
+                                setSelectedPortId={setSelectedPortId}
+                                loading={loading}
+                            />
+                        )}
+
+                        {currentStepKey === 'ship' && (
+                            <div className="space-y-6">
+                                <ShipSelectionStep
                                     stepNumber={currentStepNumber}
-                                    transports={transports}
-                                    selectedTransportId={selectedTransportId}
-                                    setSelectedTransportId={
-                                        setSelectedTransportId
+                                    ships={availableShips}
+                                    selectedShipId={selectedShipId}
+                                    setSelectedShipId={setSelectedShipId}
+                                    loading={loading}
+                                />
+
+                                <HandlingSelectionPanel
+                                    stepNumber={currentStepNumber}
+                                    handlingContext={handlingContext}
+                                    selectedPortName={attemptPortName(attempt)}
+                                    selectedShipName={attemptShipName(attempt)}
+                                    selectedLoadingMethodCode={
+                                        selectedLoadingMethodCode
                                     }
-                                    vehicleCount={vehicleCount}
-                                    setVehicleCount={setVehicleCount}
-                                    selectedTransport={selectedTransport}
-                                    loading={loading}
-                                    onSave={() => saveStep(transportNextStep)}
-                                />
-                            )}
-
-                            {currentStepKey === 'route' && (
-                                <RouteBuilderStep
-                                    stepNumber={currentStepNumber}
-                                    availableSegments={availableSegments}
-                                    selectedSegments={selectedSegments}
-                                    loading={loading}
-                                    onAddSegment={addRouteSegment}
-                                    onRemoveSegment={removeRouteSegment}
-                                    onMoveSegment={moveRouteSegment}
-                                />
-                            )}
-
-                            {currentStepKey === 'fuel' && (
-                                <FuelPlanningStep
-                                    stepNumber={currentStepNumber}
-                                    availableStations={availableFuelStations}
-                                    selectedStations={selectedFuelStations}
-                                    loading={loading}
-                                    onAddStation={addFuelStation}
-                                    onRemoveStation={removeFuelStation}
-                                    onMoveStation={moveFuelStation}
-                                />
-                            )}
-
-                            {currentStepKey === 'port' && (
-                                <PortSelectionStep
-                                    stepNumber={currentStepNumber}
-                                    ports={availablePorts}
-                                    selectedPortId={selectedPortId}
-                                    setSelectedPortId={setSelectedPortId}
+                                    selectedUnloadingMethodCode={
+                                        selectedUnloadingMethodCode
+                                    }
+                                    loadingMethodSource={loadingMethodSource}
+                                    unloadingMethodSource={
+                                        unloadingMethodSource
+                                    }
+                                    setSelectedLoadingMethodCode={
+                                        setSelectedLoadingMethodCode
+                                    }
+                                    setSelectedUnloadingMethodCode={
+                                        setSelectedUnloadingMethodCode
+                                    }
+                                    setLoadingMethodSource={
+                                        setLoadingMethodSource
+                                    }
+                                    setUnloadingMethodSource={
+                                        setUnloadingMethodSource
+                                    }
+                                    loadingDurationMinutes={
+                                        attempt.loading_duration_minutes
+                                    }
+                                    unloadingDurationMinutes={
+                                        attempt.unloading_duration_minutes
+                                    }
                                     loading={loading}
                                 />
-                            )}
 
-                            {currentStepKey === 'ship' && (
-                                <div className="space-y-6">
-                                    <ShipSelectionStep
-                                        stepNumber={currentStepNumber}
-                                        ships={availableShips}
-                                        selectedShipId={selectedShipId}
-                                        setSelectedShipId={setSelectedShipId}
-                                        loading={loading}
-                                    />
-
-                                    <HandlingSelectionPanel
-                                        stepNumber={currentStepNumber}
-                                        handlingContext={handlingContext}
-                                        selectedPortName={attemptPortName(attempt)}
-                                        selectedShipName={attemptShipName(attempt)}
-                                        selectedLoadingMethodCode={
-                                            selectedLoadingMethodCode
-                                        }
-                                        selectedUnloadingMethodCode={
-                                            selectedUnloadingMethodCode
-                                        }
-                                        loadingMethodSource={loadingMethodSource}
-                                        unloadingMethodSource={
-                                            unloadingMethodSource
-                                        }
-                                        setSelectedLoadingMethodCode={
-                                            setSelectedLoadingMethodCode
-                                        }
-                                        setSelectedUnloadingMethodCode={
-                                            setSelectedUnloadingMethodCode
-                                        }
-                                        setLoadingMethodSource={
-                                            setLoadingMethodSource
-                                        }
-                                        setUnloadingMethodSource={
-                                            setUnloadingMethodSource
-                                        }
-                                        loadingDurationMinutes={
-                                            attempt.loading_duration_minutes
-                                        }
-                                        unloadingDurationMinutes={
-                                            attempt.unloading_duration_minutes
-                                        }
-                                        loading={loading}
-                                    />
-
-                                    {showLegacyHandlingPanel && (
-                                        <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+                                {showLegacyHandlingPanel && (
+                                    <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
                                         <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                             Kravas apstrāde
                                         </div>
@@ -1599,7 +1619,7 @@ export default function StudentSimulatorShow() {
                                                         )
                                                     }
                                                     disabled={loading}
-                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] transition outline-none focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
                                                 >
                                                     <option value="">
                                                         Izvēlies metodi...
@@ -1634,7 +1654,7 @@ export default function StudentSimulatorShow() {
                                                         )
                                                     }
                                                     disabled={loading}
-                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] transition outline-none focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
                                                 >
                                                     <option value="port">
                                                         Port
@@ -1659,7 +1679,7 @@ export default function StudentSimulatorShow() {
                                                         )
                                                     }
                                                     disabled={loading}
-                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] transition outline-none focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
                                                 >
                                                     <option value="">
                                                         Izvēlies metodi...
@@ -1696,7 +1716,7 @@ export default function StudentSimulatorShow() {
                                                         )
                                                     }
                                                     disabled={loading}
-                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] outline-none transition focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
+                                                    className="w-full rounded-xl border border-[#d7ddd8] bg-white px-4 py-3 text-sm text-[#1f2a21] transition outline-none focus:border-[#166a4d] focus:ring-2 focus:ring-[#166a4d]/10"
                                                 >
                                                     <option value="port">
                                                         Port
@@ -1707,62 +1727,58 @@ export default function StudentSimulatorShow() {
                                                 </select>
                                             </div>
                                         </div>
-                                        </section>
-                                    )}
+                                    </section>
+                                )}
+                            </div>
+                        )}
+
+                        {currentStepKey === 'simulation' && (
+                            <PreviewStep
+                                key={`${attempt.id}-${timelineSummary?.finished_at ?? 'empty'}-${timelineEvents.length}-${attempt.preview_result?.result?.score ?? 'na'}`}
+                                stepNumber={currentStepNumber}
+                                attempt={attempt}
+                                loading={loading}
+                                canPreview={canPreview}
+                                onPreview={() => saveStep('simulation')}
+                                isExamMode={isExamMode}
+                            />
+                        )}
+
+                        {currentStepKey === 'submit' && (
+                            <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
+                                    Pēdējais solis
                                 </div>
-                            )}
 
-                            {currentStepKey === 'simulation' && (
-                                <PreviewStep
-                                    key={`${attempt.id}-${timelineSummary?.finished_at ?? 'empty'}-${timelineEvents.length}-${attempt.preview_result?.result?.score ?? 'na'}`}
-                                    stepNumber={currentStepNumber}
-                                    attempt={attempt}
-                                    loading={loading}
-                                    canPreview={canPreview}
-                                    onPreview={() => saveStep('simulation')}
-                                    isExamMode={isExamMode}
-                                />
-                            )}
+                                <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
+                                    Gatavs iesniegšanai
+                                </h2>
 
-                            {currentStepKey === 'submit' && (
-                                <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
-                                        Pēdējais solis
-                                    </div>
+                                <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
+                                    Šis risinājums ir sagatavots iesniegšanai.
+                                    Pārej vēlreiz cauri galvenajām izvēlēm un
+                                    iesniedz gala variantu pārbaudei.
+                                </p>
 
-                                    <h2 className="mt-3 text-[24px] font-semibold tracking-tight text-[#182219]">
-                                        Gatavs iesniegšanai
-                                    </h2>
+                                <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
+                                    Kad iesniegsi risinājumu, tas parādīsies
+                                    sadaļā “Mani mēģinājumi” ar gala statusu.
+                                </div>
 
-                                    <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                                        Šis risinājums ir sagatavots
-                                        iesniegšanai. Pārej vēlreiz cauri
-                                        galvenajām izvēlēm un iesniedz gala
-                                        variantu pārbaudei.
-                                    </p>
-
-                                    <div className="mt-5 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4 text-[14px] leading-6 text-[#4d5d53]">
-                                        Kad iesniegsi risinājumu, tas parādīsies
-                                        sadaļā “Mani mēģinājumi” ar gala
-                                        statusu.
-                                    </div>
-
-                                    <div className="mt-6">
-                                        <button
-                                            type="button"
-                                            onClick={submitAttempt}
-                                            disabled={
-                                                loading || isSubmittedAttempt
-                                            }
-                                            className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            {isSubmittedAttempt
-                                                ? 'Risinājums jau ir iesniegts'
-                                                : 'Iesniegt risinājumu'}
-                                        </button>
-                                    </div>
-                                </section>
-                            )}
+                                <div className="mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={submitAttempt}
+                                        disabled={loading || isSubmittedAttempt}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {isSubmittedAttempt
+                                            ? 'Risinājums jau ir iesniegts'
+                                            : 'Iesniegt risinājumu'}
+                                    </button>
+                                </div>
+                            </section>
+                        )}
                     </div>
                 </div>
             </Layout>

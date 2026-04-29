@@ -45,11 +45,6 @@ export default function StudentLayout({
 
                 <div className="border-t border-[#d8ddd8] px-2 py-4">
                     <div className="space-y-2">
-                        <SidebarNavItem
-                            label="Mainīt lomu"
-                            href="/"
-                            icon={RefreshCcw}
-                        />
 
                         <SidebarNavItem
                             label="Iziet"

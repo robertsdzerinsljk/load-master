@@ -2,6 +2,7 @@
 
 namespace App\Services\Simulator;
 
+use App\Models\OrderTemplate;
 use App\Models\SimulationAttempt;
 use App\Services\HandlingDurationCalculator;
 use App\Services\HandlingValidator;
@@ -20,7 +21,8 @@ class SimulationPreviewService
     public function build(SimulationAttempt $attempt): array
     {
         $attempt->loadMissing([
-            'orderTemplate',
+            'orderTemplate.startLocation',
+            'orderTemplate.endLocation',
             'selectedTransportTemplate',
             'selectedPort.handlingMethods',
             'selectedShip.handlingMethods',
@@ -51,6 +53,9 @@ class SimulationPreviewService
         $enforceShipCargoSupport = (bool) ($compatibilityRules['enforce_ship_cargo_support'] ?? true);
         $enforcePortShipDraft = (bool) ($compatibilityRules['enforce_port_ship_draft'] ?? true);
         $enforceHandlingCompatibility = (bool) ($compatibilityRules['enforce_handling_compatibility'] ?? true);
+        $routeStepEnabled = $this->isStepEnabled($template, 'route');
+        $portStepEnabled = $this->isStepEnabled($template, 'port');
+        $shipStepEnabled = $this->isStepEnabled($template, 'ship');
 
         $segments = $attempt->routeSegments->sortBy('pivot.position')->values();
         $fuelStations = $attempt->fuelStations->sortBy('pivot.position')->values();
@@ -92,22 +97,43 @@ class SimulationPreviewService
         $transportCost = round($totalDrivenDistanceKm * $costPerKm, 2);
 
         $hasEnoughVehicles = $vehicleCount >= $requiredVehicles;
+        $hasTooManyVehicles = $vehicleCount > $requiredVehicles;
         $chainValid = true;
+        $routeEndpointsValid = true;
         $warnings = [];
 
-        if ($segments->count() === 0) {
+        if ($routeStepEnabled && $segments->count() === 0) {
             $chainValid = false;
             $warnings[] = 'Nav izvelets neviens marsruta segments.';
         }
 
-        for ($i = 0; $i < $segments->count() - 1; $i++) {
-            $currentTo = $segments[$i]->toLocation->name ?? null;
-            $nextFrom = $segments[$i + 1]->fromLocation->name ?? null;
+        if ($routeStepEnabled) {
+            for ($i = 0; $i < $segments->count() - 1; $i++) {
+                $currentTo = $segments[$i]->toLocation->name ?? null;
+                $nextFrom = $segments[$i + 1]->fromLocation->name ?? null;
 
-            if ($currentTo !== $nextFrom) {
-                $chainValid = false;
-                $warnings[] = 'Marsruta segmenti neveido nepartrauktu kedi.';
-                break;
+                if ($currentTo !== $nextFrom) {
+                    $chainValid = false;
+                    $warnings[] = 'Marsruta segmenti neveido nepartrauktu kedi.';
+                    break;
+                }
+            }
+        }
+
+        if ($routeStepEnabled && $segments->count() > 0) {
+            $firstSegment = $segments->first();
+            $lastSegment = $segments->last();
+            $expectedStartId = $template->start_location_id;
+            $expectedEndId = $template->end_location_id;
+
+            if ($expectedStartId && (int) ($firstSegment?->from_location_id ?? 0) !== (int) $expectedStartId) {
+                $routeEndpointsValid = false;
+                $warnings[] = 'Marsruts nesakas uzdevuma noraditaja sakuma punkta.';
+            }
+
+            if ($expectedEndId && (int) ($lastSegment?->to_location_id ?? 0) !== (int) $expectedEndId) {
+                $routeEndpointsValid = false;
+                $warnings[] = 'Marsruts nebeidzas uzdevuma noraditaja gala punkta.';
             }
         }
 
@@ -144,6 +170,10 @@ class SimulationPreviewService
             $warnings[] = 'Izveleto transportu skaits nav pietiekams visai kravai.';
         }
 
+        if ($hasTooManyVehicles) {
+            $warnings[] = "Izveleti {$vehicleCount} transporti, bet kravnesibai pietiek ar {$requiredVehicles}.";
+        }
+
         if ($needsRefuel && $fuelStopsCount === 0) {
             $warnings[] = 'Marsruta attalums parsniedz transporta darbibas radiusu, bet nav izveleta neviena degvielas pietura.';
         }
@@ -178,18 +208,19 @@ class SimulationPreviewService
         $handlingDurations = $this->handlingDurationCalculator->calculate($attempt);
 
         $resourceCompatibilityValid = true;
+        $hasSelectedRequiredResources = (!$portStepEnabled || $port) && (!$shipStepEnabled || $ship);
 
-        if (!$port) {
+        if ($portStepEnabled && !$port) {
             $warnings[] = 'Nav izveleta osta.';
             $resourceCompatibilityValid = false;
         }
 
-        if (!$ship) {
-            $warnings[] = 'Nav izvelets kugis.';
+        if ($shipStepEnabled && !$ship) {
+            $warnings[] = 'Nav izvēlēts kuģis.';
             $resourceCompatibilityValid = false;
         }
 
-        if ($enforcePortCargoSupport && !($compatibility['port']['compatible'] ?? true)) {
+        if ($portStepEnabled && $port && $enforcePortCargoSupport && !($compatibility['port']['compatible'] ?? true)) {
             foreach ($compatibility['port']['reasons'] ?? [] as $reason) {
                 $warnings[] = $reason;
             }
@@ -197,7 +228,7 @@ class SimulationPreviewService
             $resourceCompatibilityValid = false;
         }
 
-        if ($enforceShipCargoSupport && !($compatibility['ship']['compatible'] ?? true)) {
+        if ($shipStepEnabled && $ship && $enforceShipCargoSupport && !($compatibility['ship']['compatible'] ?? true)) {
             foreach ($compatibility['ship']['reasons'] ?? [] as $reason) {
                 $warnings[] = $reason;
             }
@@ -205,7 +236,7 @@ class SimulationPreviewService
             $resourceCompatibilityValid = false;
         }
 
-        if ($enforcePortShipDraft && !($compatibility['pair']['compatible'] ?? true)) {
+        if ($portStepEnabled && $shipStepEnabled && $port && $ship && $enforcePortShipDraft && !($compatibility['pair']['compatible'] ?? true)) {
             foreach ($compatibility['pair']['reasons'] ?? [] as $reason) {
                 $warnings[] = $reason;
             }
@@ -213,12 +244,12 @@ class SimulationPreviewService
             $resourceCompatibilityValid = false;
         }
 
-        if ($ship && $containerCount > 0 && $shipCapacityContainers > 0 && $containerCount > $shipCapacityContainers) {
+        if ($shipStepEnabled && $ship && $containerCount > 0 && $shipCapacityContainers > 0 && $containerCount > $shipCapacityContainers) {
             $warnings[] = 'Izveleta kuga ietilpiba nav pietiekama visai kravai.';
             $resourceCompatibilityValid = false;
         }
 
-        if ($enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
+        if ($hasSelectedRequiredResources && $shipStepEnabled && $enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
             foreach ($handlingValidation['errors'] ?? [] as $reason) {
                 $warnings[] = $reason;
             }
@@ -237,6 +268,7 @@ class SimulationPreviewService
 
         $isValid = $hasEnoughVehicles
             && $chainValid
+            && $routeEndpointsValid
             && $fuelSelectionsLogical
             && (!$needsRefuel || ($fuelStopsCount > 0 && $rangePlanValid))
             && $isWithinDeadline;
@@ -255,11 +287,19 @@ class SimulationPreviewService
             $hints['critical'][] = 'Marsruta segmenti neveido nepartrauktu kedi.';
         }
 
+        if (!$routeEndpointsValid) {
+            $hints['critical'][] = 'Marsruts neatbilst uzdevuma sakuma un gala punktiem.';
+        }
+
+        if ($hasTooManyVehicles) {
+            $hints['optimization'][] = "Izveleti {$vehicleCount} transporti, lai gan kravnesibai pietiek ar {$requiredVehicles}. Tas palielina izmaksas un ir neefektivi.";
+        }
+
         if (!$resourceCompatibilityValid) {
             $hints['optimization'][] = 'Ostas un kuga kombinacija samazina risinajuma kvalitati un rada saderibas sodu.';
         }
 
-        if ($enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
+        if ($hasSelectedRequiredResources && $shipStepEnabled && $enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
             foreach ($handlingValidation['errors'] ?? [] as $reason) {
                 $hints['optimization'][] = $reason;
             }
@@ -343,6 +383,19 @@ class SimulationPreviewService
             ];
         }
 
+        if (!$routeEndpointsValid) {
+            $penalty = min($compatibilityWeight, 15);
+            $score -= $penalty;
+
+            $scoreBreakdown['penalties'][] = [
+                'key' => 'route_endpoints',
+                'label' => 'Marsruts neatbilst uzdevuma punktiem',
+                'category' => 'compatibility',
+                'amount' => $penalty,
+                'details' => 'Izveletais marsruts nesakas vai nebeidzas uzdevuma noraditaja vieta',
+            ];
+        }
+
         if (!$resourceCompatibilityValid) {
             $penalty = min($compatibilityWeight, 20);
             $score -= $penalty;
@@ -356,7 +409,7 @@ class SimulationPreviewService
             ];
         }
 
-        if ($enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
+        if ($hasSelectedRequiredResources && $shipStepEnabled && $enforceHandlingCompatibility && !($handlingValidation['valid'] ?? false)) {
             $penalty = min($compatibilityWeight, 15);
             $score -= $penalty;
 
@@ -408,6 +461,19 @@ class SimulationPreviewService
             ];
         }
 
+        if ($hasTooManyVehicles) {
+            $penalty = min($costWeight, max(1, ($vehicleCount - $requiredVehicles) * 2));
+            $score -= $penalty;
+
+            $scoreBreakdown['penalties'][] = [
+                'key' => 'too_many_vehicles',
+                'label' => 'Par daudz transporta vienibu',
+                'category' => 'cost',
+                'amount' => $penalty,
+                'details' => "Pietiek ar {$requiredVehicles}, izveleti {$vehicleCount}",
+            ];
+        }
+
         $score = max(0, $score);
         $scoreBreakdown['final_score'] = $score;
 
@@ -433,6 +499,9 @@ class SimulationPreviewService
                 'total_driven_distance_km' => $totalDrivenDistanceKm,
                 'outbound_distance_km' => round($outboundDistanceKm * $vehicleCount, 2),
                 'return_distance_km' => round($returnDistanceKm * $vehicleCount, 2),
+                'endpoint_valid' => $routeEndpointsValid,
+                'expected_start' => $template->startLocation?->name,
+                'expected_end' => $template->endLocation?->name,
                 'start' => $segments->first()?->fromLocation->name ?? '---',
                 'end' => $segments->last()?->toLocation->name ?? '---',
                 'segments' => $segments->map(function ($segment) {
@@ -542,6 +611,29 @@ class SimulationPreviewService
                 'is_within_deadline' => $isWithinDeadline,
             ],
         ];
+    }
+
+    private function isStepEnabled(OrderTemplate $template, string $step): bool
+    {
+        $config = $template->step_config;
+
+        if (is_array($config) && !empty($config)) {
+            $enabled = ($config[$step] ?? false) === true;
+        } else {
+            $enabled = match ($template->scenario_type) {
+                'land_transport' => in_array($step, ['intro', 'transport', 'route', 'fuel', 'simulation', 'submit'], true),
+                'land_to_port' => in_array($step, ['intro', 'transport', 'route', 'fuel', 'port', 'simulation', 'submit'], true),
+                'port_to_ship' => in_array($step, ['intro', 'port', 'ship', 'simulation', 'submit'], true),
+                'full_chain' => in_array($step, ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'], true),
+                default => true,
+            };
+        }
+
+        if ($step === 'fuel' && !$template->requires_refuel_planning) {
+            return false;
+        }
+
+        return $enabled;
     }
 
     private function resolveFuelPricePerLiter(

@@ -1,4 +1,10 @@
-import { ArrowDown, ArrowUp, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
+import {
+    ArrowDown,
+    ArrowUp,
+    Plus,
+    Route as RouteIcon,
+    Trash2,
+} from 'lucide-react';
 import { RouteItem, routeName } from './types';
 import { EmptyBlock } from './ui';
 
@@ -6,6 +12,8 @@ type Props = {
     stepNumber?: number;
     availableSegments: RouteItem[];
     selectedSegments: RouteItem[];
+    expectedStartName?: string | null;
+    expectedEndName?: string | null;
     loading: boolean;
     onAddSegment: (segmentId: number) => void;
     onRemoveSegment: (segmentId: number) => void;
@@ -16,6 +24,8 @@ export default function RouteBuilderStep({
     stepNumber = 3,
     availableSegments,
     selectedSegments,
+    expectedStartName,
+    expectedEndName,
     loading,
     onAddSegment,
     onRemoveSegment,
@@ -28,7 +38,7 @@ export default function RouteBuilderStep({
     return (
         <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
             <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                     <RouteIcon className="h-3.5 w-3.5" />
                     {stepNumber}. solis
                 </div>
@@ -38,8 +48,18 @@ export default function RouteBuilderStep({
                 </h2>
 
                 <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
-                    Izvēlies maršruta segmentus un sakārto tos pareizajā secībā, lai izveidotu pilnu piegādes ķēdi.
+                    Izvēlies maršruta segmentus un sakārto tos pareizajā secībā,
+                    lai izveidotu pilnu piegādes ķēdi.
                 </p>
+
+                {expectedStartName || expectedEndName ? (
+                    <div className="mt-4 rounded-2xl border border-[#d7e5db] bg-[#f8fbf9] p-4 text-[14px] font-semibold text-[#182219]">
+                        Uzdevuma marsruts:{' '}
+                        {expectedStartName ?? 'Sakums nav noradits'}
+                        {' -> '}
+                        {expectedEndName ?? 'Galamerkis nav noradits'}
+                    </div>
+                ) : null}
             </div>
 
             <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -58,16 +78,20 @@ export default function RouteBuilderStep({
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
                                             <div className="text-[16px] font-semibold text-[#182219]">
-                                                {routeName(segment, 'from')} → {routeName(segment, 'to')}
+                                                {routeName(segment, 'from')} →{' '}
+                                                {routeName(segment, 'to')}
                                             </div>
                                             <div className="mt-2 text-[14px] text-[#5b6b61]">
-                                                Attālums: {segment.distance_km ?? '—'} km
+                                                Attālums:{' '}
+                                                {segment.distance_km ?? '—'} km
                                             </div>
                                         </div>
 
                                         <button
                                             type="button"
-                                            onClick={() => onAddSegment(segment.id)}
+                                            onClick={() =>
+                                                onAddSegment(segment.id)
+                                            }
                                             disabled={loading}
                                             className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-3 py-2 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:opacity-60"
                                         >
@@ -97,14 +121,16 @@ export default function RouteBuilderStep({
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
-                                            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+                                            <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                                                 Posms {index + 1}
                                             </div>
                                             <div className="mt-2 text-[16px] font-semibold text-[#182219]">
-                                                {routeName(segment, 'from')} → {routeName(segment, 'to')}
+                                                {routeName(segment, 'from')} →{' '}
+                                                {routeName(segment, 'to')}
                                             </div>
                                             <div className="mt-2 text-[14px] text-[#5b6b61]">
-                                                Attālums: {segment.distance_km ?? '—'} km
+                                                Attālums:{' '}
+                                                {segment.distance_km ?? '—'} km
                                             </div>
                                         </div>
 
@@ -112,8 +138,15 @@ export default function RouteBuilderStep({
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => onMoveSegment(segment.id, 'up')}
-                                                    disabled={loading || index === 0}
+                                                    onClick={() =>
+                                                        onMoveSegment(
+                                                            segment.id,
+                                                            'up',
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        loading || index === 0
+                                                    }
                                                     className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
                                                 >
                                                     <ArrowUp className="h-4 w-4" />
@@ -122,8 +155,18 @@ export default function RouteBuilderStep({
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => onMoveSegment(segment.id, 'down')}
-                                                    disabled={loading || index === selectedSegments.length - 1}
+                                                    onClick={() =>
+                                                        onMoveSegment(
+                                                            segment.id,
+                                                            'down',
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        loading ||
+                                                        index ===
+                                                            selectedSegments.length -
+                                                                1
+                                                    }
                                                     className="inline-flex items-center gap-1 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[13px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-50"
                                                 >
                                                     <ArrowDown className="h-4 w-4" />
@@ -133,7 +176,9 @@ export default function RouteBuilderStep({
 
                                             <button
                                                 type="button"
-                                                onClick={() => onRemoveSegment(segment.id)}
+                                                onClick={() =>
+                                                    onRemoveSegment(segment.id)
+                                                }
                                                 disabled={loading}
                                                 className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3 py-2 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:opacity-60"
                                             >
@@ -150,7 +195,7 @@ export default function RouteBuilderStep({
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-[#e4e9e4] bg-[#f8fbf9] p-4">
-                        <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+                        <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                             Kopsavilkums
                         </div>
                         <div className="mt-2 text-[15px] font-semibold text-[#182219]">
@@ -160,7 +205,8 @@ export default function RouteBuilderStep({
                             Kopējais attālums: {totalDistance} km
                         </div>
                         <div className="mt-2 text-[13px] leading-6 text-[#5b6b61]">
-                            Segmentu secība ietekmē preview rezultātu un timeline aprēķinus.
+                            Segmentu secība ietekmē preview rezultātu un
+                            timeline aprēķinus.
                         </div>
                     </div>
                 </div>

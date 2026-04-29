@@ -115,7 +115,10 @@ function normalizeConfigSection(
         : {};
 }
 
-function formatStringList(values?: string[] | null, mapper?: (value: string) => string) {
+function formatStringList(
+    values?: string[] | null,
+    mapper?: (value: string) => string,
+) {
     if (!values || values.length === 0) return '';
 
     return values.map((value) => (mapper ? mapper(value) : value)).join(', ');
@@ -161,7 +164,9 @@ function ScenarioBadge({ value }: { value?: string | null }) {
         full_chain: 'Pilna logistikas kede',
     };
 
-    const label = value ? labelMap[value] ?? value.replaceAll('_', ' ') : 'Scenarijs nav noradits';
+    const label = value
+        ? (labelMap[value] ?? value.replaceAll('_', ' '))
+        : 'Scenarijs nav noradits';
 
     return (
         <span className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1.5 text-[13px] font-semibold text-[#166a4d]">
@@ -184,7 +189,9 @@ function PriorityBadge({ value }: { value?: string | null }) {
                 : 'border-slate-200 bg-slate-50 text-slate-700';
 
     return (
-        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-semibold ${classes}`}>
+        <span
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-semibold ${classes}`}
+        >
             <BadgeAlert className="h-3.5 w-3.5" />
             Prioritate: {priorityLabel(value)}
         </span>
@@ -202,11 +209,13 @@ function QuickStat({
 }) {
     return (
         <div className="rounded-2xl border border-[#d9ded9] bg-[#f8faf8] p-4">
-            <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+            <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                 <span className="text-[#166a4d]">{icon}</span>
                 {label}
             </div>
-            <div className="mt-2 text-[18px] font-semibold text-[#182219]">{value}</div>
+            <div className="mt-2 text-[18px] font-semibold text-[#182219]">
+                {value}
+            </div>
         </div>
     );
 }
@@ -222,11 +231,13 @@ function DetailRow({
 }) {
     return (
         <div className="rounded-2xl border border-[#e4e9e4] bg-white p-4">
-            <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b887f]">
+            <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
                 <span className="text-[#166a4d]">{icon}</span>
                 {label}
             </div>
-            <div className="mt-2 text-[15px] font-semibold text-[#182219]">{value}</div>
+            <div className="mt-2 text-[15px] font-semibold text-[#182219]">
+                {value}
+            </div>
         </div>
     );
 }
@@ -243,8 +254,12 @@ function SectionCard({
     return (
         <section className="rounded-[26px] border border-[#d9ded9] bg-white p-5 shadow-sm">
             <div>
-                <h3 className="text-[22px] font-semibold tracking-tight text-[#182219]">{title}</h3>
-                <p className="mt-1 text-[14px] leading-6 text-[#5b6b61]">{subtitle}</p>
+                <h3 className="text-[22px] font-semibold tracking-tight text-[#182219]">
+                    {title}
+                </h3>
+                <p className="mt-1 text-[14px] leading-6 text-[#5b6b61]">
+                    {subtitle}
+                </p>
             </div>
             <div className="mt-4">{children}</div>
         </section>
@@ -252,7 +267,11 @@ function SectionCard({
 }
 
 export default function IntroStep({ template, loading, onStart }: Props) {
-    const suggestedFuelStops = template.fuelStations ?? template.fuel_stations ?? [];
+    const suggestedFuelStops =
+        template.fuelStations ?? template.fuel_stations ?? [];
+    const startLocation =
+        template.startLocation ?? template.start_location ?? null;
+    const endLocation = template.endLocation ?? template.end_location ?? null;
     const timing = normalizeConfigSection(template, 'timing');
     const availability = normalizeConfigSection(template, 'availability');
     const costs = normalizeConfigSection(template, 'costs');
@@ -323,12 +342,14 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                     <QuickStat
                         icon={<Package className="h-4 w-4" />}
                         label="Kravas profils"
-                        value={cargoModeLabel(template.cargo_mode ?? template.cargo_type)}
+                        value={cargoModeLabel(
+                            template.cargo_mode ?? template.cargo_type,
+                        )}
                     />
                     <QuickStat
                         icon={<MapPin className="h-4 w-4" />}
                         label="Marsruts"
-                        value={`${template.startLocation?.name ?? '-'} -> ${template.endLocation?.name ?? '-'}`}
+                        value={`${startLocation?.name ?? '-'} -> ${endLocation?.name ?? '-'}`}
                     />
                     <QuickStat
                         icon={<CalendarDays className="h-4 w-4" />}
@@ -344,13 +365,55 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                     subtitle="Galvenie parametri, kas ietekme izveleto transportu un piegades risinajumu."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
-                        <DetailRow icon={<Package className="h-4 w-4" />} label="Nosaukums" value={template.cargo_name || 'Nav noradits'} />
-                        <DetailRow icon={<FileText className="h-4 w-4" />} label="Tips" value={template.cargo_type || 'Nav noradits'} />
-                        <DetailRow icon={<Package className="h-4 w-4" />} label="Kravas profils" value={cargoModeLabel(template.cargo_mode ?? template.cargo_type)} />
-                        <DetailRow icon={<Container className="h-4 w-4" />} label="Konteineru skaits" value={template.cargo_amount_containers != null ? String(template.cargo_amount_containers) : '-'} />
-                        <DetailRow icon={<Scale className="h-4 w-4" />} label="Svars" value={template.cargo_amount_tons != null ? `${template.cargo_amount_tons} t` : '-'} />
-                        <DetailRow icon={<Waves className="h-4 w-4" />} label="Tilpums" value={template.cargo_volume_m3 != null ? `${template.cargo_volume_m3} m3` : '-'} />
-                        <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Kravas vertiba" value={formatCurrency(template.cargo_value)} />
+                        <DetailRow
+                            icon={<Package className="h-4 w-4" />}
+                            label="Nosaukums"
+                            value={template.cargo_name || 'Nav noradits'}
+                        />
+                        <DetailRow
+                            icon={<FileText className="h-4 w-4" />}
+                            label="Tips"
+                            value={template.cargo_type || 'Nav noradits'}
+                        />
+                        <DetailRow
+                            icon={<Package className="h-4 w-4" />}
+                            label="Kravas profils"
+                            value={cargoModeLabel(
+                                template.cargo_mode ?? template.cargo_type,
+                            )}
+                        />
+                        <DetailRow
+                            icon={<Container className="h-4 w-4" />}
+                            label="Konteineru skaits"
+                            value={
+                                template.cargo_amount_containers != null
+                                    ? String(template.cargo_amount_containers)
+                                    : '-'
+                            }
+                        />
+                        <DetailRow
+                            icon={<Scale className="h-4 w-4" />}
+                            label="Svars"
+                            value={
+                                template.cargo_amount_tons != null
+                                    ? `${template.cargo_amount_tons} t`
+                                    : '-'
+                            }
+                        />
+                        <DetailRow
+                            icon={<Waves className="h-4 w-4" />}
+                            label="Tilpums"
+                            value={
+                                template.cargo_volume_m3 != null
+                                    ? `${template.cargo_volume_m3} m3`
+                                    : '-'
+                            }
+                        />
+                        <DetailRow
+                            icon={<DollarSign className="h-4 w-4" />}
+                            label="Kravas vertiba"
+                            value={formatCurrency(template.cargo_value)}
+                        />
                     </div>
                 </SectionCard>
 
@@ -359,10 +422,26 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                     subtitle="Sakuma un gala punkti, ka ari piegades laika ierobezojumi."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
-                        <DetailRow icon={<MapPin className="h-4 w-4" />} label="Sakuma lokacija" value={template.startLocation?.name || 'Nav noradita'} />
-                        <DetailRow icon={<MapPin className="h-4 w-4" />} label="Gala lokacija" value={template.endLocation?.name || 'Nav noradita'} />
-                        <DetailRow icon={<CalendarDays className="h-4 w-4" />} label="Termins" value={formatDate(template.deadline_date)} />
-                        <DetailRow icon={<Flag className="h-4 w-4" />} label="Prioritate" value={priorityLabel(template.priority)} />
+                        <DetailRow
+                            icon={<MapPin className="h-4 w-4" />}
+                            label="Sakuma lokacija"
+                            value={startLocation?.name || 'Nav noradita'}
+                        />
+                        <DetailRow
+                            icon={<MapPin className="h-4 w-4" />}
+                            label="Gala lokacija"
+                            value={endLocation?.name || 'Nav noradita'}
+                        />
+                        <DetailRow
+                            icon={<CalendarDays className="h-4 w-4" />}
+                            label="Termins"
+                            value={formatDate(template.deadline_date)}
+                        />
+                        <DetailRow
+                            icon={<Flag className="h-4 w-4" />}
+                            label="Prioritate"
+                            value={priorityLabel(template.priority)}
+                        />
                     </div>
                 </SectionCard>
 
@@ -371,13 +450,45 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                     subtitle="Praktiskie nosacijumi, kas jaņem vera risinajuma izveide."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
-                        <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Budzeta limits" value={formatCurrency(template.budget_limit)} />
-                        <DetailRow icon={<TimerReset className="h-4 w-4" />} label="Maksimalie braucieni" value={template.max_trips != null ? String(template.max_trips) : '-'} />
-                        <DetailRow icon={<Truck className="h-4 w-4" />} label="Nepieciesama degvielas planosana" value={yesNo(template.requires_refuel_planning)} />
-                        <DetailRow icon={<Gauge className="h-4 w-4" />} label="Scenarija statuss" value={template.status || 'Nav noradits'} />
-                        <DetailRow icon={<ShieldCheck className="h-4 w-4" />} label="Slegta telpa" value={yesNo(template.requires_closed_space)} />
-                        <DetailRow icon={<Waves className="h-4 w-4" />} label="Ventilacija" value={yesNo(template.requires_ventilation)} />
-                        <DetailRow icon={<BadgeAlert className="h-4 w-4" />} label="Bistamo kravu atbalsts" value={yesNo(template.requires_hazardous_support)} />
+                        <DetailRow
+                            icon={<DollarSign className="h-4 w-4" />}
+                            label="Budzeta limits"
+                            value={formatCurrency(template.budget_limit)}
+                        />
+                        <DetailRow
+                            icon={<TimerReset className="h-4 w-4" />}
+                            label="Maksimalie braucieni"
+                            value={
+                                template.max_trips != null
+                                    ? String(template.max_trips)
+                                    : '-'
+                            }
+                        />
+                        <DetailRow
+                            icon={<Truck className="h-4 w-4" />}
+                            label="Nepieciesama degvielas planosana"
+                            value={yesNo(template.requires_refuel_planning)}
+                        />
+                        <DetailRow
+                            icon={<Gauge className="h-4 w-4" />}
+                            label="Scenarija statuss"
+                            value={template.status || 'Nav noradits'}
+                        />
+                        <DetailRow
+                            icon={<ShieldCheck className="h-4 w-4" />}
+                            label="Slegta telpa"
+                            value={yesNo(template.requires_closed_space)}
+                        />
+                        <DetailRow
+                            icon={<Waves className="h-4 w-4" />}
+                            label="Ventilacija"
+                            value={yesNo(template.requires_ventilation)}
+                        />
+                        <DetailRow
+                            icon={<BadgeAlert className="h-4 w-4" />}
+                            label="Bistamo kravu atbalsts"
+                            value={yesNo(template.requires_hazardous_support)}
+                        />
                     </div>
                 </SectionCard>
 
@@ -386,12 +497,40 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                     subtitle="Skolotaja uzstaditie noteikumi, kurus risinajumam ir jaievero."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
-                        <DetailRow icon={<CheckCircle2 className="h-4 w-4" />} label="Atlautie kuga kravas profili" value={allowedShipModes || 'Nav ierobezots'} />
-                        <DetailRow icon={<BadgeAlert className="h-4 w-4" />} label="Aizliegtie kuga kravas profili" value={forbiddenShipModes || 'Nav aizliegumu'} />
-                        <DetailRow icon={<Truck className="h-4 w-4" />} label="Obligata iekrausanas metode" value={yesNo(template.requires_loading_method_choice)} />
-                        <DetailRow icon={<Truck className="h-4 w-4" />} label="Obligata izkrausanas metode" value={yesNo(template.requires_unloading_method_choice)} />
-                        <DetailRow icon={<Settings2 className="h-4 w-4" />} label="Prasitas handling metodes" value={requiredHandlingMethods || 'Nav noraditas'} />
-                        <DetailRow icon={<Settings2 className="h-4 w-4" />} label="Atlautas handling metodes" value={allowedHandlingMethods || 'Visas pieejamas'} />
+                        <DetailRow
+                            icon={<CheckCircle2 className="h-4 w-4" />}
+                            label="Atlautie kuga kravas profili"
+                            value={allowedShipModes || 'Nav ierobezots'}
+                        />
+                        <DetailRow
+                            icon={<BadgeAlert className="h-4 w-4" />}
+                            label="Aizliegtie kuga kravas profili"
+                            value={forbiddenShipModes || 'Nav aizliegumu'}
+                        />
+                        <DetailRow
+                            icon={<Truck className="h-4 w-4" />}
+                            label="Obligata iekrausanas metode"
+                            value={yesNo(
+                                template.requires_loading_method_choice,
+                            )}
+                        />
+                        <DetailRow
+                            icon={<Truck className="h-4 w-4" />}
+                            label="Obligata izkrausanas metode"
+                            value={yesNo(
+                                template.requires_unloading_method_choice,
+                            )}
+                        />
+                        <DetailRow
+                            icon={<Settings2 className="h-4 w-4" />}
+                            label="Prasitas handling metodes"
+                            value={requiredHandlingMethods || 'Nav noraditas'}
+                        />
+                        <DetailRow
+                            icon={<Settings2 className="h-4 w-4" />}
+                            label="Atlautas handling metodes"
+                            value={allowedHandlingMethods || 'Visas pieejamas'}
+                        />
                     </div>
                 </SectionCard>
 
@@ -417,7 +556,8 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-[#e4e9e4] bg-white p-4 text-[15px] text-[#5b6b61]">
-                            Konkre tas degvielas pieturas sim uzdevumam vel nav pievienotas.
+                            Konkre tas degvielas pieturas sim uzdevumam vel nav
+                            pievienotas.
                         </div>
                     )}
                 </SectionCard>
@@ -430,12 +570,20 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                         <DetailRow
                             icon={<Snowflake className="h-4 w-4" />}
                             label="Temperaturas rezims"
-                            value={template.temperatureMode?.name || template.temperature_mode?.name || 'Nav noradits'}
+                            value={
+                                template.temperatureMode?.name ||
+                                template.temperature_mode?.name ||
+                                'Nav noradits'
+                            }
                         />
                         <DetailRow
                             icon={<BadgeAlert className="h-4 w-4" />}
                             label="Ipasais nosacijums"
-                            value={template.specialCondition?.name || template.special_condition?.name || 'Nav noradits'}
+                            value={
+                                template.specialCondition?.name ||
+                                template.special_condition?.name ||
+                                'Nav noradits'
+                            }
                         />
                     </div>
                 </SectionCard>
@@ -446,28 +594,136 @@ export default function IntroStep({ template, loading, onStart }: Props) {
                 subtitle="Pilns iestatijumu kopsavilkums cilveciga forma, nevis tehniska JSON izdruka."
             >
                 <div className="grid gap-4 md:grid-cols-2">
-                    <DetailRow icon={<TimerReset className="h-4 w-4" />} label="Sakotneja iekrausana" value={formatMinutes(timing.loading_fixed_minutes)} />
-                    <DetailRow icon={<Truck className="h-4 w-4" />} label="Degvielas pietura" value={formatMinutes(timing.fuel_stop_minutes)} />
-                    <DetailRow icon={<Waves className="h-4 w-4" />} label="Ostas apstrade" value={formatMinutes(timing.port_processing_minutes)} />
-                    <DetailRow icon={<Container className="h-4 w-4" />} label="Iekrausana kugi" value={formatMinutes(timing.ship_loading_minutes)} />
-                    <DetailRow icon={<Waves className="h-4 w-4" />} label="Juras tranzits" value={formatMinutes(timing.sea_transit_minutes)} />
-                    <DetailRow icon={<TimerReset className="h-4 w-4" />} label="Brauksana lidz atputai" value={formatMinutes(timing.max_drive_minutes_before_rest)} />
-                    <DetailRow icon={<TimerReset className="h-4 w-4" />} label="Atputas pauze" value={formatMinutes(timing.rest_minutes)} />
-                    <DetailRow icon={<Gauge className="h-4 w-4" />} label="Ostas rinda" value={formatMinutes(availability.port_queue_minutes)} />
-                    <DetailRow icon={<CalendarDays className="h-4 w-4" />} label="Kugis gatavs" value={typeof availability.ship_ready_at === 'string' ? formatDateTime(availability.ship_ready_at) : 'Nav noradits'} />
-                    <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Dienas darba likme" value={formatCurrencyConfig(costs.labor_cost_per_hour_day, '/h')} />
-                    <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Dienas tehnikas likme" value={formatCurrencyConfig(costs.machine_cost_per_hour_day, '/h')} />
-                    <DetailRow icon={<BadgeAlert className="h-4 w-4" />} label="Nakts koeficients" value={formatPlain(costs.night_shift_multiplier)} />
-                    <DetailRow icon={<CalendarDays className="h-4 w-4" />} label="Dienas mainas sakums" value={formatHour(costs.day_shift_start_hour)} />
-                    <DetailRow icon={<CalendarDays className="h-4 w-4" />} label="Nakts mainas sakums" value={formatHour(costs.night_shift_start_hour)} />
-                    <DetailRow icon={<ShieldCheck className="h-4 w-4" />} label="Porta/cargo parbaude" value={yesNoConfig(compatibility.enforce_port_cargo_support)} />
-                    <DetailRow icon={<ShieldCheck className="h-4 w-4" />} label="Kuga/cargo parbaude" value={yesNoConfig(compatibility.enforce_ship_cargo_support)} />
-                    <DetailRow icon={<ShieldCheck className="h-4 w-4" />} label="Porta/kuga iegrime" value={yesNoConfig(compatibility.enforce_port_ship_draft)} />
-                    <DetailRow icon={<ShieldCheck className="h-4 w-4" />} label="Handling saderiba" value={yesNoConfig(compatibility.enforce_handling_compatibility)} />
-                    <DetailRow icon={<Gauge className="h-4 w-4" />} label="Laika svars score" value={formatPlain(scoring.time_weight)} />
-                    <DetailRow icon={<Gauge className="h-4 w-4" />} label="Izmaksu svars score" value={formatPlain(scoring.cost_weight)} />
-                    <DetailRow icon={<Gauge className="h-4 w-4" />} label="Saderibas svars score" value={formatPlain(scoring.compatibility_weight)} />
-                    <DetailRow icon={<Gauge className="h-4 w-4" />} label="Reisu svars score" value={formatPlain(scoring.trips_weight)} />
+                    <DetailRow
+                        icon={<TimerReset className="h-4 w-4" />}
+                        label="Sakotneja iekrausana"
+                        value={formatMinutes(timing.loading_fixed_minutes)}
+                    />
+                    <DetailRow
+                        icon={<Truck className="h-4 w-4" />}
+                        label="Degvielas pietura"
+                        value={formatMinutes(timing.fuel_stop_minutes)}
+                    />
+                    <DetailRow
+                        icon={<Waves className="h-4 w-4" />}
+                        label="Ostas apstrade"
+                        value={formatMinutes(timing.port_processing_minutes)}
+                    />
+                    <DetailRow
+                        icon={<Container className="h-4 w-4" />}
+                        label="Iekrausana kugi"
+                        value={formatMinutes(timing.ship_loading_minutes)}
+                    />
+                    <DetailRow
+                        icon={<Waves className="h-4 w-4" />}
+                        label="Juras tranzits"
+                        value={formatMinutes(timing.sea_transit_minutes)}
+                    />
+                    <DetailRow
+                        icon={<TimerReset className="h-4 w-4" />}
+                        label="Brauksana lidz atputai"
+                        value={formatMinutes(
+                            timing.max_drive_minutes_before_rest,
+                        )}
+                    />
+                    <DetailRow
+                        icon={<TimerReset className="h-4 w-4" />}
+                        label="Atputas pauze"
+                        value={formatMinutes(timing.rest_minutes)}
+                    />
+                    <DetailRow
+                        icon={<Gauge className="h-4 w-4" />}
+                        label="Ostas rinda"
+                        value={formatMinutes(availability.port_queue_minutes)}
+                    />
+                    <DetailRow
+                        icon={<CalendarDays className="h-4 w-4" />}
+                        label="Kugis gatavs"
+                        value={
+                            typeof availability.ship_ready_at === 'string'
+                                ? formatDateTime(availability.ship_ready_at)
+                                : 'Nav noradits'
+                        }
+                    />
+                    <DetailRow
+                        icon={<DollarSign className="h-4 w-4" />}
+                        label="Dienas darba likme"
+                        value={formatCurrencyConfig(
+                            costs.labor_cost_per_hour_day,
+                            '/h',
+                        )}
+                    />
+                    <DetailRow
+                        icon={<DollarSign className="h-4 w-4" />}
+                        label="Dienas tehnikas likme"
+                        value={formatCurrencyConfig(
+                            costs.machine_cost_per_hour_day,
+                            '/h',
+                        )}
+                    />
+                    <DetailRow
+                        icon={<BadgeAlert className="h-4 w-4" />}
+                        label="Nakts koeficients"
+                        value={formatPlain(costs.night_shift_multiplier)}
+                    />
+                    <DetailRow
+                        icon={<CalendarDays className="h-4 w-4" />}
+                        label="Dienas mainas sakums"
+                        value={formatHour(costs.day_shift_start_hour)}
+                    />
+                    <DetailRow
+                        icon={<CalendarDays className="h-4 w-4" />}
+                        label="Nakts mainas sakums"
+                        value={formatHour(costs.night_shift_start_hour)}
+                    />
+                    <DetailRow
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Porta/cargo parbaude"
+                        value={yesNoConfig(
+                            compatibility.enforce_port_cargo_support,
+                        )}
+                    />
+                    <DetailRow
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Kuga/cargo parbaude"
+                        value={yesNoConfig(
+                            compatibility.enforce_ship_cargo_support,
+                        )}
+                    />
+                    <DetailRow
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Porta/kuga iegrime"
+                        value={yesNoConfig(
+                            compatibility.enforce_port_ship_draft,
+                        )}
+                    />
+                    <DetailRow
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        label="Handling saderiba"
+                        value={yesNoConfig(
+                            compatibility.enforce_handling_compatibility,
+                        )}
+                    />
+                    <DetailRow
+                        icon={<Gauge className="h-4 w-4" />}
+                        label="Laika svars score"
+                        value={formatPlain(scoring.time_weight)}
+                    />
+                    <DetailRow
+                        icon={<Gauge className="h-4 w-4" />}
+                        label="Izmaksu svars score"
+                        value={formatPlain(scoring.cost_weight)}
+                    />
+                    <DetailRow
+                        icon={<Gauge className="h-4 w-4" />}
+                        label="Saderibas svars score"
+                        value={formatPlain(scoring.compatibility_weight)}
+                    />
+                    <DetailRow
+                        icon={<Gauge className="h-4 w-4" />}
+                        label="Reisu svars score"
+                        value={formatPlain(scoring.trips_weight)}
+                    />
                 </div>
             </SectionCard>
         </div>

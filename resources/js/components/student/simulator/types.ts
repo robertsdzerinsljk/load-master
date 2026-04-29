@@ -244,7 +244,9 @@ export type Template = {
     step_config?: Record<string, boolean> | null;
     scenario_config?: Record<string, unknown> | null;
     startLocation?: LocationItem | null;
+    start_location?: LocationItem | null;
     endLocation?: LocationItem | null;
+    end_location?: LocationItem | null;
     startPort?: PortItem | null;
     endPort?: PortItem | null;
     temperatureMode?: {
@@ -284,6 +286,9 @@ export type PreviewResult = {
         total_driven_distance_km?: number | string;
         outbound_distance_km?: number | string;
         return_distance_km?: number | string;
+        endpoint_valid?: boolean;
+        expected_start?: string | null;
+        expected_end?: string | null;
         start?: string;
         end?: string;
         segments?: Array<{
