@@ -96,8 +96,8 @@
       "_dist-Bdi6NWr1.js"
     ]
   },
-  "_StudentLayout-29zYSYXq.js": {
-    "file": "assets/StudentLayout-29zYSYXq.js",
+  "_StudentLayout-BFjRRUyT.js": {
+    "file": "assets/StudentLayout-BFjRRUyT.js",
     "name": "StudentLayout",
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
@@ -108,8 +108,8 @@
       "_clipboard-list-GHvmDiRs.js"
     ]
   },
-  "_TeacherLayout-q_JByQsL.js": {
-    "file": "assets/TeacherLayout-q_JByQsL.js",
+  "_TeacherLayout-DYHqgpYW.js": {
+    "file": "assets/TeacherLayout-DYHqgpYW.js",
     "name": "TeacherLayout",
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
@@ -629,7 +629,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-BuulCZH-.css",
+    "file": "assets/app-A5etMo8i.css",
     "name": "app",
     "names": [
       "app.css"
@@ -638,7 +638,7 @@
     "isEntry": true
   },
   "resources/js/app.tsx": {
-    "file": "assets/app-11lx6wQ_.js",
+    "file": "assets/app-InEj0ARY.js",
     "name": "app",
     "src": "resources/js/app.tsx",
     "isEntry": true,
@@ -743,7 +743,7 @@
     ]
   },
   "resources/js/pages/Student/Attempts/Index.tsx": {
-    "file": "assets/Index-CmOyMz2-.js",
+    "file": "assets/Index-CpYspAQQ.js",
     "name": "Index",
     "src": "resources/js/pages/Student/Attempts/Index.tsx",
     "isDynamicEntry": true,
@@ -758,26 +758,26 @@
       "_file-search-C-Mha7Hb.js",
       "_file-text-DmjwG1hb.js",
       "_fuel-clJAFWGO.js",
-      "_StudentLayout-29zYSYXq.js",
+      "_StudentLayout-BFjRRUyT.js",
       "_search-BMmlmkzA.js",
       "_triangle-alert-CQuoK_Gb.js",
       "_truck-BLagLvHe.js"
     ]
   },
   "resources/js/pages/Student/CreateOrder.tsx": {
-    "file": "assets/CreateOrder-CPLKgzAO.js",
+    "file": "assets/CreateOrder-DgSkRffQ.js",
     "name": "CreateOrder",
     "src": "resources/js/pages/Student/CreateOrder.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_StudentLayout-29zYSYXq.js",
+      "_StudentLayout-BFjRRUyT.js",
       "_OrderForm-CUyV5Ssc.js"
     ]
   },
   "resources/js/pages/Student/Dashboard.tsx": {
-    "file": "assets/Dashboard-B8gSGXGP.js",
+    "file": "assets/Dashboard-CImn85Pi.js",
     "name": "Dashboard",
     "src": "resources/js/pages/Student/Dashboard.tsx",
     "isDynamicEntry": true,
@@ -792,7 +792,7 @@
       "_map-pinned-TKHZsKCp.js",
       "_package-PCxcuUoM.js",
       "_play-B8T3GZ_X.js",
-      "_StudentLayout-29zYSYXq.js",
+      "_StudentLayout-BFjRRUyT.js",
       "_route-gaIdjcX1.js",
       "_search-BMmlmkzA.js",
       "_snowflake-DZAD6UFZ.js",
@@ -800,7 +800,7 @@
     ]
   },
   "resources/js/pages/Student/Simulator/Show.tsx": {
-    "file": "assets/Show-CTcnWNlw.js",
+    "file": "assets/Show-D-hUQtey.js",
     "name": "Show",
     "src": "resources/js/pages/Student/Simulator/Show.tsx",
     "isDynamicEntry": true,
@@ -817,7 +817,7 @@
       "_check-DSIJLDeC.js",
       "_log-out-E8W1kfpg.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-check-CdD9fHFr.js",
       "_clock-3-D1A_uJk_.js",
       "_file-text-DmjwG1hb.js",
@@ -829,7 +829,7 @@
       "_package-PCxcuUoM.js",
       "_play-B8T3GZ_X.js",
       "_plus-BupG0CI7.js",
-      "_StudentLayout-29zYSYXq.js",
+      "_StudentLayout-BFjRRUyT.js",
       "_route-gaIdjcX1.js",
       "_shield-check-BdLXU4k7.js",
       "_ship-wheel-B8cSweSi.js",
@@ -843,7 +843,7 @@
     ]
   },
   "resources/js/pages/Teacher/AssignedTasks/Show.tsx": {
-    "file": "assets/Show-O1IiqwFf.js",
+    "file": "assets/Show-DQ58TToI.js",
     "name": "Show",
     "src": "resources/js/pages/Teacher/AssignedTasks/Show.tsx",
     "isDynamicEntry": true,
@@ -858,7 +858,7 @@
       "_calendar-days-CNwuz3Xn.js",
       "_chevron-down-DNfIFClj.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-check-CdD9fHFr.js",
       "_clipboard-list-GHvmDiRs.js",
       "_clock-3-D1A_uJk_.js",
@@ -875,19 +875,19 @@
     ]
   },
   "resources/js/pages/Teacher/CreateOrder.tsx": {
-    "file": "assets/CreateOrder-WUNdr4cb.js",
+    "file": "assets/CreateOrder-CFxA7YzB.js",
     "name": "CreateOrder",
     "src": "resources/js/pages/Teacher/CreateOrder.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_OrderForm-CUyV5Ssc.js"
     ]
   },
   "resources/js/pages/Teacher/Dashboard.tsx": {
-    "file": "assets/Dashboard-BIa1Xpgk.js",
+    "file": "assets/Dashboard-BFGAR6FD.js",
     "name": "Dashboard",
     "src": "resources/js/pages/Teacher/Dashboard.tsx",
     "isDynamicEntry": true,
@@ -898,7 +898,7 @@
       "_book-open-DB7iVAkK.js",
       "_log-out-E8W1kfpg.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-list-GHvmDiRs.js",
       "_clock-3-D1A_uJk_.js",
       "_eye-Ds_JoGBA.js",
@@ -908,7 +908,7 @@
     ]
   },
   "resources/js/pages/Teacher/Students/Index.tsx": {
-    "file": "assets/Index-CpWUrEaB.js",
+    "file": "assets/Index-ABEp18YH.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Students/Index.tsx",
     "isDynamicEntry": true,
@@ -920,7 +920,7 @@
       "_book-open-DB7iVAkK.js",
       "_chevron-down-DNfIFClj.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_folder-kanban-Db9dDm64.js",
       "_mail-CCJklB8g.js",
       "_search-BMmlmkzA.js",
@@ -928,7 +928,7 @@
     ]
   },
   "resources/js/pages/Teacher/Students/Show.tsx": {
-    "file": "assets/Show-DbCgrVsy.js",
+    "file": "assets/Show-LViVGdJZ.js",
     "name": "Show",
     "src": "resources/js/pages/Teacher/Students/Show.tsx",
     "isDynamicEntry": true,
@@ -940,7 +940,7 @@
       "_award-D9y0uOPV.js",
       "_calendar-days-CNwuz3Xn.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-list-GHvmDiRs.js",
       "_clock-3-D1A_uJk_.js",
       "_eye-Ds_JoGBA.js",
@@ -951,33 +951,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Customs/Create.tsx": {
-    "file": "assets/Create-D79ZSZrl.js",
+    "file": "assets/Create-CkTPC9fc.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Customs/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_CustomsDocumentForm-CD0N76_O.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Customs/Edit.tsx": {
-    "file": "assets/Edit-DvWdN4z8.js",
+    "file": "assets/Edit-BODLmKh7.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Customs/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_CustomsDocumentForm-CD0N76_O.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Customs/Index.tsx": {
-    "file": "assets/Index-BAZBbvqm.js",
+    "file": "assets/Index-DaTGVpgP.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Customs/Index.tsx",
     "isDynamicEntry": true,
@@ -985,7 +985,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_file-text-DmjwG1hb.js",
       "_search-BMmlmkzA.js",
       "_trash-2-D0lhck57.js",
@@ -993,33 +993,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/FuelStations/Create.tsx": {
-    "file": "assets/Create-BubRbA-h.js",
+    "file": "assets/Create-BcieDWc5.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/FuelStations/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_FuelStationPresetForm-BHVz_HtC.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/FuelStations/Edit.tsx": {
-    "file": "assets/Edit-DrxjDMl1.js",
+    "file": "assets/Edit-EHLt3UwQ.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/FuelStations/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_FuelStationPresetForm-BHVz_HtC.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/FuelStations/Index.tsx": {
-    "file": "assets/Index-tgfcnqW8.js",
+    "file": "assets/Index-ywpZMLNn.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/FuelStations/Index.tsx",
     "isDynamicEntry": true,
@@ -1027,7 +1027,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_fuel-clJAFWGO.js",
       "_TemplateCatalogFilterBar-B0-VqvGi.js",
       "_trash-2-D0lhck57.js",
@@ -1035,7 +1035,7 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Index.tsx": {
-    "file": "assets/Index-DQvEdSZm.js",
+    "file": "assets/Index-V3iG5mD7.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Index.tsx",
     "isDynamicEntry": true,
@@ -1043,7 +1043,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_anchor-dKJbhLm1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_file-text-DmjwG1hb.js",
       "_folder-kanban-Db9dDm64.js",
       "_fuel-clJAFWGO.js",
@@ -1056,33 +1056,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/LandRoutes/Create.tsx": {
-    "file": "assets/Create-C50jJeu8.js",
+    "file": "assets/Create-bZi3dlsK.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/LandRoutes/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_LandRoutePresetForm-SSc2wjDv.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/LandRoutes/Edit.tsx": {
-    "file": "assets/Edit-Cw5UkIZ3.js",
+    "file": "assets/Edit-B9D3dIr1.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/LandRoutes/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_LandRoutePresetForm-SSc2wjDv.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/LandRoutes/Index.tsx": {
-    "file": "assets/Index-BIr62h4S.js",
+    "file": "assets/Index-T-iEVHJ4.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/LandRoutes/Index.tsx",
     "isDynamicEntry": true,
@@ -1090,7 +1090,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_route-gaIdjcX1.js",
       "_search-BMmlmkzA.js",
       "_trash-2-D0lhck57.js",
@@ -1098,33 +1098,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Locations/Create.tsx": {
-    "file": "assets/Create-DY521C00.js",
+    "file": "assets/Create-yyCRmqJg.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Locations/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_LocationPresetForm-jY5FPM7G.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Locations/Edit.tsx": {
-    "file": "assets/Edit-CqFCO_tN.js",
+    "file": "assets/Edit-BG4Knc0R.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Locations/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_LocationPresetForm-jY5FPM7G.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Locations/Index.tsx": {
-    "file": "assets/Index-Dsjh7mrH.js",
+    "file": "assets/Index-BCC4GYQz.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Locations/Index.tsx",
     "isDynamicEntry": true,
@@ -1132,7 +1132,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_map-pin-COBmX8MY.js",
       "_TemplateCatalogFilterBar-B0-VqvGi.js",
       "_trash-2-D0lhck57.js",
@@ -1140,32 +1140,32 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/OrderTemplates/Create.tsx": {
-    "file": "assets/Create-SG5L7r84.js",
+    "file": "assets/Create-B2ba1V7M.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/OrderTemplates/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "resources/js/pages/Teacher/Templates/OrderTemplates/OrderTemplateForm.tsx"
     ]
   },
   "resources/js/pages/Teacher/Templates/OrderTemplates/Edit.tsx": {
-    "file": "assets/Edit-BUrLF-ZD.js",
+    "file": "assets/Edit-CbKH8YRc.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/OrderTemplates/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "resources/js/pages/Teacher/Templates/OrderTemplates/OrderTemplateForm.tsx"
     ]
   },
   "resources/js/pages/Teacher/Templates/OrderTemplates/Index.tsx": {
-    "file": "assets/Index-BYm7kYG5.js",
+    "file": "assets/Index-DY8xns_v.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/OrderTemplates/Index.tsx",
     "isDynamicEntry": true,
@@ -1176,7 +1176,7 @@
       "_pencil-CzxhNlfs.js",
       "_calendar-days-CNwuz3Xn.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-list-GHvmDiRs.js",
       "_file-search-C-Mha7Hb.js",
       "_file-text-DmjwG1hb.js",
@@ -1207,7 +1207,7 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/OrderTemplates/Show.tsx": {
-    "file": "assets/Show-NHeLuZFV.js",
+    "file": "assets/Show-CArR5wmi.js",
     "name": "Show",
     "src": "resources/js/pages/Teacher/Templates/OrderTemplates/Show.tsx",
     "isDynamicEntry": true,
@@ -1220,7 +1220,7 @@
       "_calendar-days-CNwuz3Xn.js",
       "_chevron-down-DNfIFClj.js",
       "_circle-check-TL4v1leQ.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_clipboard-list-GHvmDiRs.js",
       "_clock-3-D1A_uJk_.js",
       "_file-text-DmjwG1hb.js",
@@ -1239,33 +1239,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Ports/Create.tsx": {
-    "file": "assets/Create-DX1d3Njs.js",
+    "file": "assets/Create-Jiab5HNw.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Ports/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_PortPresetForm-CKTUoX08.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Ports/Edit.tsx": {
-    "file": "assets/Edit-Bfsacf2o.js",
+    "file": "assets/Edit-B4eJJXfv.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Ports/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_PortPresetForm-CKTUoX08.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Ports/Index.tsx": {
-    "file": "assets/Index-Du4eKfzw.js",
+    "file": "assets/Index-B6dxh1Ee.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Ports/Index.tsx",
     "isDynamicEntry": true,
@@ -1274,40 +1274,40 @@
       "_dist-Bdi6NWr1.js",
       "_anchor-dKJbhLm1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_TemplateCatalogFilterBar-B0-VqvGi.js",
       "_trash-2-D0lhck57.js",
       "_BackButton-jx08yJmU.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/RouteFuelStops/Create.tsx": {
-    "file": "assets/Create-BaoO75Wk.js",
+    "file": "assets/Create-BzcMr8sg.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/RouteFuelStops/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_RouteFuelStopPresetForm-DbRUAVer.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/RouteFuelStops/Edit.tsx": {
-    "file": "assets/Edit-CwTvbcql.js",
+    "file": "assets/Edit-DS9NV8vM.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/RouteFuelStops/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_RouteFuelStopPresetForm-DbRUAVer.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/RouteFuelStops/Index.tsx": {
-    "file": "assets/Index-ELJuAPyt.js",
+    "file": "assets/Index-C-CiG5BC.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/RouteFuelStops/Index.tsx",
     "isDynamicEntry": true,
@@ -1315,7 +1315,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_fuel-clJAFWGO.js",
       "_search-BMmlmkzA.js",
       "_trash-2-D0lhck57.js",
@@ -1323,33 +1323,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Ships/Create.tsx": {
-    "file": "assets/Create-DoCVHyBT.js",
+    "file": "assets/Create-tyYt-_oM.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Ships/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_ShipPresetForm-e3EOPOoM.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Ships/Edit.tsx": {
-    "file": "assets/Edit-BzyuWgdz.js",
+    "file": "assets/Edit-BL4s5qmJ.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Ships/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_ShipPresetForm-e3EOPOoM.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Ships/Index.tsx": {
-    "file": "assets/Index-Bhg_GdRj2.js",
+    "file": "assets/Index-DXr1siNv2.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Ships/Index.tsx",
     "isDynamicEntry": true,
@@ -1357,7 +1357,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_ship-wheel-B8cSweSi.js",
       "_TemplateCatalogFilterBar-B0-VqvGi.js",
       "_trash-2-D0lhck57.js",
@@ -1365,33 +1365,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/SpecialConditions/Create.tsx": {
-    "file": "assets/Create-BxZYSuGi2.js",
+    "file": "assets/Create-Bm5hZf0Y2.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/SpecialConditions/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_SpecialConditionForm-CkT-cJ0X.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/SpecialConditions/Edit.tsx": {
-    "file": "assets/Edit-BlfYChAd2.js",
+    "file": "assets/Edit-B1IZpefo2.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/SpecialConditions/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_SpecialConditionForm-CkT-cJ0X.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/SpecialConditions/Index.tsx": {
-    "file": "assets/Index-BaWfapbS2.js",
+    "file": "assets/Index-a6ALejMN2.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/SpecialConditions/Index.tsx",
     "isDynamicEntry": true,
@@ -1399,7 +1399,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_search-BMmlmkzA.js",
       "_trash-2-D0lhck57.js",
       "_triangle-alert-CQuoK_Gb.js",
@@ -1407,33 +1407,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Temperature/Create.tsx": {
-    "file": "assets/Create-QWJHlZYZ2.js",
+    "file": "assets/Create-DSloJHsz2.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Temperature/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_TemperaturePresetForm-tXewZ3Lt.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Temperature/Edit.tsx": {
-    "file": "assets/Edit-vl4MW76F2.js",
+    "file": "assets/Edit-BU5BHRlL2.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Temperature/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_TemperaturePresetForm-tXewZ3Lt.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Temperature/Index.tsx": {
-    "file": "assets/Index-dY1C5zkf2.js",
+    "file": "assets/Index-D73XQBkf2.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Temperature/Index.tsx",
     "isDynamicEntry": true,
@@ -1441,7 +1441,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_search-BMmlmkzA.js",
       "_thermometer-D0Y3Mh1N.js",
       "_trash-2-D0lhck57.js",
@@ -1449,33 +1449,33 @@
     ]
   },
   "resources/js/pages/Teacher/Templates/Transport/Create.tsx": {
-    "file": "assets/Create-DQrSUKo2.js",
+    "file": "assets/Create-B6u_pt37.js",
     "name": "Create",
     "src": "resources/js/pages/Teacher/Templates/Transport/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_TransportPresetForm-C9xLLPB2.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Transport/Edit.tsx": {
-    "file": "assets/Edit-G1Y72_Jg.js",
+    "file": "assets/Edit-Bh8uJLpg.js",
     "name": "Edit",
     "src": "resources/js/pages/Teacher/Templates/Transport/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_BackButton-jx08yJmU.js",
       "_TransportPresetForm-C9xLLPB2.js"
     ]
   },
   "resources/js/pages/Teacher/Templates/Transport/Index.tsx": {
-    "file": "assets/Index-006piHb2.js",
+    "file": "assets/Index-CDXN23lJ.js",
     "name": "Index",
     "src": "resources/js/pages/Teacher/Templates/Transport/Index.tsx",
     "isDynamicEntry": true,
@@ -1483,7 +1483,7 @@
       "_jsx-runtime-B-sRngtE.js",
       "_dist-Bdi6NWr1.js",
       "_log-out-E8W1kfpg.js",
-      "_TeacherLayout-q_JByQsL.js",
+      "_TeacherLayout-DYHqgpYW.js",
       "_TemplateCatalogFilterBar-B0-VqvGi.js",
       "_snowflake-DZAD6UFZ.js",
       "_trash-2-D0lhck57.js",
@@ -1526,7 +1526,7 @@
     ]
   },
   "resources/js/pages/auth/login.tsx": {
-    "file": "assets/login-C0NB5_hA.js",
+    "file": "assets/login-BEi5orTY.js",
     "name": "login",
     "src": "resources/js/pages/auth/login.tsx",
     "isDynamicEntry": true,

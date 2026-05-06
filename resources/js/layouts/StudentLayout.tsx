@@ -55,7 +55,13 @@ function getUserDisplayName(user?: AuthUser) {
     const lastName = (user?.last_name ?? user?.surname)?.trim();
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
 
-    return user?.display_name || fullName || user?.name || user?.email || 'Students';
+    return (
+        user?.display_name ||
+        fullName ||
+        user?.name ||
+        user?.email ||
+        'Students'
+    );
 }
 
 function SidebarLink({
@@ -302,7 +308,17 @@ export default function StudentLayout({
                         label="Iziet"
                         icon={LogOut}
                         collapsed={collapsed}
-                        onClick={() => router.post('/logout')}
+                        onClick={() =>
+                            router.post(
+                                '/logout',
+                                {},
+                                {
+                                    onSuccess: () => {
+                                        window.location.assign('/login');
+                                    },
+                                },
+                            )
+                        }
                     />
                 </div>
             </aside>

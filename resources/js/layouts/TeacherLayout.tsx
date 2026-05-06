@@ -321,7 +321,17 @@ export default function TeacherLayout({
                         label="Iziet"
                         icon={LogOut}
                         collapsed={collapsed}
-                        onClick={() => router.post('/logout')}
+                        onClick={() =>
+                            router.post(
+                                '/logout',
+                                {},
+                                {
+                                    onSuccess: () => {
+                                        window.location.assign('/login');
+                                    },
+                                },
+                            )
+                        }
                     />
                 </div>
             </aside>

@@ -66,7 +66,9 @@ export default function Login({
                         <div
                             key={slide.image}
                             className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
-                                index === activeSlide ? 'opacity-100' : 'opacity-0'
+                                index === activeSlide
+                                    ? 'opacity-100'
+                                    : 'opacity-0'
                             }`}
                             style={{ backgroundImage: `url(${slide.image})` }}
                         />
@@ -89,7 +91,7 @@ export default function Login({
                                 </div>
                             </div>
 
-                            <h2 className="min-h-[120px] text-4xl font-bold leading-tight xl:text-5xl">
+                            <h2 className="min-h-[120px] text-4xl leading-tight font-bold xl:text-5xl">
                                 {slides[activeSlide].title}
                             </h2>
 
@@ -128,7 +130,8 @@ export default function Login({
                             </h1>
 
                             <p className="mt-3 text-sm leading-6 text-slate-500">
-                                Ievadiet e-pastu un paroli, lai turpinātu darbu simulatorā
+                                Ievadiet e-pastu un paroli, lai turpinātu darbu
+                                simulatorā
                             </p>
                         </div>
 
@@ -141,13 +144,19 @@ export default function Login({
                         <Form
                             {...store.form()}
                             resetOnSuccess={['password']}
+                            onSuccess={() => {
+                                window.location.assign('/dashboard');
+                            }}
                             className="flex flex-col gap-6"
                         >
                             {({ processing, errors }) => (
                                 <>
                                     <div className="grid gap-6">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="email" className="text-slate-700">
+                                            <Label
+                                                htmlFor="email"
+                                                className="text-slate-700"
+                                            >
                                                 E-pasts
                                             </Label>
                                             <Input
@@ -161,12 +170,17 @@ export default function Login({
                                                 placeholder="teacher@test.com"
                                                 className={inputClassName}
                                             />
-                                            <InputError message={errors.email} />
+                                            <InputError
+                                                message={errors.email}
+                                            />
                                         </div>
 
                                         <div className="grid gap-2">
                                             <div className="flex items-center">
-                                                <Label htmlFor="password" className="text-slate-700">
+                                                <Label
+                                                    htmlFor="password"
+                                                    className="text-slate-700"
+                                                >
                                                     Parole
                                                 </Label>
                                                 {canResetPassword && (
@@ -189,7 +203,9 @@ export default function Login({
                                                 placeholder="Ievadi paroli"
                                                 className={inputClassName}
                                             />
-                                            <InputError message={errors.password} />
+                                            <InputError
+                                                message={errors.password}
+                                            />
                                         </div>
 
                                         <div className="flex items-center space-x-3">
@@ -198,7 +214,10 @@ export default function Login({
                                                 name="remember"
                                                 tabIndex={3}
                                             />
-                                            <Label htmlFor="remember" className="text-slate-700">
+                                            <Label
+                                                htmlFor="remember"
+                                                className="text-slate-700"
+                                            >
                                                 Atcerēties mani
                                             </Label>
                                         </div>
