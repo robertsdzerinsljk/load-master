@@ -14,6 +14,8 @@ class StudentTestUserSeeder extends Seeder
             ['email' => 'student@test.local'],
             [
                 'name' => 'Test Student',
+                'first_name' => 'Test',
+                'last_name' => 'Student',
                 'role' => 'student',
                 'password' => Hash::make('password'),
             ]
@@ -23,6 +25,8 @@ class StudentTestUserSeeder extends Seeder
             ['email' => 'teacher@test.local'],
             [
                 'name' => 'Test Teacher',
+                'first_name' => 'Test',
+                'last_name' => 'Teacher',
                 'role' => 'teacher',
                 'password' => Hash::make('password'),
             ]
