@@ -12,7 +12,7 @@ class TemperatureModeController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/Temperature/Index', [
-            'modes' => TemperatureMode::latest()->get(),
+            'modes' => TemperatureMode::orderBy('name')->get(),
         ]);
     }
 

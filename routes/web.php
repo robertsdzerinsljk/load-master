@@ -258,6 +258,8 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::get('/teacher/students', [StudentController::class, 'index'])
         ->name('teacher.students');
+    Route::get('/teacher/students/{student}', [StudentController::class, 'show'])
+        ->name('teacher.students.show');
     Route::post('/teacher/students/assign-task', [StudentController::class, 'assignTask'])
         ->name('teacher.students.assign-task');
 

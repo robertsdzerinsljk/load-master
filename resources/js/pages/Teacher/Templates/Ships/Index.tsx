@@ -1,14 +1,16 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CirclePlus, Search } from 'lucide-react';
+import { CirclePlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import BackButton from '@/components/BackButton';
 import ShipPresetCard from '@/components/ShipPresetCard';
+import TemplateCatalogFilterBar from '@/components/TemplateCatalogFilterBar';
 
 type Ship = {
     id: number;
     name: string;
     cargo_type?: string | null;
+    cargo_mode?: string | null;
     capacity_containers?: string | number | null;
     capacity_tons?: string | number | null;
     draft_m?: string | number | null;
@@ -27,29 +29,56 @@ export default function TeacherShipsIndex() {
     const page = usePage<PageProps>();
     const ships = page.props.ships;
     const [search, setSearch] = useState('');
+    const [cargoType, setCargoType] = useState('all');
+    const [cargoMode, setCargoMode] = useState('all');
+
+    const cargoTypes = useMemo(() => {
+        return Array.from(
+            new Set(ships.map((item) => item.cargo_type).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [ships]);
+
+    const cargoModes = useMemo(() => {
+        return Array.from(
+            new Set(ships.map((item) => item.cargo_mode).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [ships]);
 
     const filteredShips = useMemo(() => {
         const normalized = search.trim().toLowerCase();
 
-        if (!normalized) {
-            return ships;
-        }
-
         return ships.filter((item) => {
-            return (
+            const matchesSearch =
+                !normalized ||
                 item.name?.toLowerCase().includes(normalized) ||
                 item.cargo_type?.toLowerCase().includes(normalized) ||
-                String(item.capacity_containers ?? '').toLowerCase().includes(normalized) ||
-                String(item.capacity_tons ?? '').toLowerCase().includes(normalized) ||
-                String(item.draft_m ?? '').toLowerCase().includes(normalized) ||
-                String(item.speed_kmh ?? '').toLowerCase().includes(normalized) ||
-                item.notes?.toLowerCase().includes(normalized)
+                item.cargo_mode?.toLowerCase().includes(normalized) ||
+                String(item.capacity_containers ?? '')
+                    .toLowerCase()
+                    .includes(normalized) ||
+                String(item.capacity_tons ?? '')
+                    .toLowerCase()
+                    .includes(normalized) ||
+                String(item.draft_m ?? '')
+                    .toLowerCase()
+                    .includes(normalized) ||
+                String(item.speed_kmh ?? '')
+                    .toLowerCase()
+                    .includes(normalized) ||
+                item.notes?.toLowerCase().includes(normalized);
+
+            return (
+                matchesSearch &&
+                (cargoType === 'all' || item.cargo_type === cargoType) &&
+                (cargoMode === 'all' || item.cargo_mode === cargoMode)
             );
         });
-    }, [ships, search]);
+    }, [ships, search, cargoType, cargoMode]);
 
     const handleDelete = (id: number, name: string) => {
-        const confirmed = window.confirm(`Vai tiešām vēlaties dzēst kuģi "${name}"?`);
+        const confirmed = window.confirm(
+            `Vai tiešām vēlaties dzēst kuģi "${name}"?`,
+        );
 
         if (!confirmed) return;
 
@@ -65,7 +94,7 @@ export default function TeacherShipsIndex() {
 
                 <div className="mt-4 flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-[28px] font-semibold leading-tight text-[#182219]">
+                        <h1 className="text-[28px] leading-tight font-semibold text-[#182219]">
                             Kuģi
                         </h1>
 
@@ -76,7 +105,9 @@ export default function TeacherShipsIndex() {
 
                     <button
                         type="button"
-                        onClick={() => router.visit('/teacher/templates/ships/create')}
+                        onClick={() =>
+                            router.visit('/teacher/templates/ships/create')
+                        }
                         className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-[#135740]"
                     >
                         <CirclePlus className="h-4 w-4" />
@@ -85,16 +116,36 @@ export default function TeacherShipsIndex() {
                 </div>
 
                 <div className="mt-6 max-w-4xl">
-                    <div className="flex h-11 items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3">
-                        <Search className="h-4 w-4 text-[#7a877f]" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Meklēt kuģus..."
-                            className="w-full bg-transparent text-[14px] text-[#162118] outline-none placeholder:text-[#93a097]"
-                        />
-                    </div>
+                    <TemplateCatalogFilterBar
+                        search={search}
+                        onSearchChange={setSearch}
+                        searchPlaceholder="Meklēt kuģus pēc nosaukuma, kravas tipa, iegrimes..."
+                        resultCount={filteredShips.length}
+                        totalCount={ships.length}
+                        onClear={() => {
+                            setSearch('');
+                            setCargoType('all');
+                            setCargoMode('all');
+                        }}
+                        filters={[
+                            {
+                                key: 'cargoType',
+                                label: 'Kravas tips',
+                                value: cargoType,
+                                options: cargoTypes,
+                                allLabel: 'Visi tipi',
+                                onChange: setCargoType,
+                            },
+                            {
+                                key: 'cargoMode',
+                                label: 'Kravas režīms',
+                                value: cargoMode,
+                                options: cargoModes,
+                                allLabel: 'Visi režīmi',
+                                onChange: setCargoMode,
+                            },
+                        ]}
+                    />
                 </div>
 
                 <div className="mt-6 grid max-w-4xl gap-4">
@@ -108,13 +159,21 @@ export default function TeacherShipsIndex() {
                                 capacityTons={item.capacity_tons}
                                 draft={item.draft_m}
                                 speedKmh={item.speed_kmh}
-                                loadingContainers={item.loading_capacity_containers_per_hour}
-                                loadingTons={item.loading_capacity_tons_per_hour}
+                                loadingContainers={
+                                    item.loading_capacity_containers_per_hour
+                                }
+                                loadingTons={
+                                    item.loading_capacity_tons_per_hour
+                                }
                                 notes={item.notes}
                                 onClick={() =>
-                                    router.visit(`/teacher/templates/ships/${item.id}/edit`)
+                                    router.visit(
+                                        `/teacher/templates/ships/${item.id}/edit`,
+                                    )
                                 }
-                                onDelete={() => handleDelete(item.id, item.name)}
+                                onDelete={() =>
+                                    handleDelete(item.id, item.name)
+                                }
                             />
                         ))
                     ) : (

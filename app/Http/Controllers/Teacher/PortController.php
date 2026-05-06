@@ -19,7 +19,10 @@ class PortController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/Ports/Index', [
-            'ports' => Port::with(['location', 'handlingMethods'])->latest()->get(),
+            'ports' => Port::with(['location', 'handlingMethods'])
+                ->orderBy('country')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

@@ -34,7 +34,7 @@ class TeacherDashboardController extends Controller
 
         $assignedTasks = SimulationAttempt::query()
             ->with([
-                'user',
+                'user.class',
                 'orderTemplate',
             ])
             ->latest()
@@ -47,9 +47,10 @@ class TeacherDashboardController extends Controller
                     'current_step' => $attempt->current_step,
                     'submitted_at' => optional($attempt->submitted_at)?->format('Y-m-d H:i'),
                     'updated_at' => optional($attempt->updated_at)?->format('Y-m-d H:i'),
-                    'student_name' => $attempt->user?->name,
+                    'student_id' => $attempt->user?->id,
+                    'student_name' => $this->displayName($attempt->user),
                     'student_email' => $attempt->user?->email,
-                    'student_class' => null,
+                    'student_class' => $attempt->user?->class?->name,
                     'template_id' => $attempt->orderTemplate?->id,
                     'template_title' => $attempt->orderTemplate?->title,
                     'deadline_date' => optional($attempt->orderTemplate?->deadline_date)?->format('Y-m-d'),
@@ -70,6 +71,19 @@ class TeacherDashboardController extends Controller
             'templates' => $templates,
             'assignedTasks' => $assignedTasks,
         ]);
+    }
+
+    private function displayName(?User $user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $fullName = trim(collect([$user->first_name, $user->last_name])
+            ->filter()
+            ->implode(' '));
+
+        return $fullName !== '' ? $fullName : $user->name;
     }
     public function showAttempt(\App\Models\SimulationAttempt $attempt)
 {

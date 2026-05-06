@@ -1,4 +1,5 @@
 import BackButton from '@/components/BackButton';
+import TemplateCatalogFilterBar from '@/components/TemplateCatalogFilterBar';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import {
@@ -109,7 +110,8 @@ function StatusBadge({ status }: { status: string }) {
     return (
         <span
             className={`inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold ${
-                styleMap[status] ?? 'border-slate-200 bg-slate-100 text-slate-700'
+                styleMap[status] ??
+                'border-slate-200 bg-slate-100 text-slate-700'
             }`}
         >
             {label}
@@ -148,7 +150,9 @@ function StatCard({
         <div className="rounded-2xl border border-[#d9ded9] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <div className="text-sm font-medium text-[#6b776f]">{label}</div>
+                    <div className="text-sm font-medium text-[#6b776f]">
+                        {label}
+                    </div>
                     <div className="mt-2 text-3xl font-semibold tracking-tight text-[#182219]">
                         {value}
                     </div>
@@ -174,11 +178,13 @@ function MetricChip({
 }) {
     return (
         <div className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9] px-3 py-3">
-            <div className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-wide text-[#7b887f]">
+            <div className="flex items-center gap-2 text-[12px] font-medium tracking-wide text-[#7b887f] uppercase">
                 <span className="text-[#166a4d]">{icon}</span>
                 {label}
             </div>
-            <div className="mt-1 text-[14px] font-semibold text-[#182219]">{value}</div>
+            <div className="mt-1 text-[14px] font-semibold text-[#182219]">
+                {value}
+            </div>
         </div>
     );
 }
@@ -195,13 +201,16 @@ function EmptyState() {
             </h2>
 
             <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-7 text-[#5b6b61]">
-                Kad izveidosi pirmo uzdevuma sagatavi, tā parādīsies šajā sarakstā un būs
-                pieejama pārskatīšanai, rediģēšanai un vēlākai izmantošanai studentu darbā.
+                Kad izveidosi pirmo uzdevuma sagatavi, tā parādīsies šajā
+                sarakstā un būs pieejama pārskatīšanai, rediģēšanai un vēlākai
+                izmantošanai studentu darbā.
             </p>
 
             <button
                 type="button"
-                onClick={() => router.visit('/teacher/templates/order-templates/create')}
+                onClick={() =>
+                    router.visit('/teacher/templates/order-templates/create')
+                }
                 className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
             >
                 <Plus className="h-4 w-4" />
@@ -212,24 +221,32 @@ function EmptyState() {
 }
 
 function TemplateRow({ template }: { template: TemplateItem }) {
-    const start = (template.startLocation ?? template.start_location)?.name ?? '—';
+    const start =
+        (template.startLocation ?? template.start_location)?.name ?? '—';
     const end = (template.endLocation ?? template.end_location)?.name ?? '—';
 
     const transportNames =
-        (template.transportTemplates ?? template.transport_templates)?.map((item) => item.name) ?? [];
+        (template.transportTemplates ?? template.transport_templates)?.map(
+            (item) => item.name,
+        ) ?? [];
 
     const transportSummary =
-        transportNames.length > 0 ? transportNames.slice(0, 2).join(', ') : 'Nav norādīts';
+        transportNames.length > 0
+            ? transportNames.slice(0, 2).join(', ')
+            : 'Nav norādīts';
 
     const portCount = template.ports?.length ?? 0;
     const shipCount = template.ships?.length ?? 0;
-    const routesCount = (template.landRoutes ?? template.land_routes)?.length ?? 0;
+    const routesCount =
+        (template.landRoutes ?? template.land_routes)?.length ?? 0;
 
     const temperatureMode =
-        (template.temperatureMode ?? template.temperature_mode)?.name ?? 'Nav norādīts';
+        (template.temperatureMode ?? template.temperature_mode)?.name ??
+        'Nav norādīts';
 
     const specialCondition =
-        (template.specialCondition ?? template.special_condition)?.name ?? 'Nav norādīts';
+        (template.specialCondition ?? template.special_condition)?.name ??
+        'Nav norādīts';
 
     const handleDelete = () => {
         if (!window.confirm('Vai tiešām dzēst šo sagatavi?')) {
@@ -254,7 +271,9 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                                     {template.title}
                                 </h2>
                                 <StatusBadge status={template.status} />
-                                <ScenarioTypeBadge type={template.scenario_type} />
+                                <ScenarioTypeBadge
+                                    type={template.scenario_type}
+                                />
                             </div>
 
                             <p className="mt-2 text-[15px] leading-7 text-[#5b6b61]">
@@ -272,7 +291,11 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                         />
                         <MetricChip
                             label="Krava"
-                            value={template.cargo_name || template.cargo_type || 'Nav norādīts'}
+                            value={
+                                template.cargo_name ||
+                                template.cargo_type ||
+                                'Nav norādīts'
+                            }
                             icon={<Package className="h-4 w-4" />}
                         />
                         <MetricChip
@@ -315,7 +338,9 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                     <button
                         type="button"
                         onClick={() =>
-                            router.visit(`/teacher/templates/order-templates/${template.id}`)
+                            router.visit(
+                                `/teacher/templates/order-templates/${template.id}`,
+                            )
                         }
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-3 text-[15px] font-medium text-[#182219] transition hover:bg-[#f7f9f7]"
                     >
@@ -326,7 +351,9 @@ function TemplateRow({ template }: { template: TemplateItem }) {
                     <button
                         type="button"
                         onClick={() =>
-                            router.visit(`/teacher/templates/order-templates/${template.id}/edit`)
+                            router.visit(
+                                `/teacher/templates/order-templates/${template.id}/edit`,
+                            )
                         }
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-4 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
                     >
@@ -352,42 +379,77 @@ export default function Index() {
     const page = usePage<PageProps>();
     const templates = page.props.templates ?? [];
     const [query, setQuery] = useState('');
+    const [status, setStatus] = useState('all');
+    const [scenarioType, setScenarioType] = useState('all');
+    const [priority, setPriority] = useState('all');
+
+    const statuses = useMemo(() => {
+        return Array.from(
+            new Set(templates.map((item) => item.status).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [templates]);
+
+    const scenarioTypes = useMemo(() => {
+        return Array.from(
+            new Set(
+                templates.map((item) => item.scenario_type).filter(Boolean),
+            ),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [templates]);
+
+    const priorities = useMemo(() => {
+        return Array.from(
+            new Set(templates.map((item) => item.priority).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [templates]);
 
     const filteredTemplates = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
 
-        if (!normalizedQuery) {
-            return templates;
-        }
-
         return templates.filter((template) => {
-            const start = (template.startLocation ?? template.start_location)?.name ?? '';
-            const end = (template.endLocation ?? template.end_location)?.name ?? '';
+            const start =
+                (template.startLocation ?? template.start_location)?.name ?? '';
+            const end =
+                (template.endLocation ?? template.end_location)?.name ?? '';
             const cargo = template.cargo_name ?? '';
             const cargoType = template.cargo_type ?? '';
             const brief = template.student_brief ?? '';
             const scenario = template.scenario_type ?? '';
 
-            return [
-                template.title,
-                start,
-                end,
-                cargo,
-                cargoType,
-                brief,
-                scenario,
-                template.status,
-            ]
-                .join(' ')
-                .toLowerCase()
-                .includes(normalizedQuery);
-        });
-    }, [templates, query]);
+            const matchesSearch =
+                !normalizedQuery ||
+                [
+                    template.title,
+                    start,
+                    end,
+                    cargo,
+                    cargoType,
+                    brief,
+                    scenario,
+                    template.status,
+                ]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(normalizedQuery);
 
-    const readyCount = templates.filter((item) => item.status === 'ready').length;
-    const draftCount = templates.filter((item) => item.status === 'draft').length;
+            return (
+                matchesSearch &&
+                (status === 'all' || template.status === status) &&
+                (scenarioType === 'all' ||
+                    template.scenario_type === scenarioType) &&
+                (priority === 'all' || template.priority === priority)
+            );
+        });
+    }, [templates, query, status, scenarioType, priority]);
+
+    const readyCount = templates.filter(
+        (item) => item.status === 'ready',
+    ).length;
+    const draftCount = templates.filter(
+        (item) => item.status === 'draft',
+    ).length;
     const withRoutesCount = templates.filter(
-        (item) => ((item.landRoutes ?? item.land_routes)?.length ?? 0) > 0
+        (item) => ((item.landRoutes ?? item.land_routes)?.length ?? 0) > 0,
     ).length;
 
     return (
@@ -398,12 +460,12 @@ export default function Index() {
                 <BackButton fallbackHref="/teacher/templates" />
 
                 <section className="relative overflow-hidden rounded-[30px] border border-[#d9ded9] bg-white p-6 shadow-sm md:p-8">
-                    <div className="absolute right-0 top-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
-                    <div className="absolute bottom-0 right-16 hidden h-24 w-24 rounded-full bg-[#f6faf7] blur-2xl lg:block" />
+                    <div className="absolute top-0 right-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
+                    <div className="absolute right-16 bottom-0 hidden h-24 w-24 rounded-full bg-[#f6faf7] blur-2xl lg:block" />
 
                     <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-3xl">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                 <ClipboardList className="h-3.5 w-3.5" />
                                 Sagatavju bibliotēka
                             </div>
@@ -413,16 +475,21 @@ export default function Index() {
                             </h1>
 
                             <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#5f6d65]">
-                                Šeit tiek glabāti scenāriju karkasi studentu simulatora
-                                uzdevumiem. Pasniedzējs var ātri pārskatīt sagataves, atrast
-                                vajadzīgo scenāriju un atvērt to rediģēšanai vai pārbaudei.
+                                Šeit tiek glabāti scenāriju karkasi studentu
+                                simulatora uzdevumiem. Pasniedzējs var ātri
+                                pārskatīt sagataves, atrast vajadzīgo scenāriju
+                                un atvērt to rediģēšanai vai pārbaudei.
                             </p>
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <button
                                 type="button"
-                                onClick={() => router.visit('/teacher/templates/order-templates/create')}
+                                onClick={() =>
+                                    router.visit(
+                                        '/teacher/templates/order-templates/create',
+                                    )
+                                }
                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-medium text-white transition hover:bg-[#135740]"
                             >
                                 <Plus className="h-4 w-4" />
@@ -466,19 +533,50 @@ export default function Index() {
                                 Sagatavju saraksts
                             </h2>
                             <p className="mt-1 text-[15px] leading-7 text-[#5b6b61]">
-                                Visi saglabātie uzdevumu scenāriji ar galvenajiem parametriem
-                                un ātrajām darbībām.
+                                Visi saglabātie uzdevumu scenāriji ar
+                                galvenajiem parametriem un ātrajām darbībām.
                             </p>
                         </div>
 
-                        <div className="relative w-full lg:max-w-md">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" />
-                            <input
-                                type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Meklēt pēc nosaukuma, kravas, maršruta..."
-                                className="w-full rounded-xl border border-[#d9ded9] bg-white py-3 pl-10 pr-4 text-[15px] text-[#182219] outline-none transition placeholder:text-[#97a39b] focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
+                        <div className="w-full lg:max-w-3xl">
+                            <TemplateCatalogFilterBar
+                                search={query}
+                                onSearchChange={setQuery}
+                                searchPlaceholder="Meklēt pēc nosaukuma, kravas, maršruta..."
+                                resultCount={filteredTemplates.length}
+                                totalCount={templates.length}
+                                onClear={() => {
+                                    setQuery('');
+                                    setStatus('all');
+                                    setScenarioType('all');
+                                    setPriority('all');
+                                }}
+                                filters={[
+                                    {
+                                        key: 'status',
+                                        label: 'Statuss',
+                                        value: status,
+                                        options: statuses,
+                                        allLabel: 'Visi',
+                                        onChange: setStatus,
+                                    },
+                                    {
+                                        key: 'scenario',
+                                        label: 'Scenārijs',
+                                        value: scenarioType,
+                                        options: scenarioTypes,
+                                        allLabel: 'Visi',
+                                        onChange: setScenarioType,
+                                    },
+                                    {
+                                        key: 'priority',
+                                        label: 'Prioritāte',
+                                        value: priority,
+                                        options: priorities,
+                                        allLabel: 'Visas',
+                                        onChange: setPriority,
+                                    },
+                                ]}
                             />
                         </div>
                     </div>
@@ -486,7 +584,10 @@ export default function Index() {
                     <div className="mt-5 space-y-4">
                         {filteredTemplates.length > 0 ? (
                             filteredTemplates.map((template) => (
-                                <TemplateRow key={template.id} template={template} />
+                                <TemplateRow
+                                    key={template.id}
+                                    template={template}
+                                />
                             ))
                         ) : templates.length > 0 ? (
                             <div className="rounded-2xl border border-dashed border-[#d9ded9] bg-[#f8fbf9] px-6 py-12 text-center">
@@ -499,8 +600,9 @@ export default function Index() {
                                 </h3>
 
                                 <p className="mx-auto mt-2 max-w-xl text-[15px] leading-7 text-[#5b6b61]">
-                                    Pamēģini citu atslēgvārdu vai notīri meklēšanas lauku, lai
-                                    atkal redzētu visas sagataves.
+                                    Pamēģini citu atslēgvārdu vai notīri
+                                    meklēšanas lauku, lai atkal redzētu visas
+                                    sagataves.
                                 </p>
 
                                 <button

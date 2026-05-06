@@ -13,7 +13,9 @@ class ShipController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/Ships/Index', [
-            'ships' => Ship::with('handlingMethods')->latest()->get(),
+            'ships' => Ship::with('handlingMethods')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

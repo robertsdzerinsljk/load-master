@@ -1,6 +1,6 @@
 import BackButton from '@/components/BackButton';
 import TeacherLayout from '@/layouts/TeacherLayout';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     CheckCircle2,
@@ -32,6 +32,9 @@ type Template = {
 type Student = {
     id: number;
     name: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    display_name?: string | null;
     email: string;
     class_name?: string | null;
     course_name?: string | null;
@@ -61,6 +64,15 @@ function getStudentGroupName(student: Student) {
     );
 }
 
+function getStudentDisplayName(student: Student) {
+    const fullName = [student.first_name, student.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+    return student.display_name || fullName || student.name;
+}
+
 function StatChip({
     label,
     value,
@@ -78,10 +90,10 @@ function StatChip({
                 </div>
 
                 <div className="min-w-0">
-                    <div className="whitespace-nowrap text-[12px] font-medium leading-4 text-[#6b776f]">
+                    <div className="text-[12px] leading-4 font-medium whitespace-nowrap text-[#6b776f]">
                         {label}
                     </div>
-                    <div className="mt-0.5 text-2xl font-semibold leading-none text-[#182219]">
+                    <div className="mt-0.5 text-2xl leading-none font-semibold text-[#182219]">
                         {value}
                     </div>
                 </div>
@@ -105,7 +117,9 @@ function EmptyState() {
                 <Users className="h-6 w-6" />
             </div>
 
-            <h2 className="mt-4 text-xl font-semibold text-[#182219]">Nav pieejamu studentu</h2>
+            <h2 className="mt-4 text-xl font-semibold text-[#182219]">
+                Nav pieejamu studentu
+            </h2>
 
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#5b6b61]">
                 Kad sistēmā būs pievienoti studenti, tie parādīsies šeit.
@@ -134,7 +148,9 @@ function StudentCard({
     const groupName = getStudentGroupName(student);
     const assignedTasks = student.assignedOrderTemplates ?? [];
     const selectedTemplateData =
-        templates.find((template) => String(template.id) === selectedTemplate) ?? null;
+        templates.find(
+            (template) => String(template.id) === selectedTemplate,
+        ) ?? null;
     const readiness = selectedTemplateData?.readiness;
 
     return (
@@ -148,15 +164,20 @@ function StudentCard({
 
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                                <h2 className="text-lg font-semibold tracking-tight text-[#182219]">
-                                    {student.name}
-                                </h2>
+                                <Link
+                                    href={`/teacher/students/${student.id}`}
+                                    className="text-lg font-semibold tracking-tight text-[#182219] underline-offset-4 hover:text-[#166a4d] hover:underline"
+                                >
+                                    {getStudentDisplayName(student)}
+                                </Link>
                                 <GroupBadge label={groupName} />
                             </div>
 
                             <div className="mt-1 flex items-center gap-2 text-sm text-[#5b6b61]">
                                 <Mail className="h-4 w-4 text-[#7b887f]" />
-                                <span className="truncate">{student.email}</span>
+                                <span className="truncate">
+                                    {student.email}
+                                </span>
                             </div>
 
                             <div className="mt-3">
@@ -191,19 +212,26 @@ function StudentCard({
                             <PackagePlus className="h-4 w-4 text-[#166a4d]" />
                             Piešķirt uzdevumu
                         </span>
-                        <ChevronDown className={`h-4 w-4 text-[#7b887f] transition ${assignOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                            className={`h-4 w-4 text-[#7b887f] transition ${assignOpen ? 'rotate-180' : ''}`}
+                        />
                     </button>
 
                     {assignOpen ? (
                         <div className="mt-3 rounded-xl border border-[#d9ded9] bg-[#f8faf8] p-3">
                             <select
                                 value={selectedTemplate}
-                                onChange={(e) => setSelectedTemplate(e.target.value)}
-                                className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-2.5 text-sm text-[#162118] outline-none transition focus:border-[#166a4d] focus:ring-4 focus:ring-[#edf6f0]"
+                                onChange={(e) =>
+                                    setSelectedTemplate(e.target.value)
+                                }
+                                className="w-full rounded-xl border border-[#d5dbd6] bg-white px-3 py-2.5 text-sm text-[#162118] transition outline-none focus:border-[#166a4d] focus:ring-4 focus:ring-[#edf6f0]"
                             >
                                 <option value="">Izvēlieties uzdevumu</option>
                                 {templates.map((template) => (
-                                    <option key={template.id} value={template.id}>
+                                    <option
+                                        key={template.id}
+                                        value={template.id}
+                                    >
                                         {template.title}
                                     </option>
                                 ))}
@@ -212,10 +240,15 @@ function StudentCard({
                             <button
                                 type="button"
                                 onClick={onAssign}
-                                disabled={loadingStudentId === student.id || readiness?.has_critical_issues}
+                                disabled={
+                                    loadingStudentId === student.id ||
+                                    readiness?.has_critical_issues
+                                }
                                 className="mt-2 w-full rounded-xl bg-[#166a4d] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {loadingStudentId === student.id ? 'Piešķir...' : 'Piešķirt'}
+                                {loadingStudentId === student.id
+                                    ? 'Piešķir...'
+                                    : 'Piešķirt'}
                             </button>
 
                             {readiness ? (
@@ -224,12 +257,16 @@ function StudentCard({
                                         readiness.status === 'blocked'
                                             ? 'border-red-200 bg-red-50 text-red-800'
                                             : readiness.status === 'warning'
-                                            ? 'border-amber-200 bg-amber-50 text-amber-800'
-                                            : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                              ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
                                     }`}
                                 >
-                                    <div className="font-semibold">{readiness.headline}</div>
-                                    <div className="mt-0.5">{readiness.summary}</div>
+                                    <div className="font-semibold">
+                                        {readiness.headline}
+                                    </div>
+                                    <div className="mt-0.5">
+                                        {readiness.summary}
+                                    </div>
                                 </div>
                             ) : null}
                         </div>
@@ -245,8 +282,12 @@ export default function TeacherStudentsIndex() {
     const students = page.props.students ?? [];
     const templates = page.props.templates ?? [];
 
-    const [selectedTemplates, setSelectedTemplates] = useState<Record<number, string>>({});
-    const [loadingStudentId, setLoadingStudentId] = useState<number | null>(null);
+    const [selectedTemplates, setSelectedTemplates] = useState<
+        Record<number, string>
+    >({});
+    const [loadingStudentId, setLoadingStudentId] = useState<number | null>(
+        null,
+    );
     const [search, setSearch] = useState('');
     const [selectedGroup, setSelectedGroup] = useState('all');
 
@@ -280,12 +321,14 @@ export default function TeacherStudentsIndex() {
                 onFinish: () => {
                     setLoadingStudentId(null);
                 },
-            }
+            },
         );
     };
 
     const groups = useMemo(() => {
-        const unique = Array.from(new Set(students.map((student) => getStudentGroupName(student))));
+        const unique = Array.from(
+            new Set(students.map((student) => getStudentGroupName(student))),
+        );
         return unique.sort((a, b) => a.localeCompare(b, 'lv'));
     }, [students]);
 
@@ -294,13 +337,18 @@ export default function TeacherStudentsIndex() {
 
         return students.filter((student) => {
             const matchesGroup =
-                selectedGroup === 'all' || getStudentGroupName(student) === selectedGroup;
+                selectedGroup === 'all' ||
+                getStudentGroupName(student) === selectedGroup;
 
             const haystack = [
                 student.name,
+                student.first_name,
+                student.last_name,
+                student.display_name,
                 student.email,
                 getStudentGroupName(student),
-                ...(student.assignedOrderTemplates?.map((task) => task.title) ?? []),
+                ...(student.assignedOrderTemplates?.map((task) => task.title) ??
+                    []),
             ]
                 .join(' ')
                 .toLowerCase();
@@ -312,20 +360,25 @@ export default function TeacherStudentsIndex() {
     }, [students, search, selectedGroup]);
 
     const groupedStudents = useMemo(() => {
-        return filteredStudents.reduce<Record<string, Student[]>>((acc, student) => {
-            const key = getStudentGroupName(student);
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(student);
-            return acc;
-        }, {});
+        return filteredStudents.reduce<Record<string, Student[]>>(
+            (acc, student) => {
+                const key = getStudentGroupName(student);
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(student);
+                return acc;
+            },
+            {},
+        );
     }, [filteredStudents]);
 
     const groupedEntries = useMemo(() => {
-        return Object.entries(groupedStudents).sort(([a], [b]) => a.localeCompare(b, 'lv'));
+        return Object.entries(groupedStudents).sort(([a], [b]) =>
+            a.localeCompare(b, 'lv'),
+        );
     }, [groupedStudents]);
 
     const assignedCount = students.filter(
-        (student) => (student.assignedOrderTemplates?.length ?? 0) > 0
+        (student) => (student.assignedOrderTemplates?.length ?? 0) > 0,
     ).length;
 
     return (
@@ -339,7 +392,7 @@ export default function TeacherStudentsIndex() {
                     <section className="rounded-[28px] border border-[#d9ded9] bg-white p-6 shadow-sm">
                         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
                             <div className="max-w-3xl">
-                                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                     <GraduationCap className="h-3.5 w-3.5" />
                                     Studentu pārvaldība
                                 </div>
@@ -349,15 +402,32 @@ export default function TeacherStudentsIndex() {
                                 </h1>
 
                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5f6d65]">
-                                    Pārskati studentus, filtrē pēc grupām un ātri piešķir simulatora uzdevumus.
+                                    Pārskati studentus, filtrē pēc grupām un
+                                    ātri piešķir simulatora uzdevumus.
                                 </p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:w-[600px]">
-                                <StatChip label="Studenti" value={students.length} icon={<Users className="h-5 w-5" />} />
-                                <StatChip label="Grupas" value={groups.length} icon={<Layers3 className="h-5 w-5" />} />
-                                <StatChip label="Piešķirti" value={assignedCount} icon={<CheckCircle2 className="h-5 w-5" />} />
-                                <StatChip label="Sagataves" value={templates.length} icon={<FolderKanban className="h-5 w-5" />} />
+                                <StatChip
+                                    label="Studenti"
+                                    value={students.length}
+                                    icon={<Users className="h-5 w-5" />}
+                                />
+                                <StatChip
+                                    label="Grupas"
+                                    value={groups.length}
+                                    icon={<Layers3 className="h-5 w-5" />}
+                                />
+                                <StatChip
+                                    label="Piešķirti"
+                                    value={assignedCount}
+                                    icon={<CheckCircle2 className="h-5 w-5" />}
+                                />
+                                <StatChip
+                                    label="Sagataves"
+                                    value={templates.length}
+                                    icon={<FolderKanban className="h-5 w-5" />}
+                                />
                             </div>
                         </div>
                     </section>
@@ -370,32 +440,43 @@ export default function TeacherStudentsIndex() {
                                         Studentu saraksts
                                     </h2>
                                     <p className="mt-1 text-sm leading-6 text-[#5f6d65]">
-                                        Saraksts ir grupēts pēc klases/kursa. Piešķiršanas forma ir paslēpta katra studenta kartītē.
+                                        Saraksts ir grupēts pēc klases/kursa.
+                                        Piešķiršanas forma ir paslēpta katra
+                                        studenta kartītē.
                                     </p>
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px] xl:w-[680px]">
                                     <div className="relative">
-                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" />
+                                        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#7b887f]" />
                                         <input
                                             type="text"
                                             value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
+                                            onChange={(e) =>
+                                                setSearch(e.target.value)
+                                            }
                                             placeholder="Meklēt pēc vārda, e-pasta vai uzdevuma..."
-                                            className="w-full rounded-xl border border-[#d9ded9] bg-white py-3 pl-10 pr-4 text-sm text-[#182219] outline-none transition placeholder:text-[#97a39b] focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
+                                            className="w-full rounded-xl border border-[#d9ded9] bg-white py-3 pr-4 pl-10 text-sm text-[#182219] transition outline-none placeholder:text-[#97a39b] focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
                                         />
                                     </div>
 
                                     <div className="relative">
-                                        <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" />
+                                        <Filter className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#7b887f]" />
                                         <select
                                             value={selectedGroup}
-                                            onChange={(e) => setSelectedGroup(e.target.value)}
-                                            className="w-full appearance-none rounded-xl border border-[#d9ded9] bg-white py-3 pl-10 pr-4 text-sm text-[#182219] outline-none transition focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
+                                            onChange={(e) =>
+                                                setSelectedGroup(e.target.value)
+                                            }
+                                            className="w-full appearance-none rounded-xl border border-[#d9ded9] bg-white py-3 pr-4 pl-10 text-sm text-[#182219] transition outline-none focus:border-[#b6c7bb] focus:ring-4 focus:ring-[#edf6f0]"
                                         >
-                                            <option value="all">Visas klases / kursi</option>
+                                            <option value="all">
+                                                Visas klases / kursi
+                                            </option>
                                             {groups.map((group) => (
-                                                <option key={group} value={group}>
+                                                <option
+                                                    key={group}
+                                                    value={group}
+                                                >
                                                     {group}
                                                 </option>
                                             ))}
@@ -419,52 +500,84 @@ export default function TeacherStudentsIndex() {
                                     </h3>
 
                                     <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#5b6b61]">
-                                        Pamēģini citu meklēšanas frāzi vai izvēlies citu grupu.
+                                        Pamēģini citu meklēšanas frāzi vai
+                                        izvēlies citu grupu.
                                     </p>
                                 </div>
                             ) : (
                                 <div className="space-y-5">
-                                    {groupedEntries.map(([groupName, groupStudents]) => (
-                                        <section key={groupName} className="space-y-3">
-                                            <div className="flex items-center justify-between rounded-2xl bg-[#f8fbf9] px-4 py-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf6f0] text-[#166a4d]">
-                                                        <BookOpen className="h-5 w-5" />
-                                                    </div>
+                                    {groupedEntries.map(
+                                        ([groupName, groupStudents]) => (
+                                            <section
+                                                key={groupName}
+                                                className="space-y-3"
+                                            >
+                                                <div className="flex items-center justify-between rounded-2xl bg-[#f8fbf9] px-4 py-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf6f0] text-[#166a4d]">
+                                                            <BookOpen className="h-5 w-5" />
+                                                        </div>
 
-                                                    <div>
-                                                        <h3 className="text-lg font-semibold tracking-tight text-[#182219]">
-                                                            {groupName}
-                                                        </h3>
-                                                        <p className="text-sm text-[#6b776f]">
-                                                            {groupStudents.length} studenti šajā grupā
-                                                        </p>
+                                                        <div>
+                                                            <h3 className="text-lg font-semibold tracking-tight text-[#182219]">
+                                                                {groupName}
+                                                            </h3>
+                                                            <p className="text-sm text-[#6b776f]">
+                                                                {
+                                                                    groupStudents.length
+                                                                }{' '}
+                                                                studenti šajā
+                                                                grupā
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="space-y-3">
-                                                {groupStudents.map((student) => (
-                                                    <StudentCard
-                                                        key={student.id}
-                                                        student={student}
-                                                        templates={templates}
-                                                        selectedTemplate={
-                                                            selectedTemplates[student.id] ?? ''
-                                                        }
-                                                        setSelectedTemplate={(value) =>
-                                                            setSelectedTemplates((prev) => ({
-                                                                ...prev,
-                                                                [student.id]: value,
-                                                            }))
-                                                        }
-                                                        loadingStudentId={loadingStudentId}
-                                                        onAssign={() => handleAssign(student.id)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </section>
-                                    ))}
+                                                <div className="space-y-3">
+                                                    {groupStudents.map(
+                                                        (student) => (
+                                                            <StudentCard
+                                                                key={student.id}
+                                                                student={
+                                                                    student
+                                                                }
+                                                                templates={
+                                                                    templates
+                                                                }
+                                                                selectedTemplate={
+                                                                    selectedTemplates[
+                                                                        student
+                                                                            .id
+                                                                    ] ?? ''
+                                                                }
+                                                                setSelectedTemplate={(
+                                                                    value,
+                                                                ) =>
+                                                                    setSelectedTemplates(
+                                                                        (
+                                                                            prev,
+                                                                        ) => ({
+                                                                            ...prev,
+                                                                            [student.id]:
+                                                                                value,
+                                                                        }),
+                                                                    )
+                                                                }
+                                                                loadingStudentId={
+                                                                    loadingStudentId
+                                                                }
+                                                                onAssign={() =>
+                                                                    handleAssign(
+                                                                        student.id,
+                                                                    )
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </section>
+                                        ),
+                                    )}
                                 </div>
                             )}
                         </div>

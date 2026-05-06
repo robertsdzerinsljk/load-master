@@ -12,7 +12,7 @@ class SpecialConditionController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/SpecialConditions/Index', [
-            'conditions' => SpecialCondition::latest()->get(),
+            'conditions' => SpecialCondition::orderBy('name')->get(),
         ]);
     }
 

@@ -40,7 +40,7 @@ class OrderTemplateController extends Controller
                 'ships',
                 'ports',
                 'landRoutes',
-            ])->latest()->get(),
+            ])->orderBy('title')->get(),
         ]);
     }
 

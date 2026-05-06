@@ -40,6 +40,7 @@ type DashboardProps = {
         current_step: string;
         submitted_at?: string | null;
         updated_at?: string | null;
+        student_id?: number | null;
         student_name?: string | null;
         student_email?: string | null;
         student_class?: string | null;
@@ -156,7 +157,9 @@ function StatusBadge({ status }: { status: string }) {
     };
 
     return (
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${current.className}`}>
+        <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${current.className}`}
+        >
             {current.icon}
             {current.label}
         </span>
@@ -179,11 +182,11 @@ function StatPill({
                     {icon}
                 </div>
 
-                <div className="mt-2 text-xs font-medium leading-tight text-[#6b776f]">
+                <div className="mt-2 text-xs leading-tight font-medium text-[#6b776f]">
                     {label}
                 </div>
 
-                <div className="mt-1 text-2xl font-semibold leading-none text-[#182219]">
+                <div className="mt-1 text-2xl leading-none font-semibold text-[#182219]">
                     {value}
                 </div>
             </div>
@@ -205,7 +208,9 @@ function SectionHeader({
     return (
         <div className="flex flex-col gap-3 border-b border-[#eef1ee] pb-4 md:flex-row md:items-center md:justify-between">
             <div>
-                <h2 className="text-xl font-semibold tracking-tight text-[#182219]">{title}</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-[#182219]">
+                    {title}
+                </h2>
                 <p className="mt-1 text-sm text-[#66746c]">{description}</p>
             </div>
 
@@ -235,8 +240,12 @@ function EmptyState({
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#166a4d] shadow-sm">
                 {icon}
             </div>
-            <h3 className="mt-4 text-lg font-semibold text-[#182219]">{title}</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#66746c]">{description}</p>
+            <h3 className="mt-4 text-lg font-semibold text-[#182219]">
+                {title}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#66746c]">
+                {description}
+            </p>
         </div>
     );
 }
@@ -244,7 +253,9 @@ function EmptyState({
 function InfoChip({ label, value }: { label: string; value: string }) {
     return (
         <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#f7faf8] px-3 py-2 text-sm text-[#5d6c63]">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#7d8a82]">{label}:</span>
+            <span className="text-xs font-semibold tracking-wide text-[#7d8a82] uppercase">
+                {label}:
+            </span>
             <span className="font-semibold text-[#182219]">{value}</span>
         </span>
     );
@@ -258,7 +269,11 @@ function TemplateRow({
     return (
         <button
             type="button"
-            onClick={() => router.visit(`/teacher/templates/order-templates/${template.id}`)}
+            onClick={() =>
+                router.visit(
+                    `/teacher/templates/order-templates/${template.id}`,
+                )
+            }
             className="group w-full rounded-2xl border border-[#e4e9e4] bg-white p-4 text-left transition hover:border-[#c9d5cc] hover:bg-[#fbfdfb] hover:shadow-sm"
         >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -277,13 +292,26 @@ function TemplateRow({
                             </div>
 
                             <p className="mt-1 text-sm text-[#66746c]">
-                                {template.cargo_name || template.cargo_type || 'Kravas tips nav norādīts'}
+                                {template.cargo_name ||
+                                    template.cargo_type ||
+                                    'Kravas tips nav norādīts'}
                             </p>
 
                             <div className="mt-3 flex flex-wrap gap-2">
-                                <InfoChip label="Scenārijs" value={getScenarioLabel(template.scenario_type)} />
-                                <InfoChip label="Termiņš" value={formatDate(template.deadline_date)} />
-                                <InfoChip label="Piešķirti" value={`${template.assigned_students_count} studenti`} />
+                                <InfoChip
+                                    label="Scenārijs"
+                                    value={getScenarioLabel(
+                                        template.scenario_type,
+                                    )}
+                                />
+                                <InfoChip
+                                    label="Termiņš"
+                                    value={formatDate(template.deadline_date)}
+                                />
+                                <InfoChip
+                                    label="Piešķirti"
+                                    value={`${template.assigned_students_count} studenti`}
+                                />
                             </div>
                         </div>
                     </div>
@@ -305,7 +333,11 @@ function AssignmentRow({
     task: DashboardProps['assignedTasks'][number];
 }) {
     const handleDelete = () => {
-        if (!confirm(`Vai tiešām vēlaties dzēst uzdevumu "${task.template_title}"?`)) {
+        if (
+            !confirm(
+                `Vai tiešām vēlaties dzēst uzdevumu "${task.template_title}"?`,
+            )
+        ) {
             return;
         }
         router.delete(`/teacher/assigned-tasks/${task.id}`);
@@ -315,7 +347,9 @@ function AssignmentRow({
         <div className="flex items-center gap-3 rounded-2xl border border-[#e4e9e4] bg-white p-4 transition hover:border-[#c9d5cc] hover:bg-[#fbfdfb] hover:shadow-sm">
             <button
                 type="button"
-                onClick={() => router.visit(`/teacher/assigned-tasks/${task.id}`)}
+                onClick={() =>
+                    router.visit(`/teacher/assigned-tasks/${task.id}`)
+                }
                 className="group min-w-0 flex-1 text-left"
             >
                 <div className="flex flex-col gap-4">
@@ -333,14 +367,55 @@ function AssignmentRow({
                             </div>
 
                             <p className="mt-1 text-sm text-[#66746c]">
-                                {task.student_name || 'Students nav norādīts'}
-                                {task.student_class ? ` • ${task.student_class}` : ''}
+                                {task.student_id ? (
+                                    <span
+                                        role="link"
+                                        tabIndex={0}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            router.visit(
+                                                `/teacher/students/${task.student_id}`,
+                                            );
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (
+                                                event.key !== 'Enter' &&
+                                                event.key !== ' '
+                                            )
+                                                return;
+
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            router.visit(
+                                                `/teacher/students/${task.student_id}`,
+                                            );
+                                        }}
+                                        className="cursor-pointer font-semibold text-[#166a4d] underline-offset-4 hover:underline"
+                                    >
+                                        {task.student_name ||
+                                            'Students nav norādīts'}
+                                    </span>
+                                ) : (
+                                    task.student_name || 'Students nav norādīts'
+                                )}
+                                {task.student_class
+                                    ? ` • ${task.student_class}`
+                                    : ''}
                             </p>
 
                             <div className="mt-3 flex flex-wrap gap-2">
-                                <InfoChip label="Solis" value={getStepLabel(task.current_step)} />
-                                <InfoChip label="Termiņš" value={formatDate(task.deadline_date)} />
-                                <InfoChip label="Atjaunots" value={formatDate(task.updated_at)} />
+                                <InfoChip
+                                    label="Solis"
+                                    value={getStepLabel(task.current_step)}
+                                />
+                                <InfoChip
+                                    label="Termiņš"
+                                    value={formatDate(task.deadline_date)}
+                                />
+                                <InfoChip
+                                    label="Atjaunots"
+                                    value={formatDate(task.updated_at)}
+                                />
                             </div>
                         </div>
                     </div>
@@ -377,11 +452,11 @@ export default function TeacherDashboard() {
                 <div className="space-y-5">
                     <section className="overflow-hidden rounded-[28px] border border-[#d9ded9] bg-white shadow-sm">
                         <div className="relative p-6 md:p-8">
-                            <div className="absolute right-0 top-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
+                            <div className="absolute top-0 right-0 hidden h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-[#eef6f0] blur-2xl lg:block" />
 
                             <div className="relative grid gap-6 xl:grid-cols-[1fr_720px] xl:items-center">
                                 <div>
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#166a4d]">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                                         <BookOpen className="h-3.5 w-3.5" />
                                         Pasniedzēja panelis
                                     </div>
@@ -391,7 +466,8 @@ export default function TeacherDashboard() {
                                     </h1>
 
                                     <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#5f6d65]">
-                                        Ātrs pārskats par sagatavēm, studentu mēģinājumiem un iesniegtajiem darbiem.
+                                        Ātrs pārskats par sagatavēm, studentu
+                                        mēģinājumiem un iesniegtajiem darbiem.
                                     </p>
                                 </div>
 
@@ -414,12 +490,16 @@ export default function TeacherDashboard() {
                                     <StatPill
                                         label="Iesniegti"
                                         value={stats.attempts_submitted}
-                                        icon={<ClipboardList className="h-5 w-5" />}
+                                        icon={
+                                            <ClipboardList className="h-5 w-5" />
+                                        }
                                     />
                                     <StatPill
                                         label="Pārskatīti"
                                         value={stats.attempts_reviewed}
-                                        icon={<CheckCircle2 className="h-5 w-5" />}
+                                        icon={
+                                            <CheckCircle2 className="h-5 w-5" />
+                                        }
                                     />
                                 </div>
                             </div>
@@ -432,13 +512,20 @@ export default function TeacherDashboard() {
                                 title="Jaunākās sagataves"
                                 description="Uzdevumu bāze, ko vari izmantot un piešķirt studentiem."
                                 buttonLabel="Visas sagataves"
-                                onClick={() => router.visit('/teacher/templates/order-templates')}
+                                onClick={() =>
+                                    router.visit(
+                                        '/teacher/templates/order-templates',
+                                    )
+                                }
                             />
 
                             <div className="mt-5 space-y-3">
                                 {templates.length > 0 ? (
                                     templates.map((template) => (
-                                        <TemplateRow key={template.id} template={template} />
+                                        <TemplateRow
+                                            key={template.id}
+                                            template={template}
+                                        />
                                     ))
                                 ) : (
                                     <EmptyState
@@ -455,17 +542,24 @@ export default function TeacherDashboard() {
                                 title="Aktīvie uzdevumi"
                                 description="Studentiem piešķirtie darbi ar statusu, soli un pēdējo aktivitāti."
                                 buttonLabel="Pārvaldīt studentus"
-                                onClick={() => router.visit('/teacher/students')}
+                                onClick={() =>
+                                    router.visit('/teacher/students')
+                                }
                             />
 
                             <div className="mt-5 space-y-3">
                                 {assignedTasks.length > 0 ? (
                                     assignedTasks.map((task) => (
-                                        <AssignmentRow key={task.id} task={task} />
+                                        <AssignmentRow
+                                            key={task.id}
+                                            task={task}
+                                        />
                                     ))
                                 ) : (
                                     <EmptyState
-                                        icon={<ClipboardList className="h-6 w-6" />}
+                                        icon={
+                                            <ClipboardList className="h-6 w-6" />
+                                        }
                                         title="Nav aktīvu uzdevumu"
                                         description="Kad studentiem tiks piešķirti uzdevumi, šeit redzēsi progresu un iesniegumus."
                                     />

@@ -12,7 +12,7 @@ class TransportTemplateController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/Transport/Index', [
-            'templates' => TransportTemplate::latest()->get(),
+            'templates' => TransportTemplate::orderBy('name')->get(),
         ]);
     }
 

@@ -12,7 +12,7 @@ class CustomsDocumentController extends Controller
     public function index()
     {
         return Inertia::render('Teacher/Templates/Customs/Index', [
-            'documents' => CustomsDocument::latest()->get(),
+            'documents' => CustomsDocument::orderBy('name')->get(),
         ]);
     }
 

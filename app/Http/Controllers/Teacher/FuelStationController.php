@@ -21,7 +21,11 @@ class FuelStationController extends Controller
     {
         return Inertia::render('Teacher/Templates/FuelStations/Index', [
             'fuelStations' => FuelStation::with('location')
-                ->latest()
+                ->leftJoin('locations', 'fuel_stations.location_id', '=', 'locations.id')
+                ->orderBy('locations.country')
+                ->orderBy('locations.city')
+                ->orderBy('locations.name')
+                ->select('fuel_stations.*')
                 ->get(),
         ]);
     }

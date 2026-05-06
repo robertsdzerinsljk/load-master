@@ -1,9 +1,10 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CirclePlus, Search } from 'lucide-react';
+import { CirclePlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import TeacherLayout from '@/layouts/TeacherLayout';
 import BackButton from '@/components/BackButton';
 import LocationPresetCard from '@/components/LocationPresetCard';
+import TemplateCatalogFilterBar from '@/components/TemplateCatalogFilterBar';
 
 type Location = {
     id: number;
@@ -25,29 +26,45 @@ export default function TeacherLocationsIndex() {
     const page = usePage<PageProps>();
     const locations = page.props.locations;
     const [search, setSearch] = useState('');
+    const [country, setCountry] = useState('all');
+    const [type, setType] = useState('all');
+
+    const countries = useMemo(() => {
+        return Array.from(
+            new Set(locations.map((item) => item.country).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [locations]);
+
+    const types = useMemo(() => {
+        return Array.from(
+            new Set(locations.map((item) => item.type).filter(Boolean)),
+        ).sort((a, b) => String(a).localeCompare(String(b), 'lv')) as string[];
+    }, [locations]);
 
     const filteredLocations = useMemo(() => {
         const normalized = search.trim().toLowerCase();
 
-        if (!normalized) {
-            return locations;
-        }
-
         return locations.filter((item) => {
-            return (
+            const matchesSearch =
+                !normalized ||
                 item.name?.toLowerCase().includes(normalized) ||
                 item.type?.toLowerCase().includes(normalized) ||
                 item.country?.toLowerCase().includes(normalized) ||
                 item.city?.toLowerCase().includes(normalized) ||
                 item.address?.toLowerCase().includes(normalized) ||
-                item.notes?.toLowerCase().includes(normalized)
+                item.notes?.toLowerCase().includes(normalized);
+
+            return (
+                matchesSearch &&
+                (country === 'all' || item.country === country) &&
+                (type === 'all' || item.type === type)
             );
         });
-    }, [locations, search]);
+    }, [locations, search, country, type]);
 
     const handleDelete = (id: number, name: string) => {
         const confirmed = window.confirm(
-            `Vai tiešām vēlaties dzēst lokāciju "${name}"?`
+            `Vai tiešām vēlaties dzēst lokāciju "${name}"?`,
         );
 
         if (!confirmed) return;
@@ -64,19 +81,21 @@ export default function TeacherLocationsIndex() {
 
                 <div className="mt-4 flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-[28px] font-semibold leading-tight text-[#182219]">
+                        <h1 className="text-[28px] leading-tight font-semibold text-[#182219]">
                             Lokācijas
                         </h1>
 
                         <p className="mt-2 text-[16px] text-[#5b6b61]">
-                            Pārvaldiet simulatora punktus — pilsētas, rūpnīcas, noliktavas,
-                            uzpildes vietas un citus galamērķus.
+                            Pārvaldiet simulatora punktus — pilsētas, rūpnīcas,
+                            noliktavas, uzpildes vietas un citus galamērķus.
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        onClick={() => router.visit('/teacher/templates/locations/create')}
+                        onClick={() =>
+                            router.visit('/teacher/templates/locations/create')
+                        }
                         className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-[#135740]"
                     >
                         <CirclePlus className="h-4 w-4" />
@@ -85,16 +104,36 @@ export default function TeacherLocationsIndex() {
                 </div>
 
                 <div className="mt-6 max-w-4xl">
-                    <div className="flex h-11 items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-3">
-                        <Search className="h-4 w-4 text-[#7a877f]" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Meklēt lokācijas..."
-                            className="w-full bg-transparent text-[14px] text-[#162118] outline-none placeholder:text-[#93a097]"
-                        />
-                    </div>
+                    <TemplateCatalogFilterBar
+                        search={search}
+                        onSearchChange={setSearch}
+                        searchPlaceholder="Meklēt lokācijas pēc nosaukuma, valsts, pilsētas..."
+                        resultCount={filteredLocations.length}
+                        totalCount={locations.length}
+                        onClear={() => {
+                            setSearch('');
+                            setCountry('all');
+                            setType('all');
+                        }}
+                        filters={[
+                            {
+                                key: 'country',
+                                label: 'Valsts',
+                                value: country,
+                                options: countries,
+                                allLabel: 'Visas valstis',
+                                onChange: setCountry,
+                            },
+                            {
+                                key: 'type',
+                                label: 'Tips',
+                                value: type,
+                                options: types,
+                                allLabel: 'Visi tipi',
+                                onChange: setType,
+                            },
+                        ]}
+                    />
                 </div>
 
                 <div className="mt-6 grid max-w-4xl gap-4">
@@ -111,9 +150,13 @@ export default function TeacherLocationsIndex() {
                                 longitude={item.longitude}
                                 notes={item.notes}
                                 onClick={() =>
-                                    router.visit(`/teacher/templates/locations/${item.id}/edit`)
+                                    router.visit(
+                                        `/teacher/templates/locations/${item.id}/edit`,
+                                    )
                                 }
-                                onDelete={() => handleDelete(item.id, item.name)}
+                                onDelete={() =>
+                                    handleDelete(item.id, item.name)
+                                }
                             />
                         ))
                     ) : (

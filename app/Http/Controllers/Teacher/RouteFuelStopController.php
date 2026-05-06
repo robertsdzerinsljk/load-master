@@ -20,7 +20,15 @@ class RouteFuelStopController extends Controller
                 'landRoute.fromLocation',
                 'landRoute.toLocation',
                 'fuelStation.location',
-            ])->latest()->get(),
+            ])
+                ->join('land_routes', 'route_fuel_stops.land_route_id', '=', 'land_routes.id')
+                ->join('locations as from_locations', 'land_routes.from_location_id', '=', 'from_locations.id')
+                ->join('locations as to_locations', 'land_routes.to_location_id', '=', 'to_locations.id')
+                ->orderBy('from_locations.name')
+                ->orderBy('to_locations.name')
+                ->orderBy('route_fuel_stops.distance_from_start_km')
+                ->select('route_fuel_stops.*')
+                ->get(),
         ]);
     }
 

@@ -19,7 +19,11 @@ class LandRouteController extends Controller
     {
         return Inertia::render('Teacher/Templates/LandRoutes/Index', [
             'routes' => LandRoute::with(['fromLocation', 'toLocation'])
-                ->latest()
+                ->join('locations as from_locations', 'land_routes.from_location_id', '=', 'from_locations.id')
+                ->join('locations as to_locations', 'land_routes.to_location_id', '=', 'to_locations.id')
+                ->orderBy('from_locations.name')
+                ->orderBy('to_locations.name')
+                ->select('land_routes.*')
                 ->get(),
         ]);
     }
