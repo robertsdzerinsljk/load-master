@@ -1,0 +1,1 @@
+import{n as e,t}from"./jsx-runtime-B-sRngtE.js";var n=e(),r=t();function i(e){let t=(0,n.c)(2),{className:i}=e,a=i===void 0?``:i,o;return t[0]===a?o=t[1]:(o=(0,r.jsx)(`img`,{src:`/images/ljk-logo.png`,alt:`LJK logo`,className:a}),t[0]=a,t[1]=o),o}export{i as t};
