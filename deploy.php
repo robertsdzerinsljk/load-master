@@ -21,6 +21,7 @@ add('writable_dirs', ['bootstrap/cache', 'storage']);
 host('production')
     ->setHostname('10.11.0.46')
     ->set('remote_user', 'eivis_deploy_user')
+    ->setIdentityFile('C:/Users/roberts.dzerins/.ssh/loadmaster_roberts')
     ->set('deploy_path', '/var/www/loadmaster')
     ->set('branch', 'main')
     ->set('stage', 'main');
