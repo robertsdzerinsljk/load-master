@@ -35,16 +35,32 @@ task('deploy', [
     'deploy:writable',
     'artisan:storage:link',
     'artisan:view:clear',
+    'deploy:clear_route_cache',
     'artisan:config:cache',
     'artisan:migrate',
     'artisan:db:seed',
+    'deploy:remove_vite_hot',
     'deploy:publish',
     'artisan:optimize',
+    'deploy:verify_google_routes',
     'deploy:cleanup',
     'deploy:cleanup_files',
 ]);
 
+task('deploy:clear_route_cache', function () {
+    run('{{bin/php}} {{release_path}}/artisan route:clear');
+});
+
+task('deploy:remove_vite_hot', function () {
+    run('rm -f {{release_path}}/public/hot');
+});
+
+task('deploy:verify_google_routes', function () {
+    run('{{bin/php}} {{current_path}}/artisan route:list --path=auth/google');
+});
+
 task('deploy:cleanup_files', function () {
+    run('rm -f {{release_path}}/public/hot');
     run('rm -rf {{release_path}}/tests');
     run('rm -f {{release_path}}/README.md');
     run('rm -f {{release_path}}/.editorconfig');

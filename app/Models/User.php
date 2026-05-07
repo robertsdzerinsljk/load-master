@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\SchoolClass;
-use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,15 +16,19 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'first_name',
     'last_name',
     'email',
+    'google_id',
+    'google_avatar',
+    'google_linked_at',
+    'external_user_id',
     'password',
     'role',
-    'class_id'
+    'class_id',
 ])]
 #[Hidden([
     'password',
     'two_factor_secret',
     'two_factor_recovery_codes',
-    'remember_token'
+    'remember_token',
 ])]
 class User extends Authenticatable
 {
@@ -36,6 +38,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'google_linked_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
@@ -62,11 +65,11 @@ class User extends Authenticatable
     }
 
     public function assignedOrderTemplates(): BelongsToMany
-{
-    return $this->belongsToMany(OrderTemplate::class, 'order_template_user')
-        ->withPivot('assigned_at')
-        ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(OrderTemplate::class, 'order_template_user')
+            ->withPivot('assigned_at')
+            ->withTimestamps();
+    }
 
     public function simulationAttempts(): HasMany
     {

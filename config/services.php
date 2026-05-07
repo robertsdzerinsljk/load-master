@@ -28,6 +28,17 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+        'http_verify' => env('GOOGLE_HTTP_VERIFY'),
+        'allowed_domains' => array_filter(array_map(
+            'trim',
+            explode(',', (string) env('GOOGLE_ALLOWED_DOMAINS', 'ljk.lv,ljkstudents.lv'))
+        )),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
