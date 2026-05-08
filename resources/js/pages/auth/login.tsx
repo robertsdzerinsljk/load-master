@@ -164,7 +164,7 @@ export default function Login({
                                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"
                                 />
                             </svg>
-                            Turpinat ar LJK Google
+                            Turpināt ar Google
                         </a>
 
                         <div className="mb-5 flex items-center gap-3 text-xs font-medium text-slate-400">
@@ -200,7 +200,7 @@ export default function Login({
                                                 autoFocus
                                                 tabIndex={1}
                                                 autoComplete="email"
-                                                placeholder="teacher@test.com"
+                                                placeholder="E-pasta adrese"
                                                 className={inputClassName}
                                             />
                                             <InputError
@@ -217,13 +217,13 @@ export default function Login({
                                                     Parole
                                                 </Label>
                                                 {canResetPassword && (
-                                                    <TextLink
-                                                        href="/forgot-password"
-                                                        className="ml-auto text-sm text-slate-600 hover:text-[#1B6250]"
+                                                    <a
+                                                        href="https://mans.ljk.lv/forgot-password"
+                                                        className="ml-auto text-sm text-slate-600 hover:text-[#1B6250] hover:cursor-pointer hover:underline"
                                                         tabIndex={5}
                                                     >
                                                         Aizmirsi paroli?
-                                                    </TextLink>
+                                                    </a>
                                                 )}
                                             </div>
 
@@ -243,13 +243,14 @@ export default function Login({
 
                                         <div className="flex items-center space-x-3">
                                             <Checkbox
+                                                className="hover:cursor-pointer"
                                                 id="remember"
                                                 name="remember"
                                                 tabIndex={3}
                                             />
                                             <Label
                                                 htmlFor="remember"
-                                                className="text-slate-700"
+                                                className="text-slate-700 hover:cursor-pointer"
                                             >
                                                 Atcerēties mani
                                             </Label>
@@ -267,18 +268,7 @@ export default function Login({
                                         </Button>
                                     </div>
 
-                                    {canRegister && (
-                                        <div className="text-center text-sm text-slate-500">
-                                            Vēl nav konta?{' '}
-                                            <TextLink
-                                                href="/register"
-                                                tabIndex={5}
-                                                className="text-slate-700 hover:text-[#1B6250]"
-                                            >
-                                                Reģistrēties
-                                            </TextLink>
-                                        </div>
-                                    )}
+                                    
                                 </>
                             )}
                         </Form>
