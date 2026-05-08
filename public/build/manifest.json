@@ -642,7 +642,7 @@
     "isEntry": true
   },
   "resources/js/app.tsx": {
-    "file": "assets/app-CRbXNgj3.js",
+    "file": "assets/app-YrD2eHZs.js",
     "name": "app",
     "src": "resources/js/app.tsx",
     "isEntry": true,
@@ -1530,7 +1530,7 @@
     ]
   },
   "resources/js/pages/auth/login.tsx": {
-    "file": "assets/login-CewnHevv.js",
+    "file": "assets/login-DVHCx8Qt.js",
     "name": "login",
     "src": "resources/js/pages/auth/login.tsx",
     "isDynamicEntry": true,
@@ -1547,7 +1547,6 @@
       "_password-input-BlUp_CTm.js",
       "_app-logo-D3EyQ-xU.js",
       "_input-error-CynjbvHw.js",
-      "_text-link-CnntPiD6.js",
       "_input-DQ90Jdj-.js",
       "_spinner-RcPnGzfL.js"
     ]
