@@ -18,12 +18,16 @@ class Location extends Model
         'address',
         'latitude',
         'longitude',
+        'source',
+        'external_id',
+        'metadata',
         'notes',
     ];
 
     protected $casts = [
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'metadata' => 'array',
     ];
 
     public function linkedCity(): BelongsTo
@@ -40,6 +44,7 @@ class Location extends Model
     {
         return $this->hasMany(LandRoute::class, 'to_location_id');
     }
+
     public function fuelStation(): HasOne
     {
         return $this->hasOne(FuelStation::class);

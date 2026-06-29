@@ -1,6 +1,11 @@
 <?php
 
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Places\PlaceController;
+use App\Http\Controllers\Places\PlaceSearchController;
+use App\Http\Controllers\Routing\RouteBuilderController;
+use App\Http\Controllers\Routing\RouteCalculationController;
+use App\Http\Controllers\Routing\RouteTemplateController;
 use App\Http\Controllers\Student\AttemptController;
 use App\Http\Controllers\Student\SimulationAttemptController;
 use App\Http\Controllers\Teacher\AssignedTaskController;
@@ -37,6 +42,22 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->name('auth.google.callback');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/places/search', PlaceSearchController::class)
+        ->name('places.search');
+    Route::post('/places', [PlaceController::class, 'store'])
+        ->name('places.store');
+
+    Route::post('/routing/calculate', RouteCalculationController::class)
+        ->name('routing.calculate');
+    Route::post('/route-builder/preview', [RouteBuilderController::class, 'preview'])
+        ->name('route-builder.preview');
+    Route::get('/route-templates', [RouteTemplateController::class, 'index'])
+        ->name('route-templates.index');
+    Route::post('/route-templates', [RouteTemplateController::class, 'store'])
+        ->name('route-templates.store');
+    Route::get('/route-templates/{routeTemplate}', [RouteTemplateController::class, 'show'])
+        ->name('route-templates.show');
+
     Route::get('/dashboard', function () {
         return auth()->user()->role === 'teacher'
             ? redirect()->route('teacher.dashboard')

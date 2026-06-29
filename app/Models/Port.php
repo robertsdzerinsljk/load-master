@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Port extends Model
 {
@@ -59,23 +59,31 @@ class Port extends Model
         return $this->belongsToMany(OrderTemplate::class, 'order_template_ports');
     }
 
+    public function outgoingSeaRoutes(): HasMany
+    {
+        return $this->hasMany(SeaRoute::class, 'origin_port_id');
+    }
+
+    public function incomingSeaRoutes(): HasMany
+    {
+        return $this->hasMany(SeaRoute::class, 'destination_port_id');
+    }
+
     public function getLocationNameAttribute(): ?string
     {
         return $this->location?->name;
     }
-    
+
     public function handlingMethods(): BelongsToMany
     {
-    return $this->belongsToMany(HandlingMethod::class, 'handling_method_port')
-        ->withPivot([
-            'is_loading',
-            'is_unloading',
-            'throughput_override_containers_per_hour',
-            'throughput_override_tons_per_hour',
-            'notes',
-        ])
-        ->withTimestamps();
+        return $this->belongsToMany(HandlingMethod::class, 'handling_method_port')
+            ->withPivot([
+                'is_loading',
+                'is_unloading',
+                'throughput_override_containers_per_hour',
+                'throughput_override_tons_per_hour',
+                'notes',
+            ])
+            ->withTimestamps();
     }
-
-
 }

@@ -1523,6 +1523,7 @@ export default function StudentSimulatorShow() {
                                 stepNumber={currentStepNumber}
                                 availableStations={availableFuelStations}
                                 selectedStations={selectedFuelStations}
+                                routeSegments={selectedSegments}
                                 loading={loading}
                                 onAddStation={addFuelStation}
                                 onRemoveStation={removeFuelStation}

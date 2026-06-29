@@ -14,6 +14,8 @@ class LandRoute extends Model
         'distance_km',
         'estimated_time_hours',
         'toll_cost',
+        'geometry_geojson',
+        'provider',
         'notes',
     ];
 
@@ -21,6 +23,7 @@ class LandRoute extends Model
         'distance_km' => 'decimal:2',
         'estimated_time_hours' => 'decimal:2',
         'toll_cost' => 'decimal:2',
+        'geometry_geojson' => 'array',
     ];
 
     public function fromLocation(): BelongsTo
@@ -32,6 +35,7 @@ class LandRoute extends Model
     {
         return $this->belongsTo(Location::class, 'to_location_id');
     }
+
     public function fuelStops(): HasMany
     {
         return $this->hasMany(RouteFuelStop::class);

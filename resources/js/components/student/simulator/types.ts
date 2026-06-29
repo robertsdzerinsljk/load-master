@@ -16,6 +16,7 @@ export type FuelStationItem = {
     name?: string | null;
     display_name?: string | null;
     location_name?: string | null;
+    location?: LocationItem | null;
     fuel_type?: string | null;
     price_per_liter?: number | string | null;
     pivot?: {
@@ -35,6 +36,12 @@ export type LocationItem = {
 export type RouteItem = {
     id: number;
     distance_km?: string | number | null;
+    estimated_time_hours?: string | number | null;
+    geometry_geojson?: {
+        type?: string;
+        coordinates?: unknown;
+    } | null;
+    provider?: string | null;
     fromLocation?: LocationItem | null;
     toLocation?: LocationItem | null;
     from_location?: LocationItem | null;

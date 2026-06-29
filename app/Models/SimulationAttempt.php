@@ -83,7 +83,7 @@ class SimulationAttempt extends Model
 
     public function feedback()
     {
-        return $this->hasOne(\App\Models\TeacherFeedback::class, 'simulation_attempt_id');
+        return $this->hasOne(TeacherFeedback::class, 'simulation_attempt_id');
     }
 
     public function selectedShip(): BelongsTo
@@ -102,8 +102,8 @@ class SimulationAttempt extends Model
             LandRoute::class,
             'simulation_attempt_route_segments'
         )->withPivot('position')
-         ->withTimestamps()
-         ->orderBy('simulation_attempt_route_segments.position');
+            ->withTimestamps()
+            ->orderBy('simulation_attempt_route_segments.position');
     }
 
     public function fuelStations(): BelongsToMany
@@ -112,13 +112,13 @@ class SimulationAttempt extends Model
             FuelStation::class,
             'simulation_attempt_fuel_stations'
         )->withPivot('position')
-         ->withTimestamps()
-         ->orderBy('simulation_attempt_fuel_stations.position');
+            ->withTimestamps()
+            ->orderBy('simulation_attempt_fuel_stations.position');
     }
 
     public function getOrderedRouteSegmentsAttribute()
     {
-        if (!$this->relationLoaded('routeSegments')) {
+        if (! $this->relationLoaded('routeSegments')) {
             return [];
         }
 
@@ -126,12 +126,11 @@ class SimulationAttempt extends Model
             return [
                 'id' => $segment->id,
                 'distance_km' => $segment->distance_km,
-                'fromLocation' => $segment->fromLocation ? [
-                    'name' => $segment->fromLocation->name,
-                ] : null,
-                'toLocation' => $segment->toLocation ? [
-                    'name' => $segment->toLocation->name,
-                ] : null,
+                'estimated_time_hours' => $segment->estimated_time_hours,
+                'geometry_geojson' => $segment->geometry_geojson,
+                'provider' => $segment->provider,
+                'fromLocation' => $this->serializeRouteLocation($segment->fromLocation),
+                'toLocation' => $this->serializeRouteLocation($segment->toLocation),
                 'pivot' => [
                     'position' => $segment->pivot?->position,
                 ],
@@ -139,9 +138,25 @@ class SimulationAttempt extends Model
         })->values();
     }
 
+    private function serializeRouteLocation(?Location $location): ?array
+    {
+        if (! $location) {
+            return null;
+        }
+
+        return [
+            'id' => $location->id,
+            'name' => $location->name,
+            'city' => $location->city,
+            'country' => $location->country,
+            'latitude' => $location->latitude,
+            'longitude' => $location->longitude,
+        ];
+    }
+
     public function getOrderedFuelStationsAttribute()
     {
-        if (!$this->relationLoaded('fuelStations')) {
+        if (! $this->relationLoaded('fuelStations')) {
             return [];
         }
 
@@ -150,6 +165,7 @@ class SimulationAttempt extends Model
                 'id' => $station->id,
                 'name' => $station->display_name ?? '—',
                 'location_name' => $station->location_name ?? null,
+                'location' => $this->serializeRouteLocation($station->location),
                 'fuel_type' => $station->fuel_type,
                 'price_per_liter' => $station->price_per_liter,
                 'pivot' => [

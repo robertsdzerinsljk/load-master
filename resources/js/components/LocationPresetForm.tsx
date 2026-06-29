@@ -1,5 +1,13 @@
 import { router, usePage } from '@inertiajs/react';
+import L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
+import {
+    MapContainer,
+    Marker,
+    Popup,
+    TileLayer,
+    useMapEvents,
+} from 'react-leaflet';
 
 type CityOption = {
     id: number;
@@ -24,6 +32,18 @@ type Props = {
     id?: number;
 };
 
+const defaultCenter: [number, number] = [56.9496, 24.1052];
+const markerIcon = new L.Icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl:
+        'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
 export default function LocationPresetForm({
     submitLabel = 'Saglabāt',
     initialData = {},
@@ -45,8 +65,7 @@ export default function LocationPresetForm({
     const [country, setCountry] = useState(initialData.country || '');
     const [manualCountry, setManualCountry] = useState(
         Boolean(
-            initialData.country &&
-                !countries.includes(initialData.country),
+            initialData.country && !countries.includes(initialData.country),
         ),
     );
     const [cityId, setCityId] = useState(String(initialData.city_id ?? ''));
@@ -57,8 +76,12 @@ export default function LocationPresetForm({
         initialData.city && !initialData.city_id ? initialData.city : '',
     );
     const [address, setAddress] = useState(initialData.address || '');
-    const [latitude, setLatitude] = useState(String(initialData.latitude ?? ''));
-    const [longitude, setLongitude] = useState(String(initialData.longitude ?? ''));
+    const [latitude, setLatitude] = useState(
+        String(initialData.latitude ?? ''),
+    );
+    const [longitude, setLongitude] = useState(
+        String(initialData.longitude ?? ''),
+    );
     const [notes, setNotes] = useState(initialData.notes || '');
 
     const availableCountries = useMemo(() => {
@@ -178,6 +201,7 @@ export default function LocationPresetForm({
         'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
     const labelClass = 'text-[14px] font-medium text-[#182219]';
     const helperClass = 'mt-2 text-[13px] leading-6 text-[#5b6b61]';
+    const selectedPosition = coordinatesToLatLng(latitude, longitude);
 
     return (
         <form
@@ -269,7 +293,9 @@ export default function LocationPresetForm({
                             Vispirms izvēlieties valsti, tad sistēma parādīs
                             tikai tai valstij pieejamās pilsētas.
                         </p>
-                        {errors.country ? <FieldError error={errors.country} /> : null}
+                        {errors.country ? (
+                            <FieldError error={errors.country} />
+                        ) : null}
                     </div>
 
                     <div>
@@ -294,10 +320,11 @@ export default function LocationPresetForm({
                             ))}
                         </select>
                         <p className={helperClass}>
-                            Pilsētu saraksts tiek filtrēts pēc izvēlētās
-                            valsts.
+                            Pilsētu saraksts tiek filtrēts pēc izvēlētās valsts.
                         </p>
-                        {errors.city_id ? <FieldError error={errors.city_id} /> : null}
+                        {errors.city_id ? (
+                            <FieldError error={errors.city_id} />
+                        ) : null}
 
                         <div className="mt-3 flex flex-wrap items-center gap-3">
                             <button
@@ -343,6 +370,43 @@ export default function LocationPresetForm({
                 </div>
 
                 <div>
+                    <label className={labelClass}>
+                        Izveleties koordinatas karte
+                    </label>
+                    <div className="mt-2 h-[360px] overflow-hidden rounded-xl border border-[#d9ded9]">
+                        <MapContainer
+                            center={selectedPosition ?? defaultCenter}
+                            zoom={selectedPosition ? 11 : 8}
+                            scrollWheelZoom={false}
+                            className="h-full w-full"
+                        >
+                            <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            <CoordinateClickHandler
+                                onPick={(lat, lng) => {
+                                    setLatitude(lat.toFixed(7));
+                                    setLongitude(lng.toFixed(7));
+                                }}
+                            />
+                            {selectedPosition ? (
+                                <Marker
+                                    position={selectedPosition}
+                                    icon={markerIcon}
+                                >
+                                    <Popup>{name || 'Izveleta lokacija'}</Popup>
+                                </Marker>
+                            ) : null}
+                        </MapContainer>
+                    </div>
+                    <p className={helperClass}>
+                        Klikskini uz kartes, lai automatiski aizpilditu latitude
+                        un longitude.
+                    </p>
+                </div>
+
+                <div>
                     <label className={labelClass}>Adrese</label>
                     <input
                         type="text"
@@ -351,7 +415,9 @@ export default function LocationPresetForm({
                         className={inputClass}
                         placeholder="Piemēram, Ostas iela 1"
                     />
-                    {errors.address ? <FieldError error={errors.address} /> : null}
+                    {errors.address ? (
+                        <FieldError error={errors.address} />
+                    ) : null}
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
@@ -361,11 +427,15 @@ export default function LocationPresetForm({
                             type="number"
                             step="0.0000001"
                             value={latitude}
-                            onChange={(event) => setLatitude(event.target.value)}
+                            onChange={(event) =>
+                                setLatitude(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="Piemēram, 56.9496487"
                         />
-                        {errors.latitude ? <FieldError error={errors.latitude} /> : null}
+                        {errors.latitude ? (
+                            <FieldError error={errors.latitude} />
+                        ) : null}
                     </div>
 
                     <div>
@@ -374,11 +444,15 @@ export default function LocationPresetForm({
                             type="number"
                             step="0.0000001"
                             value={longitude}
-                            onChange={(event) => setLongitude(event.target.value)}
+                            onChange={(event) =>
+                                setLongitude(event.target.value)
+                            }
                             className={inputClass}
                             placeholder="Piemēram, 24.1051864"
                         />
-                        {errors.longitude ? <FieldError error={errors.longitude} /> : null}
+                        {errors.longitude ? (
+                            <FieldError error={errors.longitude} />
+                        ) : null}
                     </div>
                 </div>
 
@@ -405,6 +479,30 @@ export default function LocationPresetForm({
             </div>
         </form>
     );
+}
+
+function CoordinateClickHandler({
+    onPick,
+}: {
+    onPick: (latitude: number, longitude: number) => void;
+}) {
+    useMapEvents({
+        click(event) {
+            onPick(event.latlng.lat, event.latlng.lng);
+        },
+    });
+
+    return null;
+}
+
+function coordinatesToLatLng(
+    latitude: string,
+    longitude: string,
+): [number, number] | null {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
 }
 
 function FieldError({ error }: { error: string }) {

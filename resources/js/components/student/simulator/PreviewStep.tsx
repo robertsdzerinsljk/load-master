@@ -23,13 +23,18 @@ import {
     Waves,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import LogisticsMap, {
+    type LogisticsMapLocation,
+    type LogisticsRouteLeg,
+} from '@/components/LogisticsMap';
 import { cn } from '@/lib/utils';
 import {
     attemptPortName,
     attemptShipName,
     attemptTransportName,
+    routeName,
 } from './types';
-import type { Attempt, TimelineEvent } from './types';
+import type { Attempt, LocationItem, RouteItem, TimelineEvent } from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
@@ -102,6 +107,7 @@ export default function PreviewStep({
     const [eventProgress, setEventProgress] = useState(0);
 
     const track = useMemo(() => buildSimulationTrack(attempt), [attempt]);
+    const routeMapData = useMemo(() => buildRouteMapData(attempt), [attempt]);
 
     const safeActiveEventIndex = Math.min(
         activeEventIndex,
@@ -432,6 +438,29 @@ export default function PreviewStep({
                                     </div>
                                 </div>
                             </div>
+
+                            <LogisticsMap
+                                origin={routeMapData.origin}
+                                destination={routeMapData.destination}
+                                ports={routeMapData.ports}
+                                landLegs={routeMapData.landLegs}
+                                summary={{
+                                    route_type: 'land',
+                                    total_distance_km:
+                                        route?.total_driven_distance_km ??
+                                        route?.distance_km ??
+                                        routeMapData.totalDistance,
+                                    provider: routeMapData.provider,
+                                }}
+                                warnings={
+                                    routeMapData.landLegs.length === 0
+                                        ? [
+                                              'Marsruta linija nav attelojama, jo izveletajiem posmiem nav koordinatu.',
+                                          ]
+                                        : []
+                                }
+                                className="mt-6"
+                            />
 
                             <div className="-mx-2 mt-6 overflow-x-auto pb-3">
                                 <div
@@ -854,6 +883,104 @@ export default function PreviewStep({
                 </div>
             )}
         </section>
+    );
+}
+
+function buildRouteMapData(attempt: Attempt) {
+    const segments = attempt.ordered_route_segments ?? [];
+    const landLegs: LogisticsRouteLeg[] = segments
+        .map((segment): LogisticsRouteLeg | null => {
+            const from = routeLocation(segment, 'from');
+            const to = routeLocation(segment, 'to');
+            const geometry =
+                segment.geometry_geojson ?? lineGeometryFromLocations(from, to);
+
+            if (!geometry) {
+                return null;
+            }
+
+            return {
+                id: segment.id,
+                type: 'land' as const,
+                origin: from?.name ?? routeName(segment, 'from'),
+                destination: to?.name ?? routeName(segment, 'to'),
+                distance_km: segment.distance_km,
+                duration_hours: segment.estimated_time_hours,
+                geometry_geojson: geometry,
+            };
+        })
+        .filter((leg): leg is LogisticsRouteLeg => Boolean(leg));
+    const selectedPort = attempt.selectedPort ?? attempt.selected_port ?? null;
+    const portLocation = selectedPort?.location;
+
+    return {
+        origin: routeLocation(segments[0], 'from'),
+        destination: routeLocation(segments[segments.length - 1], 'to'),
+        ports:
+            portLocation && hasCoordinates(portLocation)
+                ? [
+                      {
+                          id: selectedPort.id,
+                          name: selectedPort.name,
+                          type: 'port',
+                          latitude: portLocation.latitude ?? null,
+                          longitude: portLocation.longitude ?? null,
+                      },
+                  ]
+                : [],
+        landLegs,
+        provider:
+            segments.find((segment) => segment.provider)?.provider ??
+            'selected route',
+        totalDistance: segments.reduce(
+            (sum, segment) => sum + Number(segment.distance_km ?? 0),
+            0,
+        ),
+    };
+}
+
+function routeLocation(
+    segment: RouteItem | undefined,
+    side: 'from' | 'to',
+): LogisticsMapLocation | null {
+    const location: LocationItem | null | undefined =
+        side === 'from'
+            ? (segment?.fromLocation ?? segment?.from_location)
+            : (segment?.toLocation ?? segment?.to_location);
+
+    if (!location || !hasCoordinates(location)) {
+        return null;
+    }
+
+    return {
+        id: location.id,
+        name: location.name,
+        latitude: location.latitude ?? null,
+        longitude: location.longitude ?? null,
+    };
+}
+
+function lineGeometryFromLocations(
+    origin: LogisticsMapLocation | null,
+    destination: LogisticsMapLocation | null,
+) {
+    if (!origin || !destination) {
+        return null;
+    }
+
+    return {
+        type: 'LineString',
+        coordinates: [
+            [Number(origin.longitude), Number(origin.latitude)],
+            [Number(destination.longitude), Number(destination.latitude)],
+        ],
+    };
+}
+
+function hasCoordinates(location: LocationItem): boolean {
+    return (
+        Number.isFinite(Number(location.latitude)) &&
+        Number.isFinite(Number(location.longitude))
     );
 }
 

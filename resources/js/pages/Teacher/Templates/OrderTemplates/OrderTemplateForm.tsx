@@ -2,6 +2,10 @@ import { router, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import OrderTemplateFormSection from './OrderTemplateFormSection';
+import MapRouteBuilder, {
+    type RouteBuilderPoint,
+    type RouteBuilderPreview,
+} from '@/components/routing/MapRouteBuilder';
 import {
     formatLocationOptionLabel,
     formatPortOptionLabel,
@@ -25,6 +29,8 @@ type LocationOption = {
     city?: string | null;
     country?: string | null;
     type?: string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
 };
 
 type PortOption = {
@@ -645,6 +651,23 @@ export default function OrderTemplateForm({
             ),
         [options.landRoutes],
     );
+    const routeBuilderInitialPoints = useMemo(
+        () =>
+            [startLocationId, endLocationId]
+                .map((id) =>
+                    options.locations.find(
+                        (location) => String(location.id) === String(id),
+                    ),
+                )
+                .filter(
+                    (location): location is LocationOption =>
+                        Boolean(location) &&
+                        Number.isFinite(Number(location?.latitude)) &&
+                        Number.isFinite(Number(location?.longitude)),
+                )
+                .map(locationOptionToRoutePoint),
+        [endLocationId, options.locations, startLocationId],
+    );
 
     useEffect(() => {
         setScenarioFocus((current) =>
@@ -1116,6 +1139,40 @@ export default function OrderTemplateForm({
         }
     };
 
+    const handleUseMapRoute = (routePreview: RouteBuilderPreview) => {
+        const landIds = routePreview.land_route_ids ?? [];
+
+        if (landIds.length > 0) {
+            setLandRouteIds((current) =>
+                Array.from(new Set([...current, ...landIds])),
+            );
+        }
+
+        const firstPoint = routePreview.points[0];
+        const lastPoint = routePreview.points[routePreview.points.length - 1];
+
+        if (firstPoint?.location_id && caps.startLocation) {
+            setStartLocationId(String(firstPoint.location_id));
+        }
+
+        if (lastPoint?.location_id && caps.endLocation) {
+            setEndLocationId(String(lastPoint.location_id));
+        }
+
+        setPreviewError(null);
+        setPreviewData({
+            route: {
+                from: firstPoint?.name ?? null,
+                to: lastPoint?.name ?? null,
+                distance_km: Number(routePreview.total_distance_km ?? 0),
+            },
+            result: {
+                can_complete_with_current_route_data:
+                    (routePreview.errors ?? []).length === 0,
+            },
+        });
+    };
+
     const inputClass =
         'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
     const textareaClass = `${inputClass} min-h-[120px]`;
@@ -1486,6 +1543,15 @@ export default function OrderTemplateForm({
                     title="Route and endpoints"
                     description="Only the fields needed for the selected scenario type stay visible."
                 >
+                    {caps.route ? (
+                        <MapRouteBuilder
+                            title="Build route on map"
+                            initialPoints={routeBuilderInitialPoints}
+                            onUseRoute={handleUseMapRoute}
+                            className="mb-5"
+                        />
+                    ) : null}
+
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {caps.startLocation ? (
                             <Field
@@ -2440,4 +2506,23 @@ function PreviewCard({
             </div>
         </div>
     );
+}
+
+function locationOptionToRoutePoint(
+    location: LocationOption,
+): RouteBuilderPoint {
+    return {
+        location_id: location.id,
+        source: 'local',
+        name: location.name,
+        display_name: [location.name, location.city, location.country]
+            .filter(Boolean)
+            .join(', '),
+        country: location.country,
+        city: location.city,
+        latitude: location.latitude ?? null,
+        longitude: location.longitude ?? null,
+        type: location.type ?? 'custom',
+        is_saved: true,
+    };
 }
