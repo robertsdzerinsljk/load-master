@@ -111,15 +111,19 @@ class GoogleAuthController extends Controller
         if (! $user) {
             $user = new User([
                 'email' => $email,
-                'role' => 'student',
+                'role' => $this->defaultRoleForEmail($email),
                 'password' => Hash::make(Str::random(48)),
             ]);
         }
+
+        $role = $this->resolvedRoleForGoogleLogin($user, $email);
 
         $user->forceFill([
             'name' => $name ?: trim($firstName.' '.$lastName) ?: $email,
             'first_name' => $firstName ?: $user->first_name,
             'last_name' => $lastName ?: $user->last_name,
+            'role' => $role,
+            'class_id' => $role === 'student' ? $user->class_id : null,
             'google_id' => $googleId,
             'google_avatar' => $googleUser->getAvatar(),
             'google_linked_at' => now(),
@@ -127,6 +131,26 @@ class GoogleAuthController extends Controller
         ])->save();
 
         return $user;
+    }
+
+    private function resolvedRoleForGoogleLogin(User $user, string $email): string
+    {
+        if ($user->role === 'admin') {
+            return 'admin';
+        }
+
+        if ($this->defaultRoleForEmail($email) === 'teacher' && $user->role === 'student') {
+            return 'teacher';
+        }
+
+        return $user->role ?: $this->defaultRoleForEmail($email);
+    }
+
+    private function defaultRoleForEmail(string $email): string
+    {
+        return Str::afterLast($email, '@') === 'ljk.lv'
+            ? 'teacher'
+            : 'student';
     }
 
     private function emailDomainIsAllowed(string $email): bool
