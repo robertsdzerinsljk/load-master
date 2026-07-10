@@ -10,7 +10,7 @@ class RouteFuelPlanService
         $distanceOffset = 0.0;
 
         foreach ($segments as $segment) {
-            $segmentFuelStops = $segment->fuelStops
+            $segmentFuelStops = collect($segment->fuelStops ?? [])
                 ->sortBy('distance_from_start_km')
                 ->values();
 
@@ -40,10 +40,31 @@ class RouteFuelPlanService
 
     public function resolveSelectedFuelPlan($fuelStations, array $mappedFuelStops, float $totalDistanceKm, float $maxRangeKm): array
     {
+        $fuelStations = collect($fuelStations)->values();
         $selectedPositions = [];
         $issues = [];
         $lastDistance = 0.0;
         $matchedIndexes = [];
+
+        if (empty($mappedFuelStops) && $fuelStations->isNotEmpty()) {
+            foreach ($fuelStations as $station) {
+                $issues[] = sprintf(
+                    'Degvielas pietura "%s" neatrodas uz izveidota maršruta vai ir izvēlēta neloģiskā secībā.',
+                    $station->display_name ?? $station->name ?? 'Degvielas pietura'
+                );
+
+                $selectedPositions[] = [
+                    'station_id' => $station->id,
+                    'distance_from_start_km' => null,
+                    'distance_from_segment_start_km' => null,
+                    'segment_id' => null,
+                    'is_logical' => false,
+                    'station' => $station,
+                ];
+            }
+
+            return $this->resolvedFuelPlanFromPositions($selectedPositions, $issues, $totalDistanceKm, $maxRangeKm);
+        }
 
         foreach ($fuelStations as $station) {
             $matchedStop = null;
@@ -69,7 +90,7 @@ class RouteFuelPlanService
 
             if ($matchedStop === null) {
                 $issues[] = sprintf(
-                    'Degvielas pietura "%s" neatrodas uz izveidota marsruta vai ir izveleta nelojiska seciba.',
+                    'Degvielas pietura "%s" neatrodas uz izveidota maršruta vai ir izvēlēta neloģiskā secībā.',
                     $station->display_name ?? $station->name ?? 'Degvielas pietura'
                 );
 
@@ -98,6 +119,11 @@ class RouteFuelPlanService
             ];
         }
 
+        return $this->resolvedFuelPlanFromPositions($selectedPositions, $issues, $totalDistanceKm, $maxRangeKm);
+    }
+
+    private function resolvedFuelPlanFromPositions(array $selectedPositions, array $issues, float $totalDistanceKm, float $maxRangeKm): array
+    {
         $legBoundaries = [0.0];
 
         foreach ($selectedPositions as $position) {

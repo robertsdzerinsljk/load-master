@@ -3,17 +3,32 @@
 namespace App\Services\Simulator;
 
 use App\Models\OrderTemplate;
-use App\Models\SimulationAttempt;
 use App\Models\Port;
 use App\Models\Ship;
+use App\Models\SimulationAttempt;
 
 class ScenarioReadinessService
 {
+    private const STEP_ORDER = [
+        'intro',
+        'transport',
+        'route',
+        'fuel',
+        'port',
+        'ship',
+        'simulation',
+        'submit',
+    ];
+
     public function evaluate(OrderTemplate $template, ?SimulationAttempt $latestTeacherTest = null): array
     {
         $template->loadMissing([
             'startLocation',
             'endLocation',
+            'startPort.location',
+            'endPort.location',
+            'routeTemplate.points',
+            'routeTemplate.legs',
             'transportTemplates',
             'landRoutes.fromLocation',
             'landRoutes.toLocation',
@@ -21,10 +36,16 @@ class ScenarioReadinessService
             'ships',
         ]);
 
+        $enabledSteps = $this->enabledSteps($template);
+        $needsTransport = in_array('transport', $enabledSteps, true);
+        $needsRoute = in_array('route', $enabledSteps, true);
+        $needsPort = in_array('port', $enabledSteps, true);
+        $needsShip = in_array('ship', $enabledSteps, true);
+        $hasRoutePlan = $template->landRoutes->isNotEmpty() || $template->routeTemplate !== null;
         $issues = [];
         $recommendations = [];
 
-        if ($template->transportTemplates->isEmpty()) {
+        if ($needsTransport && $template->transportTemplates->isEmpty()) {
             $issues[] = $this->issue(
                 'critical',
                 'Nav pievienots transports',
@@ -33,7 +54,7 @@ class ScenarioReadinessService
             $recommendations[] = 'Pievieno vismaz vienu transporta sagatavi.';
         }
 
-        if ($template->landRoutes->isEmpty()) {
+        if ($needsRoute && ! $hasRoutePlan) {
             $issues[] = $this->issue(
                 'critical',
                 'Nav pievienots maršruts',
@@ -42,12 +63,30 @@ class ScenarioReadinessService
             $recommendations[] = 'Pievieno vismaz vienu maršruta segmentu.';
         }
 
-        if ($template->startLocation && $template->landRoutes->isNotEmpty()) {
+        if ($needsPort && $template->ports->isEmpty()) {
+            $issues[] = $this->issue(
+                'critical',
+                'Nav pievienota osta',
+                'ScenÄrijam nav nevienas ostas izvÄ“les, lai gan simulatora plÅ«smÄ ir ostas solis.'
+            );
+            $recommendations[] = 'Pievieno vismaz vienu ostu vai maini scenÄrija tipu.';
+        }
+
+        if ($needsShip && $template->ships->isEmpty()) {
+            $issues[] = $this->issue(
+                'critical',
+                'Nav pievienots kuÄ£is',
+                'ScenÄrijam nav neviena kuÄ£a varianta, lai gan simulatora plÅ«smÄ ir kuÄ£a solis.'
+            );
+            $recommendations[] = 'Pievieno vismaz vienu kuÄ£i vai maini scenÄrija tipu.';
+        }
+
+        if ($needsRoute && $template->startLocation && $template->landRoutes->isNotEmpty()) {
             $hasStartMatch = $template->landRoutes->contains(
                 fn ($route) => (int) $route->from_location_id === (int) $template->start_location_id
             );
 
-            if (!$hasStartMatch) {
+            if (! $hasStartMatch) {
                 $issues[] = $this->issue(
                     'critical',
                     'Maršruts nesākas pareizajā vietā',
@@ -57,12 +96,14 @@ class ScenarioReadinessService
             }
         }
 
-        if ($template->endLocation && $template->landRoutes->isNotEmpty()) {
+        $routeTargetLocationId = $this->routeTargetLocationId($template, $needsPort, $needsShip);
+
+        if ($needsRoute && $routeTargetLocationId && $template->landRoutes->isNotEmpty()) {
             $hasEndMatch = $template->landRoutes->contains(
-                fn ($route) => (int) $route->to_location_id === (int) $template->end_location_id
+                fn ($route) => (int) $route->to_location_id === $routeTargetLocationId
             );
 
-            if (!$hasEndMatch) {
+            if (! $hasEndMatch) {
                 $issues[] = $this->issue(
                     'critical',
                     'Maršruts nebeidzas pie galamērķa',
@@ -72,7 +113,33 @@ class ScenarioReadinessService
             }
         }
 
-        if ($template->ports->isNotEmpty() && $template->ships->isNotEmpty() && !$this->hasCompatiblePortShipPair($template)) {
+        if ($needsRoute && $template->routeTemplate) {
+            $points = $template->routeTemplate->points->sortBy('sequence')->values();
+            $firstPoint = $points->first();
+            $lastPoint = $points->last();
+            $routeIncludesSea = $template->routeTemplate->legs->contains(fn ($leg) => ($leg->type ?? null) === 'sea');
+            $templateTargetLocationId = $this->routeTargetLocationId($template, $needsPort, $needsShip, $routeIncludesSea);
+
+            if ($template->start_location_id && (int) ($firstPoint?->location_id ?? 0) !== (int) $template->start_location_id) {
+                $issues[] = $this->issue(
+                    'critical',
+                    'MarÅ¡ruts nesÄkas pareizajÄ vietÄ',
+                    'PievienotÄ marÅ¡ruta sagatave nesÄkas scenÄrija sÄkuma lokÄcijÄ.'
+                );
+                $recommendations[] = 'PÄrbaudi sÄkuma lokÄciju vai izveido marÅ¡ruta sagatavi no pareizÄ sÄkumpunkta.';
+            }
+
+            if ($templateTargetLocationId && (int) ($lastPoint?->location_id ?? 0) !== $templateTargetLocationId) {
+                $issues[] = $this->issue(
+                    'critical',
+                    'MarÅ¡ruts nebeidzas pie galamÄ“rÄ·a',
+                    'PievienotÄ marÅ¡ruta sagatave nesasniedz scenÄrijam nepiecieÅ¡amo gala punktu.'
+                );
+                $recommendations[] = 'Pievieno marÅ¡ruta sagatavi, kas sasniedz izvÄ“lÄ“to galamÄ“rÄ·i vai izbraukÅ¡anas ostu.';
+            }
+        }
+
+        if ($needsPort && $needsShip && $template->ports->isNotEmpty() && $template->ships->isNotEmpty() && ! $this->hasCompatiblePortShipPair($template)) {
             $issues[] = $this->issue(
                 'critical',
                 'Osta un kuģis nav savietojami',
@@ -138,7 +205,7 @@ class ScenarioReadinessService
         $isValid = (bool) data_get($preview, 'result.is_valid', $attempt->is_valid ?? false);
         $score = (int) data_get($preview, 'result.score', $attempt->score ?? 0);
 
-        if (!$isValid) {
+        if (! $isValid) {
             return $this->issue(
                 'critical',
                 'Pēdējais skolotāja tests bija nederīgs',
@@ -159,7 +226,13 @@ class ScenarioReadinessService
 
     private function evaluateDeadlinePressure(OrderTemplate $template): ?array
     {
-        if (!$template->scenario_start_at || !$template->deadline_at) {
+        if (! $template->scenario_start_at || ! $template->deadline_at) {
+            return null;
+        }
+
+        $enabledSteps = $this->enabledSteps($template);
+
+        if (! in_array('transport', $enabledSteps, true) || ! in_array('route', $enabledSteps, true)) {
             return null;
         }
 
@@ -197,6 +270,66 @@ class ScenarioReadinessService
         }
 
         return null;
+    }
+
+    private function enabledSteps(OrderTemplate $template): array
+    {
+        $config = $template->step_config;
+
+        if (is_array($config) && ! empty($config)) {
+            $enabled = [];
+
+            foreach (self::STEP_ORDER as $step) {
+                if (($config[$step] ?? false) === true) {
+                    $enabled[] = $step;
+                }
+            }
+
+            if (! empty($enabled)) {
+                return $template->requires_refuel_planning
+                    ? $enabled
+                    : array_values(array_filter($enabled, fn (string $step) => $step !== 'fuel'));
+            }
+        }
+
+        $enabled = match ($template->scenario_type) {
+            'land_transport' => ['intro', 'transport', 'route', 'fuel', 'simulation', 'submit'],
+            'land_to_port' => ['intro', 'transport', 'route', 'fuel', 'port', 'simulation', 'submit'],
+            'port_to_ship' => ['intro', 'port', 'ship', 'simulation', 'submit'],
+            'full_chain', 'mixed_transport' => ['intro', 'transport', 'route', 'fuel', 'port', 'ship', 'simulation', 'submit'],
+            default => self::STEP_ORDER,
+        };
+
+        if (! $template->requires_refuel_planning) {
+            $enabled = array_values(array_filter($enabled, fn (string $step) => $step !== 'fuel'));
+        }
+
+        return $enabled;
+    }
+
+    private function routeTargetLocationId(
+        OrderTemplate $template,
+        bool $needsPort,
+        bool $needsShip,
+        bool $routeIncludesSea = false,
+    ): ?int {
+        if ($routeIncludesSea) {
+            if ($template->endPort?->location_id) {
+                return (int) $template->endPort->location_id;
+            }
+
+            return $template->end_location_id ? (int) $template->end_location_id : null;
+        }
+
+        if ($needsShip && $template->startPort?->location_id) {
+            return (int) $template->startPort->location_id;
+        }
+
+        if ($needsPort && $template->endPort?->location_id) {
+            return (int) $template->endPort->location_id;
+        }
+
+        return $template->end_location_id ? (int) $template->end_location_id : null;
     }
 
     private function hasCompatiblePortShipPair(OrderTemplate $template): bool

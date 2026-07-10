@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import LogisticsMap, {
+    type LogisticsMapFuelStop,
     type LogisticsMapLocation,
     type LogisticsRouteLeg,
 } from '@/components/LogisticsMap';
@@ -34,12 +35,21 @@ import {
     attemptTransportName,
     routeName,
 } from './types';
-import type { Attempt, LocationItem, RouteItem, TimelineEvent } from './types';
+import type {
+    Attempt,
+    LocationItem,
+    RouteItem,
+    RouteTemplate,
+    RouteTemplatePoint,
+    Template,
+    TimelineEvent,
+} from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
     stepNumber?: number;
     attempt: Attempt;
+    template: Template;
     loading: boolean;
     canPreview: boolean;
     onPreview: () => void;
@@ -79,6 +89,7 @@ const TRACK_NODE_WIDTH = 152;
 export default function PreviewStep({
     stepNumber = 5,
     attempt,
+    template,
     loading,
     canPreview,
     onPreview,
@@ -107,7 +118,14 @@ export default function PreviewStep({
     const [eventProgress, setEventProgress] = useState(0);
 
     const track = useMemo(() => buildSimulationTrack(attempt), [attempt]);
-    const routeMapData = useMemo(() => buildRouteMapData(attempt), [attempt]);
+    const routeMapData = useMemo(
+        () => buildRouteMapData(attempt, template),
+        [attempt, template],
+    );
+    const selectedFuelStops = useMemo(
+        () => buildFuelStopMarkers(attempt),
+        [attempt],
+    );
 
     const safeActiveEventIndex = Math.min(
         activeEventIndex,
@@ -183,7 +201,7 @@ export default function PreviewStep({
 
     const diagnostics = [
         {
-            title: 'Kritiski',
+            title: 'Kritiskie',
             items: criticalHints,
             classes: 'border-red-200 bg-red-50 text-red-800',
         },
@@ -314,7 +332,7 @@ export default function PreviewStep({
                             icon={Package}
                         />
                         <MetricCard
-                            label="Nakts operacijas"
+                            label="Nakts operācijas"
                             value={formatMetric(
                                 costBreakdown?.night_operations_cost,
                                 ' €',
@@ -423,6 +441,19 @@ export default function PreviewStep({
                                             </button>
                                         ))}
 
+                                        {currentPhaseAppearance &&
+                                        CurrentPhaseIcon ? (
+                                            <span
+                                                className={cn(
+                                                    'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold',
+                                                    currentPhaseAppearance.classes,
+                                                )}
+                                            >
+                                                <CurrentPhaseIcon className="h-4 w-4" />
+                                                {currentPhaseAppearance.label}
+                                            </span>
+                                        ) : null}
+
                                         <span
                                             className={cn(
                                                 'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold',
@@ -443,9 +474,11 @@ export default function PreviewStep({
                                 origin={routeMapData.origin}
                                 destination={routeMapData.destination}
                                 ports={routeMapData.ports}
+                                fuelStops={selectedFuelStops}
                                 landLegs={routeMapData.landLegs}
+                                seaLegs={routeMapData.seaLegs}
                                 summary={{
-                                    route_type: 'land',
+                                    route_type: routeMapData.routeType,
                                     total_distance_km:
                                         route?.total_driven_distance_km ??
                                         route?.distance_km ??
@@ -453,9 +486,11 @@ export default function PreviewStep({
                                     provider: routeMapData.provider,
                                 }}
                                 warnings={
-                                    routeMapData.landLegs.length === 0
+                                    routeMapData.landLegs.length +
+                                        routeMapData.seaLegs.length ===
+                                    0
                                         ? [
-                                              'Marsruta linija nav attelojama, jo izveletajiem posmiem nav koordinatu.',
+                                              'Maršruta līnija nav attēlojama, jo izvēlētajiem posmiem nav koordinātu.',
                                           ]
                                         : []
                                 }
@@ -587,21 +622,6 @@ export default function PreviewStep({
                                             >
                                                 {currentEventAppearance.label}
                                             </div>
-
-                                            {currentPhaseAppearance &&
-                                            CurrentPhaseIcon ? (
-                                                <div
-                                                    className={cn(
-                                                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold',
-                                                        currentPhaseAppearance.classes,
-                                                    )}
-                                                >
-                                                    <CurrentPhaseIcon className="h-3.5 w-3.5" />
-                                                    {
-                                                        currentPhaseAppearance.label
-                                                    }
-                                                </div>
-                                            ) : null}
                                         </div>
                                     </div>
 
@@ -641,18 +661,12 @@ export default function PreviewStep({
                                                         eventAppearance(
                                                             event.type,
                                                         );
-                                                    const phaseAppearance =
-                                                        eventPhaseAppearance(
-                                                            event,
-                                                        );
                                                     const expenseLabel =
                                                         eventExpenseLabel(
                                                             event,
                                                         );
                                                     const StreamEventIcon =
                                                         appearance.icon;
-                                                    const StreamPhaseIcon =
-                                                        phaseAppearance?.icon;
 
                                                     return (
                                                         <div
@@ -694,20 +708,6 @@ export default function PreviewStep({
                                                                             ? ` • ${expenseLabel}`
                                                                             : ''}
                                                                     </span>
-                                                                    {phaseAppearance &&
-                                                                    StreamPhaseIcon ? (
-                                                                        <span
-                                                                            className={cn(
-                                                                                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                                                                                phaseAppearance.classes,
-                                                                            )}
-                                                                        >
-                                                                            <StreamPhaseIcon className="h-3 w-3" />
-                                                                            {
-                                                                                phaseAppearance.label
-                                                                            }
-                                                                        </span>
-                                                                    ) : null}
                                                                 </div>
                                                             </div>
 
@@ -886,7 +886,13 @@ export default function PreviewStep({
     );
 }
 
-function buildRouteMapData(attempt: Attempt) {
+function buildRouteMapData(attempt: Attempt, template: Template) {
+    const routeTemplate = template.routeTemplate ?? template.route_template;
+
+    if (routeTemplate?.points?.length && routeTemplate?.legs?.length) {
+        return buildRouteTemplateMapData(attempt, routeTemplate);
+    }
+
     const segments = attempt.ordered_route_segments ?? [];
     const landLegs: LogisticsRouteLeg[] = segments
         .map((segment): LogisticsRouteLeg | null => {
@@ -929,11 +935,121 @@ function buildRouteMapData(attempt: Attempt) {
                   ]
                 : [],
         landLegs,
+        seaLegs: [],
+        routeType: 'land',
         provider:
             segments.find((segment) => segment.provider)?.provider ??
             'selected route',
         totalDistance: segments.reduce(
             (sum, segment) => sum + Number(segment.distance_km ?? 0),
+            0,
+        ),
+    };
+}
+
+function buildFuelStopMarkers(attempt: Attempt): LogisticsMapFuelStop[] {
+    return (attempt.ordered_fuel_stations ?? [])
+        .map((station, index): LogisticsMapFuelStop | null => {
+            const location = station.location;
+
+            if (!location || !hasCoordinates(location)) {
+                return null;
+            }
+
+            return {
+                id: station.id,
+                name:
+                    station.display_name ??
+                    station.name ??
+                    `Degvielas pietura ${index + 1}`,
+                location_name:
+                    station.location_name ??
+                    location.name ??
+                    location.city ??
+                    null,
+                fuel_type: station.fuel_type,
+                price_per_liter: station.price_per_liter,
+                position: station.pivot?.position ?? index + 1,
+                latitude: location.latitude ?? null,
+                longitude: location.longitude ?? null,
+            };
+        })
+        .filter((stop): stop is LogisticsMapFuelStop => Boolean(stop));
+}
+
+function buildRouteTemplateMapData(
+    attempt: Attempt,
+    routeTemplate: RouteTemplate,
+) {
+    const points = [...(routeTemplate.points ?? [])].sort(
+        (left, right) =>
+            Number(left.sequence ?? 0) - Number(right.sequence ?? 0),
+    );
+    const legs = [...(routeTemplate.legs ?? [])].sort(
+        (left, right) =>
+            Number(left.sequence ?? 0) - Number(right.sequence ?? 0),
+    );
+    const landLegs: LogisticsRouteLeg[] = [];
+    const seaLegs: LogisticsRouteLeg[] = [];
+    const selectedPort = attempt.selectedPort ?? attempt.selected_port ?? null;
+    const portLocation = selectedPort?.location;
+
+    legs.forEach((leg, index) => {
+        const originPoint =
+            points.find((point) => point.id === leg.origin_point_id) ??
+            points[index];
+        const destinationPoint =
+            points.find((point) => point.id === leg.destination_point_id) ??
+            points[index + 1];
+        const geometry =
+            leg.geometry_geojson ??
+            lineGeometryFromPoints(originPoint, destinationPoint);
+
+        if (!geometry || leg.type === 'port_handling') {
+            return;
+        }
+
+        const mapLeg: LogisticsRouteLeg = {
+            id: leg.id ?? index,
+            type: leg.type === 'sea' ? 'sea' : 'land',
+            origin: originPoint?.name ?? null,
+            destination: destinationPoint?.name ?? null,
+            distance_km: leg.distance_km,
+            duration_hours: leg.duration_hours,
+            geometry_geojson: geometry,
+        };
+
+        if (leg.type === 'sea') {
+            seaLegs.push(mapLeg);
+        } else {
+            landLegs.push(mapLeg);
+        }
+    });
+
+    return {
+        origin: routeTemplatePointLocation(points[0], 'origin'),
+        destination: routeTemplatePointLocation(
+            points[points.length - 1],
+            'destination',
+        ),
+        ports:
+            portLocation && hasCoordinates(portLocation)
+                ? [
+                      {
+                          id: selectedPort.id,
+                          name: selectedPort.name,
+                          type: 'port',
+                          latitude: portLocation.latitude ?? null,
+                          longitude: portLocation.longitude ?? null,
+                      },
+                  ]
+                : [],
+        landLegs,
+        seaLegs,
+        routeType: routeTemplate.mode ?? 'multimodal',
+        provider: 'task route',
+        totalDistance: legs.reduce(
+            (sum, leg) => sum + Number(leg.distance_km ?? 0),
             0,
         ),
     };
@@ -965,6 +1081,51 @@ function lineGeometryFromLocations(
     destination: LogisticsMapLocation | null,
 ) {
     if (!origin || !destination) {
+        return null;
+    }
+
+    return {
+        type: 'LineString',
+        coordinates: [
+            [Number(origin.longitude), Number(origin.latitude)],
+            [Number(destination.longitude), Number(destination.latitude)],
+        ],
+    };
+}
+
+function routeTemplatePointLocation(
+    point: RouteTemplatePoint | undefined,
+    type: string,
+): LogisticsMapLocation | null {
+    if (
+        !point ||
+        !Number.isFinite(Number(point.latitude)) ||
+        !Number.isFinite(Number(point.longitude))
+    ) {
+        return null;
+    }
+
+    return {
+        id: point.location_id ?? point.id,
+        name: point.name,
+        latitude: point.latitude ?? null,
+        longitude: point.longitude ?? null,
+        type,
+    };
+}
+
+function lineGeometryFromPoints(
+    origin: RouteTemplatePoint | undefined,
+    destination: RouteTemplatePoint | undefined,
+) {
+    if (
+        !origin ||
+        !destination ||
+        !Number.isFinite(Number(origin.latitude)) ||
+        !Number.isFinite(Number(origin.longitude)) ||
+        !Number.isFinite(Number(destination.latitude)) ||
+        !Number.isFinite(Number(destination.longitude))
+    ) {
         return null;
     }
 

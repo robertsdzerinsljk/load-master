@@ -1,5 +1,12 @@
 import L from 'leaflet';
-import { ArrowDown, ArrowUp, Route, Save, Trash2 } from 'lucide-react';
+import {
+    ArrowDown,
+    ArrowUp,
+    CheckCircle2,
+    Route,
+    Save,
+    Trash2,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -50,13 +57,21 @@ export type RouteBuilderPreview = {
     total_duration_hours?: number | string | null;
     warnings?: string[];
     errors?: string[];
+    route_template?: {
+        id: number;
+        name: string;
+        points?: RouteBuilderPoint[];
+        legs?: RouteBuilderPreview['legs'];
+    } | null;
 };
 
 type Props = {
     title?: string;
     initialPoints?: RouteBuilderPoint[];
     className?: string;
-    onUseRoute?: (preview: RouteBuilderPreview) => void;
+    isAttached?: boolean;
+    attachedRouteName?: string;
+    onUseRoute?: (preview: RouteBuilderPreview) => void | Promise<void>;
     onPreviewChange?: (preview: RouteBuilderPreview | null) => void;
 };
 
@@ -83,9 +98,11 @@ const markerIcon = new L.Icon({
 });
 
 export default function MapRouteBuilder({
-    title = 'Map route builder',
+    title = 'Maršruta veidotājs',
     initialPoints = [],
     className,
+    isAttached = false,
+    attachedRouteName,
     onUseRoute,
     onPreviewChange,
 }: Props) {
@@ -97,6 +114,7 @@ export default function MapRouteBuilder({
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [savingTemplate, setSavingTemplate] = useState(false);
+    const [usingRoute, setUsingRoute] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -219,7 +237,7 @@ export default function MapRouteBuilder({
         onPreviewChange?.(null);
     };
 
-    const previewRoute = async () => {
+    const previewRoute = async (): Promise<RouteBuilderPreview | null> => {
         setLoadingPreview(true);
         setMessage(null);
 
@@ -237,26 +255,25 @@ export default function MapRouteBuilder({
             const data = await response.json();
 
             if (!response.ok) {
-                setMessage(data.message ?? 'Route preview failed.');
-                return;
+                setMessage(
+                    data.message ??
+                        'Maršruta priekšskatījumu neizdevās izveidot.',
+                );
+                return null;
             }
 
             setPreview(data);
             onPreviewChange?.(data);
+            return data;
         } catch {
-            setMessage('Could not reach route preview service.');
+            setMessage('Neizdevās sasniegt maršruta priekšskatījuma servisu.');
+            return null;
         } finally {
             setLoadingPreview(false);
         }
     };
 
-    const saveTemplate = async () => {
-        const name = window.prompt('Route template name', routeName(points));
-
-        if (!name) {
-            return;
-        }
-
+    const persistTemplate = async (name: string) => {
         setSavingTemplate(true);
         setMessage(null);
 
@@ -274,15 +291,59 @@ export default function MapRouteBuilder({
             const data = await response.json();
 
             if (!response.ok) {
-                setMessage(data.message ?? 'Could not save route template.');
+                setMessage(data.message ?? 'Neizdevās saglabāt maršrutu.');
+                return null;
+            }
+
+            setMessage('Maršruts saglabāts.');
+            return data.route_template ?? null;
+        } catch {
+            setMessage('Neizdevās saglabāt maršrutu.');
+            return null;
+        } finally {
+            setSavingTemplate(false);
+        }
+    };
+
+    const saveTemplate = async () => {
+        const name = window.prompt(
+            'Maršruta sagataves nosaukums',
+            routeName(points),
+        );
+
+        if (!name) {
+            return;
+        }
+
+        await persistTemplate(name);
+    };
+
+    const useRouteInTask = async () => {
+        if (!onUseRoute) {
+            return;
+        }
+
+        setUsingRoute(true);
+
+        try {
+            const routePreview = preview ?? (await previewRoute());
+
+            if (!routePreview) {
                 return;
             }
 
-            setMessage('Route template saved.');
-        } catch {
-            setMessage('Could not reach route template service.');
+            const routeTemplate = await persistTemplate(routeName(points));
+
+            await onUseRoute({
+                ...routePreview,
+                route_template: routeTemplate,
+            });
+
+            if (routeTemplate) {
+                setMessage('Maršruts pievienots uzdevumam.');
+            }
         } finally {
-            setSavingTemplate(false);
+            setUsingRoute(false);
         }
     };
 
@@ -297,11 +358,28 @@ export default function MapRouteBuilder({
                 <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5db] bg-[#f6faf7] px-3 py-1 text-xs font-semibold tracking-[0.18em] text-[#166a4d] uppercase">
                         <Route className="h-3.5 w-3.5" />
-                        Route
+                        Uzdevuma maršruts
                     </div>
-                    <h3 className="mt-2 text-[20px] font-semibold text-[#182219]">
-                        {title}
-                    </h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <h3 className="text-[20px] font-semibold text-[#182219]">
+                            {title}
+                        </h3>
+                        {isAttached ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cfe3d8] bg-[#e9f5ef] px-3 py-1 text-[12px] font-semibold text-[#166a4d]">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Pievienots
+                            </span>
+                        ) : null}
+                    </div>
+                    <p className="mt-2 max-w-3xl text-[14px] leading-6 text-[#5b6b61]">
+                        Pievieno piegādes punktus pareizā secībā. Šis maršruts
+                        būs karte, ko studenti redzēs plānošanas laikā.
+                    </p>
+                    {isAttached && attachedRouteName ? (
+                        <div className="mt-2 text-[13px] font-medium text-[#32523f]">
+                            Pašreizējais maršruts: {attachedRouteName}
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -312,25 +390,38 @@ export default function MapRouteBuilder({
                         className="inline-flex items-center gap-2 rounded-xl border border-[#166a4d] bg-white px-4 py-2.5 text-[14px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <Route className="h-4 w-4" />
-                        Generate route
+                        Ģenerēt līniju
                     </button>
-                    <button
-                        type="button"
-                        onClick={saveTemplate}
-                        disabled={savingTemplate || points.length < 2}
-                        className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-2.5 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        <Save className="h-4 w-4" />
-                        Save as template
-                    </button>
+                    {!onUseRoute ? (
+                        <button
+                            type="button"
+                            onClick={saveTemplate}
+                            disabled={savingTemplate || points.length < 2}
+                            className="inline-flex items-center gap-2 rounded-xl border border-[#d9ded9] bg-white px-4 py-2.5 text-[14px] font-medium text-[#182219] transition hover:bg-[#f7f9f7] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <Save className="h-4 w-4" />
+                            Saglabāt maršrutu
+                        </button>
+                    ) : null}
                     {onUseRoute ? (
                         <button
                             type="button"
-                            onClick={() => preview && onUseRoute(preview)}
-                            disabled={!preview}
+                            onClick={useRouteInTask}
+                            disabled={
+                                points.length < 2 ||
+                                usingRoute ||
+                                loadingPreview ||
+                                isAttached
+                            }
                             className="inline-flex items-center gap-2 rounded-xl bg-[#166a4d] px-4 py-2.5 text-[14px] font-medium text-white transition hover:bg-[#135740] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            Use in task
+                            {isAttached
+                                ? 'Pievienots uzdevumam'
+                                : usingRoute
+                                  ? preview
+                                      ? 'Pievieno maršrutu...'
+                                      : 'Ģenerē un pievieno...'
+                                  : 'Pievienot uzdevumam'}
                         </button>
                     ) : null}
                 </div>
@@ -340,19 +431,19 @@ export default function MapRouteBuilder({
                 <div className="space-y-4">
                     <div ref={searchRef} className="space-y-2">
                         <label className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
-                            Search city/place/port
+                            Meklēt pilsētu, vietu vai ostu
                         </label>
                         <input
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
-                            placeholder="Riga, Ventspils, warehouse..."
+                            placeholder="Rīga, Ventspils, noliktava..."
                             className="mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] transition outline-none placeholder:text-[#94a197] focus:border-[#166a4d]"
                         />
 
                         <div className="max-h-48 space-y-2 overflow-y-auto">
                             {loadingSearch ? (
                                 <div className="rounded-xl border border-[#e4e9e4] bg-[#f8fbf9] px-3 py-2 text-sm text-[#5b6b61]">
-                                    Searching...
+                                    Meklē...
                                 </div>
                             ) : null}
                             {results.map((result) => (
@@ -378,7 +469,7 @@ export default function MapRouteBuilder({
 
                     <div className="space-y-2">
                         <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
-                            Selected points
+                            Maršruta punkti
                         </div>
                         {points.length ? (
                             points.map((point, index) => (
@@ -425,7 +516,7 @@ export default function MapRouteBuilder({
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <IconButton
-                                                label="Move up"
+                                                label="Pārvietot augstāk"
                                                 onClick={() =>
                                                     movePoint(index, -1)
                                                 }
@@ -434,7 +525,7 @@ export default function MapRouteBuilder({
                                                 <ArrowUp className="h-4 w-4" />
                                             </IconButton>
                                             <IconButton
-                                                label="Move down"
+                                                label="Pārvietot zemāk"
                                                 onClick={() =>
                                                     movePoint(index, 1)
                                                 }
@@ -445,7 +536,7 @@ export default function MapRouteBuilder({
                                                 <ArrowDown className="h-4 w-4" />
                                             </IconButton>
                                             <IconButton
-                                                label="Remove"
+                                                label="Dzēst"
                                                 onClick={() =>
                                                     removePoint(index)
                                                 }
@@ -458,7 +549,8 @@ export default function MapRouteBuilder({
                             ))
                         ) : (
                             <div className="rounded-xl border border-dashed border-[#d5dbd6] px-3 py-4 text-sm text-[#6f7b74]">
-                                Search or click the map to add A, B, C points.
+                                Meklē vai klikšķini kartē, lai pievienotu
+                                maršruta punktus.
                             </div>
                         )}
                     </div>
@@ -516,7 +608,7 @@ export default function MapRouteBuilder({
 
                     <div className="mt-3 grid gap-3 md:grid-cols-3">
                         <Summary
-                            label="Distance"
+                            label="Attālums"
                             value={
                                 preview?.total_distance_km
                                     ? `${preview.total_distance_km} km`
@@ -524,7 +616,7 @@ export default function MapRouteBuilder({
                             }
                         />
                         <Summary
-                            label="Time"
+                            label="Laiks"
                             value={
                                 preview?.total_duration_hours
                                     ? `${preview.total_duration_hours} h`
@@ -532,7 +624,7 @@ export default function MapRouteBuilder({
                             }
                         />
                         <Summary
-                            label="Legs"
+                            label="Posmi"
                             value={preview?.legs?.length ?? 0}
                         />
                     </div>
@@ -561,7 +653,7 @@ function MapClickHandler({
         click(event) {
             onPoint({
                 source: 'custom',
-                name: 'Custom point',
+                name: 'Pielāgots punkts',
                 display_name: `${event.latlng.lat.toFixed(5)}, ${event.latlng.lng.toFixed(5)}`,
                 latitude: event.latlng.lat,
                 longitude: event.latlng.lng,
@@ -683,5 +775,7 @@ function legToLatLngs(
 }
 
 function routeName(points: RouteBuilderPoint[]): string {
-    return points.map((point) => point.name).join(' -> ') || 'Route template';
+    return (
+        points.map((point) => point.name).join(' -> ') || 'Maršruta sagatave'
+    );
 }

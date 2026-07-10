@@ -122,8 +122,13 @@ test('teacher assigned task page refreshes stale preview score data', function (
                 'attempt.preview_result.result.score_breakdown.final_score',
                 $expectedPreview['result']['score_breakdown']['final_score']
             )
-            ->where('attempt.preview_result.result.score_breakdown.penalties.0.key', 'deadline_delay')
-            ->where('attempt.preview_result.result.score_breakdown.penalties.1.key', 'insufficient_vehicles')
-            ->where('attempt.preview_result.result.score_breakdown.penalties.2.key', 'port_ship_compatibility')
-            ->where('attempt.preview_result.result.score_breakdown.penalties.3.key', 'too_many_trips'));
+            ->where('attempt.preview_result.result.score_breakdown.penalties', function ($penalties) use ($expectedPreview) {
+                $keys = collect($penalties)->pluck('key')->all();
+                $expectedKeys = collect($expectedPreview['result']['score_breakdown']['penalties'])->pluck('key')->all();
+
+                sort($keys);
+                sort($expectedKeys);
+
+                return $keys === $expectedKeys;
+            }));
 });

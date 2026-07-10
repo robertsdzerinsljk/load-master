@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Onboarding\StudentGroupController;
 use App\Http\Controllers\Places\PlaceController;
 use App\Http\Controllers\Places\PlaceSearchController;
 use App\Http\Controllers\Routing\RouteBuilderController;
@@ -19,21 +22,13 @@ use App\Http\Controllers\Teacher\RouteFuelStopController;
 use App\Http\Controllers\Teacher\ShipController;
 use App\Http\Controllers\Teacher\SpecialConditionController;
 use App\Http\Controllers\Teacher\StudentController;
+use App\Http\Controllers\Teacher\TemplateCatalogController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
 use App\Http\Controllers\Teacher\TemperatureModeController;
 use App\Http\Controllers\Teacher\TransportTemplateController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    if (! auth()->check()) {
-        return redirect()->route('login');
-    }
-
-    return auth()->user()->role === 'teacher'
-        ? redirect()->route('teacher.dashboard')
-        : redirect()->route('student.dashboard');
-})->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])
     ->middleware('guest')
@@ -58,18 +53,38 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/route-templates/{routeTemplate}', [RouteTemplateController::class, 'show'])
         ->name('route-templates.show');
 
-    Route::get('/dashboard', function () {
-        return auth()->user()->role === 'teacher'
-            ? redirect()->route('teacher.dashboard')
-            : redirect()->route('student.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', HomeController::class)->name('dashboard');
 
+    Route::middleware('role:admin')
+        ->prefix('admin')
+        ->name('admin.')
+        ->group(function () {
+            Route::get('/users', [AdminUserController::class, 'index'])
+                ->name('users');
+            Route::post('/users', [AdminUserController::class, 'store'])
+                ->name('users.store');
+            Route::put('/users/{user}', [AdminUserController::class, 'update'])
+                ->name('users.update');
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])
+                ->name('users.destroy');
+        });
+
+    Route::middleware('role:student')
+        ->prefix('onboarding')
+        ->name('onboarding.')
+        ->group(function () {
+            Route::get('/student-group', [StudentGroupController::class, 'edit'])
+                ->name('student-group');
+            Route::post('/student-group', [StudentGroupController::class, 'update'])
+                ->name('student-group.update');
+        });
+
+    Route::middleware('role:teacher')->group(function () {
     Route::get('/teacher', [TeacherDashboardController::class, 'index'])
         ->name('teacher.dashboard');
 
-    Route::get('/teacher/templates', function () {
-        return Inertia::render('Teacher/Templates/Index');
-    })->name('teacher.templates');
+    Route::get('/teacher/templates', TemplateCatalogController::class)
+        ->name('teacher.templates');
 
     /*
     |--------------------------------------------------------------------------
@@ -343,13 +358,14 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/attempt/{attemptId}/fuel-stations/{stationId}', [SimulationAttemptController::class, 'removeFuelStation'])
                 ->name('attempt.fuel-stations.destroy');
         });
+    });
 
     /*
 |--------------------------------------------------------------------------
 | Student dashboard + simulator
 |--------------------------------------------------------------------------
 */
-    Route::middleware(['auth', 'role:student'])
+    Route::middleware(['auth', 'role:student', 'student.profile'])
         ->prefix('student')
         ->name('student.')
         ->group(function () {

@@ -8,6 +8,7 @@ import {
     LogOut,
     PackageOpen,
     Settings2,
+    ShieldCheck,
     UserRound,
     Users,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ type AuthUser = {
     display_name?: string | null;
     surname?: string | null;
     email?: string | null;
+    is_admin?: boolean;
 } | null;
 
 type PageProps = {
@@ -307,12 +309,21 @@ export default function TeacherLayout({
                         />
 
                         <SidebarLink
-                            label="Sagataves"
+                            label="Uzdevumi un resursi"
                             href="/teacher/templates"
                             icon={Settings2}
                             active={active === 'templates'}
                             collapsed={collapsed}
                         />
+
+                        {user?.is_admin ? (
+                            <SidebarLink
+                                label="Admin settings"
+                                href="/admin/users"
+                                icon={ShieldCheck}
+                                collapsed={collapsed}
+                            />
+                        ) : null}
                     </div>
                 </div>
 

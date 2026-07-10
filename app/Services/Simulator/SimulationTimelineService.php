@@ -10,8 +10,7 @@ class SimulationTimelineService
 {
     public function __construct(
         private readonly RouteFuelPlanService $routeFuelPlanService
-    ) {
-    }
+    ) {}
 
     public function build(SimulationAttempt $attempt): array
     {
@@ -19,6 +18,8 @@ class SimulationTimelineService
             'orderTemplate',
             'orderTemplate.startLocation',
             'orderTemplate.endLocation',
+            'orderTemplate.routeTemplate.points',
+            'orderTemplate.routeTemplate.legs',
             'orderTemplate.startPort.location',
             'orderTemplate.endPort.location',
             'selectedTransportTemplate',
@@ -36,6 +37,10 @@ class SimulationTimelineService
         $ship = $attempt->selectedShip;
 
         $segments = $attempt->routeSegments->sortBy('pivot.position')->values();
+        if ($segments->isEmpty() && $template->routeTemplate) {
+            $segments = $this->routeTemplateSegments($template->routeTemplate);
+        }
+
         $fuelStations = $attempt->fuelStations->sortBy('pivot.position')->values();
 
         $config = is_array($template->scenario_config) ? $template->scenario_config : [];
@@ -80,7 +85,7 @@ class SimulationTimelineService
         $nightShiftMultiplier = (float) ($costs['night_shift_multiplier'] ?? 1.35);
 
         $portQueueMinutes = (int) ($availability['port_queue_minutes'] ?? 0);
-        $shipReadyAt = !empty($availability['ship_ready_at'])
+        $shipReadyAt = ! empty($availability['ship_ready_at'])
             ? Carbon::parse($availability['ship_ready_at'])
             : null;
 
@@ -95,11 +100,11 @@ class SimulationTimelineService
         $startLocationName = $segments->first()?->fromLocation?->name
             ?? $template->startLocation?->name
             ?? $template->startPort?->name
-            ?? 'Sakuma punkts';
+            ?? 'Sākuma punkts';
         $endLocationName = $segments->last()?->toLocation?->name
             ?? $template->endLocation?->name
             ?? $template->endPort?->name
-            ?? 'Galamerkis';
+            ?? 'Galamērķis';
         $totalRouteDistanceKm = (float) $segments->sum(fn ($segment) => (float) ($segment->distance_km ?? 0));
         $returnTripMinutes = $avgSpeed > 0
             ? (int) ceil(($totalRouteDistanceKm / $avgSpeed) * 60)
@@ -113,7 +118,7 @@ class SimulationTimelineService
             (float) ($transport->max_range_km ?? 0)
         );
         $selectedStopsBySegment = collect($selectedFuelPlan['selected_positions'] ?? [])
-            ->filter(fn (array $stop) => ($stop['is_logical'] ?? false) && !empty($stop['segment_id']))
+            ->filter(fn (array $stop) => ($stop['is_logical'] ?? false) && ! empty($stop['segment_id']))
             ->groupBy('segment_id');
 
         if ($containerCount > 0) {
@@ -121,7 +126,7 @@ class SimulationTimelineService
 
             $events[] = $this->makeEvent(
                 type: 'loading',
-                label: 'Kravas sakotneja iekrausana',
+                label: 'Kravas sākotnējā iekraušana',
                 start: $current,
                 durationMinutes: $loadingMinutes,
                 meta: [
@@ -226,14 +231,14 @@ class SimulationTimelineService
                     $remainingDriveMinutes,
                     $maxDriveMinutesBeforeRest,
                     $restMinutes,
-                        $drivingMinutesSinceRest,
-                        [
-                            'segment_position' => $index + 1,
-                            'segment_id' => $segment->id,
-                        ],
-                        $dayShiftStartHour,
-                        $nightShiftStartHour
-                    );
+                    $drivingMinutesSinceRest,
+                    [
+                        'segment_position' => $index + 1,
+                        'segment_id' => $segment->id,
+                    ],
+                    $dayShiftStartHour,
+                    $nightShiftStartHour
+                );
             }
 
             if ($trip < $requiredTrips && $returnTripMinutes > 0) {
@@ -243,7 +248,7 @@ class SimulationTimelineService
                     ) {
                         $events[] = $this->makeEvent(
                             type: 'rest',
-                            label: "Obligata atputa pirms atgriesanas (Reiss {$trip})",
+                            label: "Obligātā atpūta pirms atgriešanās (Reiss {$trip})",
                             start: $current,
                             durationMinutes: $restMinutes,
                             meta: [
@@ -269,7 +274,7 @@ class SimulationTimelineService
 
                 $events[] = $this->makeEvent(
                     type: 'return',
-                    label: "Atgriesanas uz sakuma punktu (Reiss {$trip})",
+                    label: "Atgriešanās uz sākuma punktu (Reiss {$trip})",
                     start: $current,
                     durationMinutes: $returnTripMinutes,
                     meta: [
@@ -443,7 +448,7 @@ class SimulationTimelineService
             ? Carbon::parse($template->deadline_at)
             : null;
 
-        if (!$deadlineAt && $template->deadline_date) {
+        if (! $deadlineAt && $template->deadline_date) {
             $deadlineAt = Carbon::parse($template->deadline_date)->endOfDay();
         }
 
@@ -505,7 +510,7 @@ class SimulationTimelineService
             ) {
                 $events[] = $this->makeEvent(
                     type: 'rest',
-                    label: "Obligata atputa pirms reisa {$trip} turpinajuma",
+                    label: "Obligātā atpūta pirms reisa {$trip} turpinājuma",
                     start: $current,
                     durationMinutes: $restMinutes,
                     meta: [
@@ -682,6 +687,35 @@ class SimulationTimelineService
     private function isNightHour(int $hour, int $dayShiftStartHour, int $nightShiftStartHour): bool
     {
         return $hour < $dayShiftStartHour || $hour >= $nightShiftStartHour;
+    }
+
+    private function routeTemplateSegments($routeTemplate)
+    {
+        $points = $routeTemplate->points->sortBy('sequence')->values();
+
+        return $routeTemplate->legs
+            ->sortBy('sequence')
+            ->values()
+            ->filter(fn ($leg) => ($leg->type ?? 'land') === 'land')
+            ->map(function ($leg, int $index) use ($points) {
+                $originPoint = $points->firstWhere('id', $leg->origin_point_id)
+                    ?? $points->get($index);
+                $destinationPoint = $points->firstWhere('id', $leg->destination_point_id)
+                    ?? $points->get($index + 1);
+
+                return (object) [
+                    'id' => 'route-template-'.$leg->id,
+                    'distance_km' => $leg->distance_km,
+                    'fuelStops' => collect(),
+                    'fromLocation' => (object) [
+                        'name' => $originPoint?->name ?? '---',
+                    ],
+                    'toLocation' => (object) [
+                        'name' => $destinationPoint?->name ?? '---',
+                    ],
+                ];
+            })
+            ->values();
     }
 
     private function distanceToMinutes(float $distanceKm, float $avgSpeed): int

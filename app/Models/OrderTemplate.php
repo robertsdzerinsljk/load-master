@@ -30,6 +30,7 @@ class OrderTemplate extends Model
         'end_location_id',
         'start_port_id',
         'end_port_id',
+        'route_template_id',
         'deadline_date',
         'budget_limit',
         'requires_refuel_planning',
@@ -108,6 +109,11 @@ class OrderTemplate extends Model
     public function endPort(): BelongsTo
     {
         return $this->belongsTo(Port::class, 'end_port_id');
+    }
+
+    public function routeTemplate(): BelongsTo
+    {
+        return $this->belongsTo(RouteTemplate::class);
     }
 
     public function transportTemplates(): BelongsToMany

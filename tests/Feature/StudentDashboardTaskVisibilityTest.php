@@ -11,9 +11,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 test('student dashboard task cards receive temperature mode and fuel stop locations', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $startLocation = Location::query()->create([
         'name' => 'Riga Warehouse',

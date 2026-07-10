@@ -19,6 +19,15 @@ export type LogisticsMapLocation = Coordinate & {
     type?: string | null;
 };
 
+export type LogisticsMapFuelStop = Coordinate & {
+    id?: number | string;
+    name: string;
+    location_name?: string | null;
+    fuel_type?: string | null;
+    price_per_liter?: number | string | null;
+    position?: number | null;
+};
+
 export type LogisticsRouteLeg = {
     id?: number | string;
     type: 'land' | 'sea' | 'port_handling';
@@ -48,6 +57,7 @@ type LogisticsMapProps = {
     origin?: LogisticsMapLocation | null;
     destination?: LogisticsMapLocation | null;
     ports?: LogisticsMapLocation[];
+    fuelStops?: LogisticsMapFuelStop[];
     landLegs?: LogisticsRouteLeg[];
     seaLegs?: LogisticsRouteLeg[];
     summary?: LogisticsRouteSummary | null;
@@ -73,10 +83,18 @@ const markerIcon = new L.Icon({
     shadowSize: [41, 41],
 });
 
+const fuelStopIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:24px;height:24px;border-radius:9999px;background:#ea580c;border:4px solid white;box-shadow:0 10px 24px rgba(24,34,25,.35)"></div>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+});
+
 export default function LogisticsMap({
     origin,
     destination,
     ports = [],
+    fuelStops = [],
     landLegs = [],
     seaLegs = [],
     summary,
@@ -110,6 +128,7 @@ export default function LogisticsMap({
     const center = toLatLng(origin) ?? toLatLng(destination) ?? defaultCenter;
     const landLines = landLegs.map(legToLatLngs).filter(hasLine);
     const seaLines = seaLegs.map(legToLatLngs).filter(hasLine);
+    const visibleFuelStops = fuelStops.filter((stop) => toLatLng(stop));
 
     return (
         <div
@@ -171,6 +190,37 @@ export default function LogisticsMap({
                             }}
                         />
                     ))}
+
+                    {visibleFuelStops.map((stop) => {
+                        const position = toLatLng(stop);
+
+                        if (!position) {
+                            return null;
+                        }
+
+                        return (
+                            <Marker
+                                key={`fuel-${stop.id ?? stop.name}`}
+                                position={position}
+                                icon={fuelStopIcon}
+                            >
+                                <Popup>
+                                    <strong>{stop.name}</strong>
+                                    {stop.location_name ? (
+                                        <div>{stop.location_name}</div>
+                                    ) : null}
+                                    <div className="text-xs tracking-wide text-slate-500 uppercase">
+                                        Degvielas pietura
+                                    </div>
+                                    {stop.price_per_liter ? (
+                                        <div className="text-xs text-slate-600">
+                                            {stop.price_per_liter} EUR/L
+                                        </div>
+                                    ) : null}
+                                </Popup>
+                            </Marker>
+                        );
+                    })}
                 </MapContainer>
             </div>
 
@@ -179,7 +229,7 @@ export default function LogisticsMap({
                     {summary && (
                         <div className="grid gap-3 text-sm sm:grid-cols-4">
                             <SummaryItem
-                                label="Attalums"
+                                label="Attālums"
                                 value={formatNumber(
                                     summary.total_distance_km ??
                                         summary.distance_km,
@@ -209,9 +259,28 @@ export default function LogisticsMap({
                         </div>
                     )}
 
+                    {visibleFuelStops.length > 0 ? (
+                        <div className="flex flex-wrap gap-3 text-[13px] text-slate-600">
+                            <span className="inline-flex items-center gap-2">
+                                <span className="h-3 w-3 rounded-full bg-[#0f766e]" />
+                                Sauszemes posms
+                            </span>
+                            {seaLines.length > 0 ? (
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="h-3 w-3 rounded-full bg-[#2563eb]" />
+                                    Jūras posms
+                                </span>
+                            ) : null}
+                            <span className="inline-flex items-center gap-2">
+                                <span className="h-3 w-3 rounded-full bg-[#ea580c]" />
+                                Izveleta uzpilde
+                            </span>
+                        </div>
+                    ) : null}
+
                     {warnings.length > 0 && (
                         <MessageList
-                            title="Bridinajumi"
+                            title="Brīdinājumi"
                             messages={warnings}
                             tone="warning"
                         />
@@ -219,7 +288,7 @@ export default function LogisticsMap({
 
                     {errors.length > 0 && (
                         <MessageList
-                            title="Kludas"
+                            title="Kļūdas"
                             messages={errors}
                             tone="error"
                         />

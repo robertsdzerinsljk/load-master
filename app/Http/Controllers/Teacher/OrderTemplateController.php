@@ -9,6 +9,7 @@ use App\Models\LandRoute;
 use App\Models\Location;
 use App\Models\OrderTemplate;
 use App\Models\Port;
+use App\Models\RouteTemplate;
 use App\Models\Ship;
 use App\Models\SimulationAttempt;
 use App\Models\SpecialCondition;
@@ -18,6 +19,7 @@ use App\Services\LandTransportCalculator;
 use App\Services\LocationCatalogService;
 use App\Services\Simulator\ScenarioReadinessService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class OrderTemplateController extends Controller
@@ -40,6 +42,8 @@ class OrderTemplateController extends Controller
                 'ships',
                 'ports',
                 'landRoutes',
+                'routeTemplate.points',
+                'routeTemplate.legs',
             ])->orderBy('title')->get(),
         ]);
     }
@@ -80,6 +84,8 @@ class OrderTemplateController extends Controller
                 'landRoutes.fromLocation',
                 'landRoutes.toLocation',
                 'fuelStations.location',
+                'routeTemplate.points',
+                'routeTemplate.legs',
             ])
             ->findOrFail($id);
 
@@ -126,6 +132,8 @@ class OrderTemplateController extends Controller
             'ports:id',
             'landRoutes:id',
             'fuelStations:id',
+            'routeTemplate.points',
+            'routeTemplate.legs',
         ])->findOrFail($id);
 
         return Inertia::render('Teacher/Templates/OrderTemplates/Edit', [
@@ -176,13 +184,18 @@ class OrderTemplateController extends Controller
             'cargo_amount_containers' => 'nullable|integer|min:0',
             'transport_template_ids' => 'nullable|array',
             'transport_template_ids.*' => 'integer|exists:transport_templates,id',
+            'route_template_id' => 'nullable|exists:route_templates,id',
             'land_route_ids' => 'nullable|array',
             'land_route_ids.*' => 'integer|exists:land_routes,id',
+            'fuel_station_ids' => 'nullable|array',
+            'fuel_station_ids.*' => 'integer|exists:fuel_stations,id',
         ]);
 
         $cargoAmountContainers = (int) ($validated['cargo_amount_containers'] ?? 0);
         $transportIds = $validated['transport_template_ids'] ?? [];
+        $routeTemplateId = $validated['route_template_id'] ?? null;
         $routeIds = $validated['land_route_ids'] ?? [];
+        $fuelStationIds = $validated['fuel_station_ids'] ?? [];
 
         if ($cargoAmountContainers <= 0) {
             return response()->json([
@@ -196,13 +209,24 @@ class OrderTemplateController extends Controller
             ], 422);
         }
 
-        if (empty($routeIds)) {
+        if (!$routeTemplateId && empty($routeIds)) {
             return response()->json([
                 'message' => 'Lai izmēģinātu scenāriju, izvēlieties vismaz vienu sauszemes maršrutu.',
             ], 422);
         }
 
         $transport = TransportTemplate::findOrFail($transportIds[0]);
+
+        if ($routeTemplateId) {
+            $routeTemplate = RouteTemplate::with(['points', 'legs'])->findOrFail($routeTemplateId);
+
+            return response()->json($this->buildRouteTemplatePreview(
+                $routeTemplate,
+                $transport,
+                $cargoAmountContainers,
+                $fuelStationIds
+            ));
+        }
 
         $route = LandRoute::with(['fromLocation', 'toLocation', 'fuelStops.fuelStation.location'])
             ->findOrFail($routeIds[0]);
@@ -214,6 +238,113 @@ class OrderTemplateController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    private function buildRouteTemplatePreview(
+        RouteTemplate $routeTemplate,
+        TransportTemplate $transport,
+        int $cargoAmountContainers,
+        array $fuelStationIds = []
+    ): array {
+        $points = $routeTemplate->points->sortBy('sequence')->values();
+        $legs = $routeTemplate->legs->sortBy('sequence')->values();
+        $distanceKm = round(
+            (float) ($routeTemplate->total_distance_km ?: $legs
+                ->reject(fn ($leg) => $leg->type === 'port_handling')
+                ->sum(fn ($leg) => (float) ($leg->distance_km ?? 0))),
+            2
+        );
+        $vehicleCapacity = (int) ($transport->capacity_containers ?? 0);
+        $avgSpeedKmh = (float) ($transport->avg_speed_kmh ?? 0);
+        $costPerKm = (float) ($transport->cost_per_km ?? 0);
+        $fuelConsumptionPer100km = (float) ($transport->fuel_consumption_per_100km ?? 0);
+        $maxRangeKm = (float) ($transport->max_range_km ?? 0);
+        $loadingTimeMinutes = (int) ($transport->loading_time_minutes ?? 0);
+        $unloadingTimeMinutes = (int) ($transport->unloading_time_minutes ?? 0);
+        $requiredVehicles = $vehicleCapacity > 0
+            ? (int) ceil($cargoAmountContainers / $vehicleCapacity)
+            : 0;
+        $tripTimeHours = $avgSpeedKmh > 0 ? $distanceKm / $avgSpeedKmh : 0;
+        $cycleTimeHours = $tripTimeHours
+            + ($loadingTimeMinutes / 60)
+            + ($unloadingTimeMinutes / 60);
+        $transportCostPerVehicle = $distanceKm * $costPerKm;
+        $totalBaseCost = $requiredVehicles * $transportCostPerVehicle;
+        $fuelUsedLitersPerVehicle = ($distanceKm / 100) * $fuelConsumptionPer100km;
+        $needsRefuel = $maxRangeKm > 0 ? $distanceKm > $maxRangeKm : false;
+        $selectedFuelStops = FuelStation::query()
+            ->with('location')
+            ->whereIn('id', $fuelStationIds)
+            ->get();
+        $recommendedFuelStop = $selectedFuelStops->first();
+        $fuelCostPerVehicle = null;
+        $totalFuelCost = null;
+
+        if ($recommendedFuelStop && $recommendedFuelStop->price_per_liter !== null) {
+            $fuelCostPerVehicle = $fuelUsedLitersPerVehicle * (float) $recommendedFuelStop->price_per_liter;
+            $totalFuelCost = $requiredVehicles * $fuelCostPerVehicle;
+        }
+
+        return [
+            'route' => [
+                'from' => $points->first()?->name,
+                'to' => $points->last()?->name,
+                'distance_km' => $distanceKm,
+                'toll_cost' => 0,
+                'source' => 'map_route',
+            ],
+            'transport' => [
+                'name' => $transport->name,
+                'type' => $transport->type,
+                'capacity_containers' => $vehicleCapacity,
+                'avg_speed_kmh' => round($avgSpeedKmh, 2),
+                'cost_per_km' => round($costPerKm, 2),
+                'fuel_consumption_per_100km' => round($fuelConsumptionPer100km, 2),
+                'max_range_km' => round($maxRangeKm, 2),
+                'loading_time_minutes' => $loadingTimeMinutes,
+                'unloading_time_minutes' => $unloadingTimeMinutes,
+            ],
+            'cargo' => [
+                'amount_containers' => $cargoAmountContainers,
+            ],
+            'result' => [
+                'required_vehicles' => $requiredVehicles,
+                'trip_time_hours' => round($tripTimeHours, 2),
+                'cycle_time_hours' => round($cycleTimeHours, 2),
+                'transport_cost_per_vehicle' => round($transportCostPerVehicle, 2),
+                'base_cost_per_vehicle' => round($transportCostPerVehicle, 2),
+                'total_base_cost' => round($totalBaseCost, 2),
+                'fuel_used_liters_per_vehicle' => round($fuelUsedLitersPerVehicle, 2),
+                'needs_refuel' => $needsRefuel,
+                'can_complete_with_current_route_data' => !$needsRefuel || $selectedFuelStops->isNotEmpty(),
+                'fuel_cost_per_vehicle' => $fuelCostPerVehicle !== null ? round($fuelCostPerVehicle, 2) : null,
+                'total_fuel_cost' => $totalFuelCost !== null ? round($totalFuelCost, 2) : null,
+                'total_cost' => round($totalBaseCost + ($totalFuelCost ?? 0), 2),
+            ],
+            'fuel' => [
+                'available_fuel_stops' => $selectedFuelStops->map(fn ($station) => [
+                    'station_name' => $station->location?->name ?? $station->display_name ?? $station->name,
+                    'station_city' => $station->location?->city,
+                    'fuel_type' => $station->fuel_type,
+                    'price_per_liter' => $station->price_per_liter !== null
+                        ? round((float) $station->price_per_liter, 2)
+                        : null,
+                ])->values()->all(),
+                'reachable_fuel_stops' => [],
+                'recommended_fuel_stop' => $recommendedFuelStop ? [
+                    'distance_from_start_km' => null,
+                    'station_name' => $recommendedFuelStop->location?->name
+                        ?? $recommendedFuelStop->display_name
+                        ?? $recommendedFuelStop->name,
+                    'station_city' => $recommendedFuelStop->location?->city,
+                    'fuel_type' => $recommendedFuelStop->fuel_type,
+                    'price_per_liter' => $recommendedFuelStop->price_per_liter !== null
+                        ? round((float) $recommendedFuelStop->price_per_liter, 2)
+                        : null,
+                ] : null,
+            ],
+            'message' => 'Preview calculated from the attached map route.',
+        ];
     }
 
     private function buildTeacherTestQualitySummary(SimulationAttempt $attempt): ?array
@@ -409,7 +540,7 @@ class OrderTemplateController extends Controller
 
     protected function validateTemplate(Request $request): array
     {
-        return $request->validate([
+        $rules = [
             'title' => 'required|string|max:255',
             'scenario_type' => 'required|string|max:100',
             'scenario_focus' => 'nullable|string|max:100',
@@ -442,6 +573,7 @@ class OrderTemplateController extends Controller
             'end_location_id' => 'nullable|exists:locations,id',
             'start_port_id' => 'nullable|exists:ports,id',
             'end_port_id' => 'nullable|exists:ports,id',
+            'route_template_id' => 'nullable|exists:route_templates,id',
 
             'deadline_date' => 'nullable|date',
             'scenario_start_at' => 'nullable|date',
@@ -499,7 +631,29 @@ class OrderTemplateController extends Controller
 
             'fuel_station_ids' => 'nullable|array',
             'fuel_station_ids.*' => 'integer|exists:fuel_stations,id',
-        ]);
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        $validator->after(function ($validator) use ($request) {
+            $scenarioType = (string) $request->input('scenario_type', 'general');
+
+            if (!$this->allowsRoute($scenarioType)) {
+                return;
+            }
+
+            $hasMapRoute = filled($request->input('route_template_id'));
+            $hasLegacyRoute = !empty(array_filter((array) $request->input('land_route_ids', [])));
+
+            if (!$hasMapRoute && !$hasLegacyRoute) {
+                $validator->errors()->add(
+                    'route_template_id',
+                    'Build and attach a map route before saving this task.'
+                );
+            }
+        });
+
+        return $validator->validate();
     }
 
     protected function extractTemplateFields(array $validated): array
@@ -538,6 +692,7 @@ class OrderTemplateController extends Controller
             'end_location_id' => $this->resolveEndLocationId($scenarioType, $validated),
             'start_port_id' => $this->resolveStartPortId($scenarioType, $validated),
             'end_port_id' => $this->resolveEndPortId($scenarioType, $validated),
+            'route_template_id' => $this->allowsRoute($scenarioType) ? ($validated['route_template_id'] ?? null) : null,
 
             'deadline_date' => $validated['deadline_date'] ?? null,
             'scenario_start_at' => $validated['scenario_start_at'] ?? null,
@@ -618,6 +773,11 @@ class OrderTemplateController extends Controller
             ])
                 ->orderByDesc('id')
                 ->get(['id', 'from_location_id', 'to_location_id', 'distance_km']),
+            'routeTemplates' => RouteTemplate::query()
+                ->with(['points', 'legs'])
+                ->orderBy('name')
+                ->limit(100)
+                ->get(['id', 'name', 'mode', 'total_distance_km', 'total_duration_hours']),
             'scenarioTypes' => [
                 ['value' => 'land_transport', 'label' => 'Sauszemes transports'],
                 ['value' => 'land_to_port', 'label' => 'Sauszeme → osta'],

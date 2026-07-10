@@ -10,6 +10,8 @@ class SchoolClass extends Model
         'teacher_id',
         'name',
         'code',
+        'academic_year',
+        'sort_order',
         'description',
     ];
 

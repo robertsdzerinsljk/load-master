@@ -33,6 +33,7 @@ class CreateNewUser implements CreatesNewUsers
             'last_name' => $lastName,
             'email' => $input['email'],
             'password' => $input['password'],
+            'role' => 'student',
         ]);
     }
 }

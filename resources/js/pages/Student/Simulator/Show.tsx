@@ -179,6 +179,12 @@ export default function StudentSimulatorShow() {
     const templateEndLocation =
         template.endLocation ?? template.end_location ?? null;
     const selectedSegments = attempt.ordered_route_segments ?? [];
+    const routeTemplate =
+        template.routeTemplate ?? template.route_template ?? null;
+    const hasPresetRoute = Boolean(
+        routeTemplate?.points?.length && routeTemplate?.legs?.length,
+    );
+    const routeReady = selectedSegments.length > 0 || hasPresetRoute;
     const selectedFuelStations = attempt.ordered_fuel_stations ?? [];
     const handlingContext = attempt.handling_context ?? null;
     const loadingSelectionRequired = !!handlingContext?.loading?.required;
@@ -438,7 +444,7 @@ export default function StudentSimulatorShow() {
             hasStep('transport') && (!selectedTransportId || vehicleCount < 1)
                 ? 'transport'
                 : null,
-            hasStep('route') && !selectedSegments.length ? 'route' : null,
+            hasStep('route') && !routeReady ? 'route' : null,
             requiresFuelPlanning && !selectedFuelStations.length
                 ? 'fuel'
                 : null,
@@ -519,7 +525,7 @@ export default function StudentSimulatorShow() {
         }
 
         if (hasStep('route')) {
-            if (!selectedSegments.length) {
+            if (!routeReady) {
                 return false;
             }
         }
@@ -545,7 +551,7 @@ export default function StudentSimulatorShow() {
         availableSteps,
         selectedTransportId,
         vehicleCount,
-        selectedSegments.length,
+        routeReady,
         selectedPortId,
         selectedShipId,
         selectedLoadingMethodCode,
@@ -614,11 +620,11 @@ export default function StudentSimulatorShow() {
         }
 
         if (hasStep('route')) {
-            statuses.route = !selectedSegments.length
+            statuses.route = !routeReady
                 ? {
                       label: 'Trūkst dati',
                       tone: 'warning',
-                      detail: 'Pievieno vismaz vienu segmentu',
+                      detail: 'Nav norādīts maršruts',
                   }
                 : practiceProblemSteps.has('route')
                   ? {
@@ -785,7 +791,7 @@ export default function StudentSimulatorShow() {
         requiresFuelPlanning,
         selectedFuelStations.length,
         selectedPortId,
-        selectedSegments.length,
+        routeReady,
         selectedShipId,
         selectedTransportId,
         vehicleCount,
@@ -845,16 +851,16 @@ export default function StudentSimulatorShow() {
                 return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
             }
 
-            if (hasStep('route') && !selectedSegments.length) {
-                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            if (hasStep('route') && !routeReady) {
+                return 'Vispirms nepieciešams maršruts.';
             }
 
             return null;
         }
 
         if (targetStep === 'port') {
-            if (hasStep('route') && !selectedSegments.length) {
-                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            if (hasStep('route') && !routeReady) {
+                return 'Vispirms nepieciešams maršruts.';
             }
 
             if (requiresFuelPlanning && !selectedFuelStations.length) {
@@ -880,8 +886,8 @@ export default function StudentSimulatorShow() {
                 return 'Vispirms izvēlies transportu un norādi transportu skaitu.';
             }
 
-            if (hasStep('route') && !selectedSegments.length) {
-                return 'Vispirms izveido maršrutu no vismaz viena segmenta.';
+            if (hasStep('route') && !routeReady) {
+                return 'Vispirms nepieciešams maršruts.';
             }
 
             if (requiresFuelPlanning && !selectedFuelStations.length) {
@@ -1505,6 +1511,7 @@ export default function StudentSimulatorShow() {
                                 stepNumber={currentStepNumber}
                                 availableSegments={availableSegments}
                                 selectedSegments={selectedSegments}
+                                routeTemplate={routeTemplate}
                                 expectedStartName={
                                     templateStartLocation?.name ?? null
                                 }
@@ -1524,6 +1531,7 @@ export default function StudentSimulatorShow() {
                                 availableStations={availableFuelStations}
                                 selectedStations={selectedFuelStations}
                                 routeSegments={selectedSegments}
+                                routeTemplate={routeTemplate}
                                 loading={loading}
                                 onAddStation={addFuelStation}
                                 onRemoveStation={removeFuelStation}
@@ -1738,6 +1746,7 @@ export default function StudentSimulatorShow() {
                                 key={`${attempt.id}-${timelineSummary?.finished_at ?? 'empty'}-${timelineEvents.length}-${attempt.preview_result?.result?.score ?? 'na'}`}
                                 stepNumber={currentStepNumber}
                                 attempt={attempt}
+                                template={template}
                                 loading={loading}
                                 canPreview={canPreview}
                                 onPreview={() => saveStep('simulation')}

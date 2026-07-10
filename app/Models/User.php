@@ -22,6 +22,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'external_user_id',
     'password',
     'role',
+    'is_admin',
     'class_id',
 ])]
 #[Hidden([
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'google_linked_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
         ];
     }

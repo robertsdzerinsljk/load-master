@@ -31,7 +31,30 @@ class StudentController extends Controller
                 }
             ])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(fn (User $student) => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'first_name' => $student->first_name,
+                'last_name' => $student->last_name,
+                'display_name' => $this->displayName($student),
+                'email' => $student->email,
+                'class_id' => $student->class_id,
+                'class_name' => $student->class?->name,
+                'class' => $student->class ? [
+                    'id' => $student->class->id,
+                    'name' => $student->class->name,
+                    'code' => $student->class->code,
+                    'academic_year' => $student->class->academic_year,
+                ] : null,
+                'assignedOrderTemplates' => $student->assignedOrderTemplates
+                    ->map(fn (OrderTemplate $template) => [
+                        'id' => $template->id,
+                        'title' => $template->title,
+                    ])
+                    ->values(),
+            ])
+            ->values();
 
         $templates = OrderTemplate::query()
             ->with([

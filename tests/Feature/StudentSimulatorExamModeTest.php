@@ -9,9 +9,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 test('exam mode simulator payload hides detailed preview diagnostics from students', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $template = OrderTemplate::query()->create([
         'title' => 'Exam simulator hardening',

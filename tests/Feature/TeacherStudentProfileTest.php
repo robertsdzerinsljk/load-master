@@ -62,3 +62,37 @@ test('teacher can open a student profile with assigned tasks and marks', functio
             ->where('assignments.0.attempt_id', $attempt->id)
             ->where('attempts.0.feedback.grade', 88));
 });
+
+test('teacher student list includes assigned task chips', function () {
+    $teacher = User::factory()->create([
+        'role' => 'teacher',
+    ]);
+
+    $student = User::factory()->create([
+        'role' => 'student',
+        'name' => 'Anna Kalnina',
+        'first_name' => 'Anna',
+        'last_name' => 'Kalnina',
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Riga delivery practice',
+        'scenario_type' => 'route_planning',
+        'deadline_date' => '2026-05-20',
+        'priority' => 'medium',
+    ]);
+
+    $student->assignedOrderTemplates()->attach($template->id, [
+        'assigned_at' => now()->subDay(),
+        'created_at' => now()->subDay(),
+        'updated_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($teacher)
+        ->get(route('teacher.students'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Teacher/Students/Index')
+            ->where('students.0.display_name', 'Anna Kalnina')
+            ->where('students.0.assignedOrderTemplates.0.title', 'Riga delivery practice'));
+});

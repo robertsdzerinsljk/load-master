@@ -2,6 +2,7 @@
 
 use App\Models\OrderTemplate;
 use App\Models\FuelStation;
+use App\Models\LandRoute;
 use App\Models\Location;
 use App\Models\Port;
 use App\Models\Ship;
@@ -175,6 +176,13 @@ test('teacher can save suggested fuel stops on a template', function () {
         'fuel_type' => 'diesel',
         'price_per_liter' => 1.61,
     ]);
+    $start = Location::query()->create(['name' => 'Riga Depot']);
+    $end = Location::query()->create(['name' => 'Liepaja Terminal']);
+    $route = LandRoute::query()->create([
+        'from_location_id' => $start->id,
+        'to_location_id' => $end->id,
+        'distance_km' => 210,
+    ]);
 
     $template = OrderTemplate::query()->create([
         'title' => 'Fuel stop persistence',
@@ -189,17 +197,16 @@ test('teacher can save suggested fuel stops on a template', function () {
             'scenario_type' => 'land_transport',
             'evaluation_mode' => 'practice',
             'status' => 'draft',
+            'land_route_ids' => [$route->id],
             'fuel_station_ids' => [$fuelStation->id],
         ])
         ->assertRedirect("/teacher/templates/order-templates/{$template->id}");
 
-    expect($template->fresh()->fuelStations->pluck('id')->all())->toBe([$fuelStation->id]);
+    expect($template->fresh()->fuelStations()->pluck('fuel_stations.id')->all())->toBe([$fuelStation->id]);
 });
 
 test('student simulator payload includes template fuel stop locations', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $location = Location::query()->create([
         'name' => 'A7 Fuel Hub',

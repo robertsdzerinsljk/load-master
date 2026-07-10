@@ -51,6 +51,48 @@ export type RouteItem = {
     };
 };
 
+export type RouteTemplatePoint = {
+    id?: number;
+    sequence?: number;
+    label?: string;
+    location_id?: number | null;
+    name: string;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    point_type?: string | null;
+    metadata?: {
+        city?: string | null;
+        country?: string | null;
+        type?: string | null;
+        [key: string]: unknown;
+    } | null;
+};
+
+export type RouteTemplateLeg = {
+    id?: number;
+    sequence?: number;
+    type?: 'land' | 'sea' | 'port_handling' | 'unknown' | string | null;
+    distance_km?: number | string | null;
+    duration_hours?: number | string | null;
+    provider?: string | null;
+    geometry_geojson?: {
+        type?: string;
+        coordinates?: unknown;
+    } | null;
+    origin_point_id?: number | null;
+    destination_point_id?: number | null;
+};
+
+export type RouteTemplate = {
+    id: number;
+    name: string;
+    mode?: string | null;
+    total_distance_km?: number | string | null;
+    total_duration_hours?: number | string | null;
+    points?: RouteTemplatePoint[];
+    legs?: RouteTemplateLeg[];
+};
+
 export type ResourceHandlingMethod = {
     id?: number;
     name: string;
@@ -276,6 +318,8 @@ export type Template = {
     transport_templates?: NamedItem[];
     landRoutes?: RouteItem[];
     land_routes?: RouteItem[];
+    routeTemplate?: RouteTemplate | null;
+    route_template?: RouteTemplate | null;
     fuelStations?: FuelStationItem[];
     fuel_stations?: FuelStationItem[];
     ports?: PortItem[];

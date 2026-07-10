@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import 'leaflet/dist/leaflet.css';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'LoadMaster';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

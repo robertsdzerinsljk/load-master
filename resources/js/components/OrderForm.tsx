@@ -66,10 +66,7 @@ export default function OrderForm({
 
         if (onSubmit) {
             onSubmit(form);
-            return;
         }
-
-        console.log('Order form submitted:', form);
     };
 
     return (

@@ -12,7 +12,7 @@ import { store } from '@/routes/register';
 export default function Register() {
     return (
         <>
-            <Head title="Register" />
+            <Head title="Reģistrācija" />
             <Form
                 {...store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}
@@ -25,7 +25,7 @@ export default function Register() {
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="first_name">
-                                        First name
+                                        Vārds
                                     </Label>
                                     <Input
                                         id="first_name"
@@ -35,7 +35,7 @@ export default function Register() {
                                         tabIndex={1}
                                         autoComplete="given-name"
                                         name="first_name"
-                                        placeholder="First name"
+                                        placeholder="Vārds"
                                     />
                                     <InputError
                                         message={errors.first_name}
@@ -44,7 +44,7 @@ export default function Register() {
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="last_name">Last name</Label>
+                                    <Label htmlFor="last_name">Uzvārds</Label>
                                     <Input
                                         id="last_name"
                                         type="text"
@@ -52,7 +52,7 @@ export default function Register() {
                                         tabIndex={2}
                                         autoComplete="family-name"
                                         name="last_name"
-                                        placeholder="Last name"
+                                        placeholder="Uzvārds"
                                     />
                                     <InputError
                                         message={errors.last_name}
@@ -62,7 +62,7 @@ export default function Register() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email">E-pasta adrese</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -70,27 +70,27 @@ export default function Register() {
                                     tabIndex={3}
                                     autoComplete="email"
                                     name="email"
-                                    placeholder="email@example.com"
+                                    placeholder="vards.uzvards@example.com"
                                 />
                                 <InputError message={errors.email} />
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Password</Label>
+                                <Label htmlFor="password">Parole</Label>
                                 <PasswordInput
                                     id="password"
                                     required
                                     tabIndex={4}
                                     autoComplete="new-password"
                                     name="password"
-                                    placeholder="Password"
+                                    placeholder="Parole"
                                 />
                                 <InputError message={errors.password} />
                             </div>
 
                             <div className="grid gap-2">
                                 <Label htmlFor="password_confirmation">
-                                    Confirm password
+                                    Apstiprini paroli
                                 </Label>
                                 <PasswordInput
                                     id="password_confirmation"
@@ -98,7 +98,7 @@ export default function Register() {
                                     tabIndex={5}
                                     autoComplete="new-password"
                                     name="password_confirmation"
-                                    placeholder="Confirm password"
+                                    placeholder="Apstiprini paroli"
                                 />
                                 <InputError
                                     message={errors.password_confirmation}
@@ -112,14 +112,14 @@ export default function Register() {
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}
-                                Create account
+                                Izveidot kontu
                             </Button>
                         </div>
 
                         <div className="text-center text-sm text-muted-foreground">
-                            Already have an account?{' '}
+                            Jau ir konts?{' '}
                             <TextLink href={login()} tabIndex={7}>
-                                Log in
+                                Pieslēgties
                             </TextLink>
                         </div>
                     </>
@@ -130,6 +130,6 @@ export default function Register() {
 }
 
 Register.layout = {
-    title: 'Create an account',
-    description: 'Enter your details below to create your account',
+    title: 'Izveidot kontu',
+    description: 'Ievadi datus, lai izveidotu studenta kontu',
 };

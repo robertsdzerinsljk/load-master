@@ -52,6 +52,8 @@ class SimulationAttemptController extends Controller
                 'transportTemplates',
                 'temperatureMode',
                 'fuelStations.location',
+                'routeTemplate.points',
+                'routeTemplate.legs',
             ])
             ->latest('id')
             ->get();
@@ -190,7 +192,7 @@ class SimulationAttemptController extends Controller
         if (
             $requestedStep === 'fuel'
             && in_array('route', $availableSteps, true)
-            && $attempt->routeSegments->count() === 0
+            && !$this->attemptHasRoutePlan($attempt)
         ) {
             return response()->json([
                 'message' => 'Vispirms izveido marsrutu.',
@@ -684,6 +686,8 @@ class SimulationAttemptController extends Controller
                 'orderTemplate.landRoutes.fromLocation',
                 'orderTemplate.landRoutes.toLocation',
                 'orderTemplate.fuelStations.location',
+                'orderTemplate.routeTemplate.points',
+                'orderTemplate.routeTemplate.legs',
                 'orderTemplate.ports.location',
                 'orderTemplate.ports.handlingMethods',
                 'orderTemplate.ships.handlingMethods',
@@ -766,7 +770,7 @@ class SimulationAttemptController extends Controller
             $errors[] = 'Jaizvelas transports.';
         }
 
-        if (in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
+        if (in_array('route', $availableSteps, true) && !$this->attemptHasRoutePlan($attempt)) {
             $errors[] = 'Jaizveido marsruts.';
         }
 
@@ -840,6 +844,8 @@ class SimulationAttemptController extends Controller
     {
         $attempt->load([
             'orderTemplate.temperatureMode',
+            'orderTemplate.routeTemplate.points',
+            'orderTemplate.routeTemplate.legs',
             'selectedTransportTemplate',
             'selectedPort.location',
             'selectedPort.handlingMethods',
@@ -1070,6 +1076,12 @@ class SimulationAttemptController extends Controller
         return response()->json($payload, 422);
     }
 
+    private function attemptHasRoutePlan(SimulationAttempt $attempt): bool
+    {
+        return $attempt->routeSegments->count() > 0
+            || (bool) ($attempt->orderTemplate?->route_template_id ?? false);
+    }
+
     private function resolveSubmissionTargetStep(
         SimulationAttempt $attempt,
         array $availableSteps,
@@ -1091,7 +1103,7 @@ class SimulationAttemptController extends Controller
             $candidates[] = 'transport';
         }
 
-        if (in_array('route', $availableSteps, true) && $attempt->routeSegments->count() === 0) {
+        if (in_array('route', $availableSteps, true) && !$this->attemptHasRoutePlan($attempt)) {
             $candidates[] = 'route';
         }
 

@@ -15,7 +15,14 @@ import {
     Popup,
     TileLayer,
 } from 'react-leaflet';
-import { FuelStationItem, LocationItem, RouteItem, routeName } from './types';
+import {
+    FuelStationItem,
+    LocationItem,
+    RouteItem,
+    RouteTemplate,
+    RouteTemplatePoint,
+    routeName,
+} from './types';
 import { EmptyBlock } from './ui';
 
 type Props = {
@@ -23,6 +30,7 @@ type Props = {
     availableStations: FuelStationItem[];
     selectedStations: FuelStationItem[];
     routeSegments: RouteItem[];
+    routeTemplate?: RouteTemplate | null;
     loading: boolean;
     onAddStation: (stationId: number) => void;
     onRemoveStation: (stationId: number) => void;
@@ -80,25 +88,32 @@ const selectedFuelMarkerIcon = L.divIcon({
 
 function FuelRouteMap({
     routeSegments,
+    routeTemplate,
     availableStations,
     selectedStations,
 }: {
     routeSegments: RouteItem[];
+    routeTemplate?: RouteTemplate | null;
     availableStations: FuelStationItem[];
     selectedStations: FuelStationItem[];
 }) {
-    const routeLine = routeSegments
-        .flatMap((segment, index) => {
-            const from = routeLocation(segment, 'from');
-            const to = routeLocation(segment, 'to');
+    const routeLine =
+        routeSegments.length > 0
+            ? routeSegments
+                  .flatMap((segment, index) => {
+                      const from = routeLocation(segment, 'from');
+                      const to = routeLocation(segment, 'to');
 
-            if (!from || !to) {
-                return [];
-            }
+                      if (!from || !to) {
+                          return [];
+                      }
 
-            return index === 0 ? [from, to] : [to];
-        })
-        .filter((position): position is [number, number] => Boolean(position));
+                      return index === 0 ? [from, to] : [to];
+                  })
+                  .filter((position): position is [number, number] =>
+                      Boolean(position),
+                  )
+            : routeTemplateLine(routeTemplate);
     const center =
         routeLine[0] ?? stationLatLng(selectedStations[0]) ?? defaultCenter;
     const selectedIds = new Set(selectedStations.map((station) => station.id));
@@ -122,37 +137,50 @@ function FuelRouteMap({
                             pathOptions={{ color: '#0f766e', weight: 5 }}
                         />
                     ) : null}
-                    {routeSegments.map((segment, index) => {
-                        const points = [
-                            index === 0
-                                ? {
-                                      label: routeName(segment, 'from'),
-                                      position: routeLocation(segment, 'from'),
-                                  }
-                                : null,
-                            {
-                                label: routeName(segment, 'to'),
-                                position: routeLocation(segment, 'to'),
-                            },
-                        ].filter(
-                            (
-                                point,
-                            ): point is {
-                                label: string;
-                                position: [number, number];
-                            } => Boolean(point?.position),
-                        );
+                    {routeSegments.length > 0
+                        ? routeSegments.map((segment, index) => {
+                              const points = [
+                                  index === 0
+                                      ? {
+                                            label: routeName(segment, 'from'),
+                                            position: routeLocation(
+                                                segment,
+                                                'from',
+                                            ),
+                                        }
+                                      : null,
+                                  {
+                                      label: routeName(segment, 'to'),
+                                      position: routeLocation(segment, 'to'),
+                                  },
+                              ].filter(
+                                  (
+                                      point,
+                                  ): point is {
+                                      label: string;
+                                      position: [number, number];
+                                  } => Boolean(point?.position),
+                              );
 
-                        return points.map((point) => (
-                            <Marker
-                                key={`${point.label}-${index}`}
-                                position={point.position}
-                                icon={routeMarkerIcon}
-                            >
-                                <Popup>{point.label}</Popup>
-                            </Marker>
-                        ));
-                    })}
+                              return points.map((point) => (
+                                  <Marker
+                                      key={`${point.label}-${index}`}
+                                      position={point.position}
+                                      icon={routeMarkerIcon}
+                                  >
+                                      <Popup>{point.label}</Popup>
+                                  </Marker>
+                              ));
+                          })
+                        : routeTemplateMarkers(routeTemplate).map((point) => (
+                              <Marker
+                                  key={point.label}
+                                  position={point.position}
+                                  icon={routeMarkerIcon}
+                              >
+                                  <Popup>{point.label}</Popup>
+                              </Marker>
+                          ))}
                     {availableStations.map((station) => {
                         const position = stationLatLng(station);
 
@@ -188,7 +216,7 @@ function FuelRouteMap({
             <div className="flex flex-wrap gap-3 border-t border-[#e4e9e4] px-4 py-3 text-[13px] text-[#506158]">
                 <span className="inline-flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-[#0f766e]" />
-                    Marsruts
+                    Maršruts
                 </span>
                 <span className="inline-flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-[#f59e0b]" />
@@ -224,6 +252,7 @@ export default function FuelPlanningStep({
     availableStations,
     selectedStations,
     routeSegments,
+    routeTemplate,
     loading,
     onAddStation,
     onRemoveStation,
@@ -249,6 +278,7 @@ export default function FuelPlanningStep({
 
             <FuelRouteMap
                 routeSegments={routeSegments}
+                routeTemplate={routeTemplate}
                 availableStations={availableStations}
                 selectedStations={selectedStations}
             />
@@ -439,6 +469,42 @@ function locationLatLng(
 
     const latitude = Number(location.latitude);
     const longitude = Number(location.longitude);
+
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? [latitude, longitude]
+        : null;
+}
+
+function routeTemplateLine(
+    routeTemplate?: RouteTemplate | null,
+): [number, number][] {
+    return routeTemplatePoints(routeTemplate)
+        .map(pointLatLng)
+        .filter((position): position is [number, number] => Boolean(position));
+}
+
+function routeTemplateMarkers(routeTemplate?: RouteTemplate | null) {
+    return routeTemplatePoints(routeTemplate)
+        .map((point) => ({
+            label: point.name,
+            position: pointLatLng(point),
+        }))
+        .filter(
+            (point): point is { label: string; position: [number, number] } =>
+                Boolean(point.position),
+        );
+}
+
+function routeTemplatePoints(routeTemplate?: RouteTemplate | null) {
+    return [...(routeTemplate?.points ?? [])].sort(
+        (left, right) =>
+            Number(left.sequence ?? 0) - Number(right.sequence ?? 0),
+    );
+}
+
+function pointLatLng(point: RouteTemplatePoint): [number, number] | null {
+    const latitude = Number(point.latitude);
+    const longitude = Number(point.longitude);
 
     return Number.isFinite(latitude) && Number.isFinite(longitude)
         ? [latitude, longitude]

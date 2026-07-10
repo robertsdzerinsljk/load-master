@@ -23,11 +23,8 @@ function makeFuelPlanAttempt(
     FuelStation $selectedStation,
     ?string $scenarioStartAt = null,
     array $scenarioConfig = []
-): SimulationAttempt
-{
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+): SimulationAttempt {
+    $student = testStudent();
 
     $start = Location::query()->create([
         'name' => 'Riga Depot',
@@ -164,7 +161,7 @@ test('preview rejects a fuel stop that is not on the selected route', function (
     expect(data_get($preview, 'fuel.stops.0.is_logical'))->toBeFalse();
     expect(data_get($preview, 'fuel.stops.0.distance_from_start_km'))->toBeNull();
     expect(collect(data_get($preview, 'hints.critical', []))
-        ->contains(fn (string $hint) => str_contains($hint, 'neatrodas uz izveidota marsruta')))
+        ->contains(fn (string $hint) => str_contains($hint, 'neatrodas uz izveidota maršruta')))
         ->toBeTrue();
 });
 
@@ -432,7 +429,7 @@ test('simulator hides the fuel step when refuel planning is disabled', function 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Student/Simulator/Show')
-            ->where('availableSteps', fn ($steps) => !in_array('fuel', collect($steps)->all(), true)));
+            ->where('availableSteps', fn ($steps) => ! in_array('fuel', collect($steps)->all(), true)));
 });
 
 test('preview flags a selected route that does not match task start and end locations', function () {
@@ -471,7 +468,7 @@ test('preview flags a selected route that does not match task start and end loca
     expect(collect(data_get($preview, 'result.score_breakdown.penalties', []))->pluck('key')->all())
         ->toContain('route_endpoints');
     expect(collect(data_get($preview, 'hints.critical', []))->join(' '))
-        ->toContain('sakuma un gala');
+        ->toContain('sākuma un gala');
 });
 
 test('preview penalizes selecting more vehicles than the cargo needs', function () {
@@ -553,7 +550,7 @@ test('preview fuel and transport cost scale with outbound and return trip distan
     expect(data_get($preview, 'result.cost_breakdown.fuel_cost'))->toBe(563.76);
     expect(data_get($preview, 'result.cost_breakdown.transport_cost'))->toBe(1560.0);
     expect(collect(data_get($preview, 'hints.info', []))->join(' '))
-        ->toContain('neietilpst viena baka');
+        ->toContain('neietilpst vienā bākā');
 });
 
 test('selected fuel station price changes fuel cost and total cost', function () {
@@ -642,7 +639,7 @@ test('preview uses a default fuel price when selected station has no price', fun
     expect(data_get($preview, 'result.cost_breakdown.fuel_price_source'))->toBe('default');
     expect(data_get($preview, 'result.cost_breakdown.fuel_cost'))->toBe(118.32);
     expect(collect(data_get($preview, 'hints.info', []))->join(' '))
-        ->toContain('noklusejuma cenu');
+        ->toContain('noklusējuma cenu');
 });
 
 test('simulator page refreshes stored previews that use old distance metrics', function () {
@@ -755,3 +752,161 @@ test('night operations cost more than the same daytime operations', function () 
     );
     expect(data_get($nightTimeline, 'costs.night_operations_eur'))->toBeGreaterThan(0);
 });
+
+test('port to ship preview is not blocked by missing land transport capacity', function () {
+    $student = testStudent();
+
+    $port = Port::query()->create([
+        'name' => 'Klaipeda Container Port',
+        'country' => 'Lithuania',
+        'supports_container' => true,
+        'has_crane' => true,
+        'max_draft_m' => 12,
+        'loading_rate_containers_per_hour' => 30,
+    ]);
+
+    $ship = Ship::query()->create([
+        'name' => 'Baltic Box Ship',
+        'cargo_mode' => 'containerized',
+        'supports_container' => true,
+        'capacity_containers' => 200,
+        'draft_m' => 8,
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Port to ship valid preview',
+        'scenario_type' => 'port_to_ship',
+        'evaluation_mode' => 'practice',
+        'cargo_mode' => 'containerized',
+        'cargo_amount_containers' => 6,
+        'scenario_start_at' => now(),
+        'deadline_at' => now()->addDays(2),
+        'requires_refuel_planning' => false,
+        'step_config' => previewSteps(['intro', 'port', 'ship', 'simulation', 'submit']),
+        'scenario_config' => [
+            'compatibility' => [
+                'enforce_port_cargo_support' => false,
+                'enforce_ship_cargo_support' => false,
+                'enforce_port_ship_draft' => true,
+                'enforce_handling_compatibility' => false,
+            ],
+        ],
+    ]);
+
+    $attempt = SimulationAttempt::query()->create([
+        'order_template_id' => $template->id,
+        'user_id' => $student->id,
+        'selected_port_id' => $port->id,
+        'selected_ship_id' => $ship->id,
+        'status' => 'in_progress',
+        'current_step' => 'simulation',
+    ]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.is_valid'))->toBeTrue()
+        ->and(collect(data_get($preview, 'hints.critical', []))->join(' '))
+        ->not->toContain('transportu skaits')
+        ->and(collect(data_get($preview, 'hints.optimization', []))->join(' '))
+        ->not->toContain('reisi');
+});
+
+test('full chain preview accepts a route ending at the departure port', function () {
+    $student = testStudent();
+
+    $start = Location::query()->create(['name' => 'Riga Warehouse']);
+    $portLocation = Location::query()->create(['name' => 'Riga Freeport Terminal']);
+    $destination = Location::query()->create(['name' => 'Helsinki']);
+
+    $transport = TransportTemplate::query()->create([
+        'name' => 'Container truck',
+        'type' => 'truck',
+        'capacity_containers' => 8,
+        'avg_speed_kmh' => 70,
+        'cost_per_km' => 1.2,
+        'fuel_consumption_per_100km' => 28,
+        'max_range_km' => 800,
+    ]);
+
+    $route = LandRoute::query()->create([
+        'from_location_id' => $start->id,
+        'to_location_id' => $portLocation->id,
+        'distance_km' => 20,
+        'estimated_time_hours' => 0.5,
+    ]);
+
+    $port = Port::query()->create([
+        'name' => 'Riga Freeport',
+        'country' => 'Latvia',
+        'location_id' => $portLocation->id,
+        'supports_container' => true,
+        'has_crane' => true,
+        'max_draft_m' => 12,
+    ]);
+
+    $ship = Ship::query()->create([
+        'name' => 'Baltic Box Ship',
+        'cargo_mode' => 'containerized',
+        'supports_container' => true,
+        'capacity_containers' => 200,
+        'draft_m' => 8,
+    ]);
+
+    $template = OrderTemplate::query()->create([
+        'title' => 'Full chain valid preview',
+        'scenario_type' => 'full_chain',
+        'evaluation_mode' => 'practice',
+        'cargo_mode' => 'containerized',
+        'cargo_amount_containers' => 6,
+        'start_location_id' => $start->id,
+        'end_location_id' => $destination->id,
+        'start_port_id' => $port->id,
+        'scenario_start_at' => now(),
+        'deadline_at' => now()->addDays(2),
+        'requires_refuel_planning' => false,
+        'step_config' => previewSteps(['intro', 'transport', 'route', 'port', 'ship', 'simulation', 'submit']),
+        'scenario_config' => [
+            'compatibility' => [
+                'enforce_port_cargo_support' => false,
+                'enforce_ship_cargo_support' => false,
+                'enforce_port_ship_draft' => true,
+                'enforce_handling_compatibility' => false,
+            ],
+        ],
+    ]);
+
+    $attempt = SimulationAttempt::query()->create([
+        'order_template_id' => $template->id,
+        'user_id' => $student->id,
+        'selected_transport_template_id' => $transport->id,
+        'selected_vehicle_count' => 1,
+        'selected_port_id' => $port->id,
+        'selected_ship_id' => $ship->id,
+        'status' => 'in_progress',
+        'current_step' => 'simulation',
+    ]);
+
+    $attempt->routeSegments()->attach($route->id, ['position' => 1]);
+
+    $preview = app(SimulationPreviewService::class)->build($attempt->fresh());
+
+    expect(data_get($preview, 'result.is_valid'))->toBeTrue()
+        ->and(data_get($preview, 'route.endpoint_valid'))->toBeTrue()
+        ->and(collect(data_get($preview, 'hints.critical', []))->join(' '))
+        ->not->toContain('sākuma un gala punktiem');
+});
+
+function previewSteps(array $enabled): array
+{
+    return collect([
+        'intro',
+        'transport',
+        'route',
+        'fuel',
+        'port',
+        'ship',
+        'simulation',
+        'submit',
+    ])->mapWithKeys(fn (string $step) => [$step => in_array($step, $enabled, true)])
+        ->all();
+}

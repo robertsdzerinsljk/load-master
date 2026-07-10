@@ -100,6 +100,26 @@ type LandRouteOption = {
     } | null;
 };
 
+type RouteTemplatePoint = {
+    id?: number;
+    location_id?: number | null;
+    name: string;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    point_type?: string | null;
+    type?: string | null;
+    metadata?: Partial<RouteBuilderPoint> | null;
+};
+
+type RouteTemplateOption = {
+    id: number;
+    name: string;
+    mode?: string | null;
+    total_distance_km?: number | string | null;
+    total_duration_hours?: number | string | null;
+    points?: RouteTemplatePoint[];
+};
+
 type Options = {
     temperatureModes: SimpleOption[];
     specialConditions: SimpleOption[];
@@ -110,6 +130,7 @@ type Options = {
     fuelStations: FuelStationOption[];
     handlingMethods: HandlingMethodOption[];
     landRoutes: LandRouteOption[];
+    routeTemplates?: RouteTemplateOption[];
     scenarioTypes: ScenarioOption[];
     scenarioFocuses?: ScenarioOption[];
     evaluationModes: ScenarioOption[];
@@ -152,6 +173,9 @@ type InitialData = {
     end_location_id?: number | string | null;
     start_port_id?: number | string | null;
     end_port_id?: number | string | null;
+    route_template_id?: number | string | null;
+    routeTemplate?: RouteTemplateOption | null;
+    route_template?: RouteTemplateOption | null;
     deadline_date?: string | null;
     scenario_start_at?: string | null;
     deadline_at?: string | null;
@@ -225,7 +249,7 @@ type PreviewResponse = {
     };
     fuel?: {
         recommended_fuel_stop?: {
-            distance_from_start_km: number;
+            distance_from_start_km?: number | null;
             station_name?: string | null;
         } | null;
     };
@@ -417,6 +441,12 @@ export default function OrderTemplateForm({
     );
     const [endPortId, setEndPortId] = useState(
         String(initialData.end_port_id ?? ''),
+    );
+    const [routeTemplateId, setRouteTemplateId] = useState(
+        String(initialData.route_template_id ?? ''),
+    );
+    const [attachedRouteName, setAttachedRouteName] = useState(
+        (initialData.routeTemplate ?? initialData.route_template)?.name ?? '',
     );
 
     const [scenarioStartAt, setScenarioStartAt] = useState(
@@ -651,23 +681,54 @@ export default function OrderTemplateForm({
             ),
         [options.landRoutes],
     );
-    const routeBuilderInitialPoints = useMemo(
+    const sortedRouteTemplateOptions = useMemo(
         () =>
-            [startLocationId, endLocationId]
-                .map((id) =>
-                    options.locations.find(
-                        (location) => String(location.id) === String(id),
-                    ),
-                )
-                .filter(
-                    (location): location is LocationOption =>
-                        Boolean(location) &&
-                        Number.isFinite(Number(location?.latitude)) &&
-                        Number.isFinite(Number(location?.longitude)),
-                )
-                .map(locationOptionToRoutePoint),
-        [endLocationId, options.locations, startLocationId],
+            [...(options.routeTemplates ?? [])].sort((left, right) =>
+                left.name.localeCompare(right.name),
+            ),
+        [options.routeTemplates],
     );
+    const selectedRouteTemplate = useMemo(
+        () =>
+            sortedRouteTemplateOptions.find(
+                (template) => String(template.id) === String(routeTemplateId),
+            ) ?? null,
+        [routeTemplateId, sortedRouteTemplateOptions],
+    );
+    const initialRouteTemplate =
+        initialData.routeTemplate ?? initialData.route_template;
+    const routeBuilderInitialPoints = useMemo(() => {
+        const templatePoints = initialRouteTemplate?.points ?? [];
+
+        if (templatePoints.length > 0) {
+            return templatePoints
+                .filter(
+                    (point) =>
+                        Number.isFinite(Number(point.latitude)) &&
+                        Number.isFinite(Number(point.longitude)),
+                )
+                .map(routeTemplatePointToRoutePoint);
+        }
+
+        return [startLocationId, endLocationId]
+            .map((id) =>
+                options.locations.find(
+                    (location) => String(location.id) === String(id),
+                ),
+            )
+            .filter(
+                (location): location is LocationOption =>
+                    Boolean(location) &&
+                    Number.isFinite(Number(location?.latitude)) &&
+                    Number.isFinite(Number(location?.longitude)),
+            )
+            .map(locationOptionToRoutePoint);
+    }, [
+        endLocationId,
+        initialRouteTemplate?.points,
+        options.locations,
+        startLocationId,
+    ]);
 
     useEffect(() => {
         setScenarioFocus((current) =>
@@ -682,6 +743,8 @@ export default function OrderTemplateForm({
 
         if (!caps.route) {
             setLandRouteIds([]);
+            setRouteTemplateId('');
+            setAttachedRouteName('');
         }
 
         if (!caps.fuel) {
@@ -803,6 +866,10 @@ export default function OrderTemplateForm({
             caps.startPort && startPortId !== '' ? Number(startPortId) : null,
         end_port_id:
             caps.endPort && endPortId !== '' ? Number(endPortId) : null,
+        route_template_id:
+            caps.route && routeTemplateId !== ''
+                ? Number(routeTemplateId)
+                : null,
         scenario_start_at: scenarioStartAt || null,
         deadline_at: deadlineAt || null,
         deadline_date: deadlineDate || null,
@@ -974,6 +1041,7 @@ export default function OrderTemplateForm({
         setEndLocationId(stringValue(payload.end_location_id));
         setStartPortId(stringValue(payload.start_port_id));
         setEndPortId(stringValue(payload.end_port_id));
+        setRouteTemplateId(stringValue(payload.route_template_id));
         setScenarioStartAt(stringValue(payload.scenario_start_at));
         setDeadlineAt(stringValue(payload.deadline_at));
         setDeadlineDate(stringValue(payload.deadline_date));
@@ -1092,6 +1160,18 @@ export default function OrderTemplateForm({
         event.preventDefault();
         const payload = buildPayload();
 
+        if (
+            caps.route &&
+            !payload.route_template_id &&
+            payload.land_route_ids.length === 0
+        ) {
+            setPreviewData(null);
+            setPreviewError(
+                'Build and attach a map route before saving this task.',
+            );
+            return;
+        }
+
         if (isEdit && id) {
             router.put(`/teacher/templates/order-templates/${id}`, payload, {
                 onSuccess: clearSavedDraft,
@@ -1127,22 +1207,30 @@ export default function OrderTemplateForm({
             const data = await response.json();
 
             if (!response.ok) {
-                setPreviewError(data.message || 'Could not calculate preview.');
+                setPreviewError(
+                    data.message || 'Neizdevās aprēķināt priekšskatījumu.',
+                );
                 return;
             }
 
             setPreviewData(data);
         } catch {
-            setPreviewError('Could not reach the server.');
+            setPreviewError('Neizdevās sasniegt serveri.');
         } finally {
             setIsTryingScenario(false);
         }
     };
 
     const handleUseMapRoute = (routePreview: RouteBuilderPreview) => {
+        if (routePreview.route_template?.id) {
+            setRouteTemplateId(String(routePreview.route_template.id));
+            setAttachedRouteName(routePreview.route_template.name);
+            setLandRouteIds([]);
+        }
+
         const landIds = routePreview.land_route_ids ?? [];
 
-        if (landIds.length > 0) {
+        if (!routePreview.route_template?.id && landIds.length > 0) {
             setLandRouteIds((current) =>
                 Array.from(new Set([...current, ...landIds])),
             );
@@ -1173,6 +1261,57 @@ export default function OrderTemplateForm({
         });
     };
 
+    const handleUseSavedRouteTemplate = (templateId: string) => {
+        setRouteTemplateId(templateId);
+        setLandRouteIds([]);
+
+        const template =
+            sortedRouteTemplateOptions.find(
+                (option) => String(option.id) === String(templateId),
+            ) ?? null;
+
+        if (!template) {
+            setAttachedRouteName('');
+            setPreviewData(null);
+            return;
+        }
+
+        setAttachedRouteName(template.name);
+
+        const points = template.points ?? [];
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+
+        if (firstPoint?.location_id && caps.startLocation) {
+            setStartLocationId(String(firstPoint.location_id));
+        }
+
+        if (lastPoint?.location_id && caps.endLocation) {
+            setEndLocationId(String(lastPoint.location_id));
+        }
+
+        setPreviewError(null);
+        setPreviewData({
+            route: {
+                from: firstPoint?.name ?? null,
+                to: lastPoint?.name ?? null,
+                distance_km: Number(template.total_distance_km ?? 0),
+            },
+            result: {
+                can_complete_with_current_route_data: true,
+            },
+        });
+    };
+
+    const handleMapPreviewChange = (
+        routePreview: RouteBuilderPreview | null,
+    ) => {
+        if (routePreview === null) {
+            setRouteTemplateId('');
+            setAttachedRouteName('');
+        }
+    };
+
     const inputClass =
         'mt-2 w-full rounded-xl border border-[#d5dbd6] bg-white px-4 py-3 text-[14px] text-[#162118] outline-none transition placeholder:text-[#94a197] focus:border-[#166a4d]';
     const textareaClass = `${inputClass} min-h-[120px]`;
@@ -1180,35 +1319,37 @@ export default function OrderTemplateForm({
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="rounded-2xl border border-[#cfe3d8] bg-[#f3faf6] px-4 py-3 text-[14px] text-[#32523f]">
-                <span className="font-semibold">Draft autosave is on.</span>{' '}
+                <span className="font-semibold">
+                    Melnraksta autosaglabāšana ir ieslēgta.
+                </span>{' '}
                 {restoredDraftAt
-                    ? `Restored browser draft from ${new Intl.DateTimeFormat(
+                    ? `Atjaunots pārlūka melnraksts no ${new Intl.DateTimeFormat(
                           'lv-LV',
                           {
                               dateStyle: 'short',
                               timeStyle: 'short',
                           },
                       ).format(new Date(restoredDraftAt))}.`
-                    : 'Changes are kept in this browser until the template is saved.'}
+                    : 'Izmaiņas paliek šajā pārlūkā līdz sagataves saglabāšanai.'}
             </div>
 
             <OrderTemplateFormSection
-                title="Basic info"
-                description="Start with the scenario type, its teaching goal, and the metadata that will control how the simulator opens."
+                title="Pamatinformācija"
+                description="Sāc ar scenārija tipu, mācību mērķi un datiem, kas nosaka, kā simulators atvērsies studentam."
             >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Field label="Title" error={errors.title}>
+                    <Field label="Nosaukums" error={errors.title}>
                         <input
                             type="text"
                             value={title}
                             onChange={(event) => setTitle(event.target.value)}
                             className={inputClass}
-                            placeholder="Container delivery to port"
+                            placeholder="Konteineru piegāde uz ostu"
                             required
                         />
                     </Field>
 
-                    <Field label="Scenario type" error={errors.scenario_type}>
+                    <Field label="Scenārija tips" error={errors.scenario_type}>
                         <select
                             value={scenarioType}
                             onChange={(event) =>
@@ -1225,7 +1366,10 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Scenario focus" error={errors.scenario_focus}>
+                    <Field
+                        label="Scenārija fokuss"
+                        error={errors.scenario_focus}
+                    >
                         <select
                             value={scenarioFocus}
                             onChange={(event) =>
@@ -1233,7 +1377,7 @@ export default function OrderTemplateForm({
                             }
                             className={inputClass}
                         >
-                            <option value="">Auto</option>
+                            <option value="">Automātiski</option>
                             {(options.scenarioFocuses ?? []).map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
@@ -1243,7 +1387,7 @@ export default function OrderTemplateForm({
                     </Field>
 
                     <Field
-                        label="Evaluation mode"
+                        label="Vērtēšanas režīms"
                         error={errors.evaluation_mode}
                     >
                         <select
@@ -1262,7 +1406,7 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Status" error={errors.status}>
+                    <Field label="Statuss" error={errors.status}>
                         <select
                             value={status}
                             onChange={(event) => setStatus(event.target.value)}
@@ -1277,7 +1421,7 @@ export default function OrderTemplateForm({
                         </select>
                     </Field>
 
-                    <Field label="Priority" error={errors.priority}>
+                    <Field label="Prioritāte" error={errors.priority}>
                         <select
                             value={priority}
                             onChange={(event) =>
@@ -1285,7 +1429,7 @@ export default function OrderTemplateForm({
                             }
                             className={inputClass}
                         >
-                            <option value="">None</option>
+                            <option value="">Nav izvēlēts</option>
                             {options.priorityOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
@@ -1295,51 +1439,54 @@ export default function OrderTemplateForm({
                     </Field>
                 </div>
 
-                <Field label="Teacher description" error={errors.description}>
+                <Field label="Skolotāja apraksts" error={errors.description}>
                     <textarea
                         value={description}
                         onChange={(event) => setDescription(event.target.value)}
                         className={textareaClass}
-                        placeholder="Internal description of the task setup, expected difficulty, and why it exists."
+                        placeholder="Iekšējs apraksts par uzdevuma uzstādījumu, grūtību un mācību mērķi."
                     />
                 </Field>
             </OrderTemplateFormSection>
 
             <OrderTemplateFormSection
-                title="Task copy"
-                description="Keep the student brief and teacher notes separate so the student gets a clean problem statement."
+                title="Uzdevuma teksts"
+                description="Atdali studentam redzamo ievadu no skolotāja piezīmēm, lai uzdevums paliek skaidrs."
             >
                 <div className="grid gap-4 xl:grid-cols-2">
-                    <Field label="Student brief" error={errors.student_brief}>
+                    <Field label="Studenta ievads" error={errors.student_brief}>
                         <textarea
                             value={studentBrief}
                             onChange={(event) =>
                                 setStudentBrief(event.target.value)
                             }
                             className={textareaClass}
-                            placeholder="What the student should see when the simulator opens."
+                            placeholder="Teksts, ko students redz, atverot simulatoru."
                         />
                     </Field>
 
-                    <Field label="Teacher notes" error={errors.teacher_notes}>
+                    <Field
+                        label="Skolotāja piezīmes"
+                        error={errors.teacher_notes}
+                    >
                         <textarea
                             value={teacherNotes}
                             onChange={(event) =>
                                 setTeacherNotes(event.target.value)
                             }
                             className={textareaClass}
-                            placeholder="Private notes about teaching intent, common failure points, or scoring assumptions."
+                            placeholder="Privātas piezīmes par mācību nolūku, biežām kļūdām vai vērtēšanas pieņēmumiem."
                         />
                     </Field>
                 </div>
             </OrderTemplateFormSection>
 
             <OrderTemplateFormSection
-                title="Cargo profile"
-                description="Define the cargo, its scale, and the compatibility rules that should follow the student throughout the scenario."
+                title="Kravas profils"
+                description="Definē kravu, tās apjomu un saderības noteikumus, kas jāņem vērā visa scenārija laikā."
             >
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Field label="Cargo name" error={errors.cargo_name}>
+                    <Field label="Kravas nosaukums" error={errors.cargo_name}>
                         <input
                             type="text"
                             value={cargoName}
@@ -1347,11 +1494,11 @@ export default function OrderTemplateForm({
                                 setCargoName(event.target.value)
                             }
                             className={inputClass}
-                            placeholder="Frozen food"
+                            placeholder="Saldēta pārtika"
                         />
                     </Field>
 
-                    <Field label="Cargo type" error={errors.cargo_type}>
+                    <Field label="Kravas tips" error={errors.cargo_type}>
                         <input
                             type="text"
                             value={cargoType}
@@ -1359,11 +1506,11 @@ export default function OrderTemplateForm({
                                 setCargoType(event.target.value)
                             }
                             className={inputClass}
-                            placeholder="Container cargo"
+                            placeholder="Konteineru krava"
                         />
                     </Field>
 
-                    <Field label="Cargo mode" error={errors.cargo_mode}>
+                    <Field label="Kravas režīms" error={errors.cargo_mode}>
                         <select
                             value={cargoMode}
                             onChange={(event) =>
@@ -1371,7 +1518,7 @@ export default function OrderTemplateForm({
                             }
                             className={inputClass}
                         >
-                            <option value="">Unspecified</option>
+                            <option value="">Nav norādīts</option>
                             {cargoModeOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.label}
@@ -1381,7 +1528,7 @@ export default function OrderTemplateForm({
                     </Field>
 
                     <Field
-                        label="Temperature mode"
+                        label="Temperatūras režīms"
                         error={errors.temperature_mode_id}
                     >
                         <select
@@ -1391,7 +1538,7 @@ export default function OrderTemplateForm({
                             }
                             className={inputClass}
                         >
-                            <option value="">None</option>
+                            <option value="">Nav izvēlēts</option>
                             {options.temperatureModes.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
@@ -1401,7 +1548,7 @@ export default function OrderTemplateForm({
                     </Field>
 
                     <Field
-                        label="Containers"
+                        label="Konteineri"
                         error={errors.cargo_amount_containers}
                     >
                         <input
@@ -1416,7 +1563,7 @@ export default function OrderTemplateForm({
                         />
                     </Field>
 
-                    <Field label="Tons" error={errors.cargo_amount_tons}>
+                    <Field label="Tonnas" error={errors.cargo_amount_tons}>
                         <input
                             type="number"
                             min="0"
@@ -1430,7 +1577,7 @@ export default function OrderTemplateForm({
                         />
                     </Field>
 
-                    <Field label="Volume m3" error={errors.cargo_volume_m3}>
+                    <Field label="Tilpums m3" error={errors.cargo_volume_m3}>
                         <input
                             type="number"
                             min="0"
@@ -1444,7 +1591,7 @@ export default function OrderTemplateForm({
                         />
                     </Field>
 
-                    <Field label="Cargo value" error={errors.cargo_value}>
+                    <Field label="Kravas vērtība" error={errors.cargo_value}>
                         <input
                             type="number"
                             min="0"
@@ -1459,7 +1606,7 @@ export default function OrderTemplateForm({
                     </Field>
 
                     <Field
-                        label="Special condition"
+                        label="Īpašais nosacījums"
                         error={errors.special_condition_id}
                     >
                         <select
@@ -1469,7 +1616,7 @@ export default function OrderTemplateForm({
                             }
                             className={inputClass}
                         >
-                            <option value="">None</option>
+                            <option value="">Nav izvēlēts</option>
                             {options.specialConditions.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
@@ -1480,23 +1627,23 @@ export default function OrderTemplateForm({
                 </div>
 
                 <ToggleGrid
-                    title="Protection requirements"
-                    description="These flags influence ship, port, and handling compatibility."
+                    title="Aizsardzības prasības"
+                    description="Šie nosacījumi ietekmē kuģa, ostas un apstrādes saderību."
                     items={[
                         {
-                            label: 'Requires closed cargo space',
+                            label: 'Nepieciešama slēgta kravas telpa',
                             checked: requiresClosedSpace,
                             onChange: setRequiresClosedSpace,
                             error: errors.requires_closed_space,
                         },
                         {
-                            label: 'Requires ventilation',
+                            label: 'Nepieciešama ventilācija',
                             checked: requiresVentilation,
                             onChange: setRequiresVentilation,
                             error: errors.requires_ventilation,
                         },
                         {
-                            label: 'Requires hazardous support',
+                            label: 'Nepieciešams bīstamo kravu atbalsts',
                             checked: requiresHazardousSupport,
                             onChange: setRequiresHazardousSupport,
                             error: errors.requires_hazardous_support,
@@ -1505,8 +1652,8 @@ export default function OrderTemplateForm({
                 />
 
                 <SelectionPills
-                    title="Allowed ship cargo modes"
-                    description="Optional whitelist. Leave empty to accept any compatible ship profile."
+                    title="Atļautie kuģa kravas režīmi"
+                    description="Neobligāts atļauto režīmu saraksts. Atstāj tukšu, lai pieņemtu jebkuru saderīgu kuģa profilu."
                     options={cargoModeOptions}
                     selected={allowedShipCargoModes}
                     onToggle={(value) =>
@@ -1520,8 +1667,8 @@ export default function OrderTemplateForm({
                 />
 
                 <SelectionPills
-                    title="Forbidden ship cargo modes"
-                    description="Optional blacklist for specific ship cargo profiles."
+                    title="Aizliegtie kuģa kravas režīmi"
+                    description="Neobligāts aizliegto režīmu saraksts konkrētiem kuģa kravas profiliem."
                     options={cargoModeOptions}
                     selected={forbiddenShipCargoModes}
                     onToggle={(value) =>
@@ -1540,22 +1687,137 @@ export default function OrderTemplateForm({
                 caps.startPort ||
                 caps.endPort) && (
                 <OrderTemplateFormSection
-                    title="Route and endpoints"
-                    description="Only the fields needed for the selected scenario type stay visible."
+                    title="Maršruts un kontroles punkti"
+                    description="Izveido piegādes maršrutu kartē un pievieno to uzdevumam. Sākuma un gala punkti tiek izmantoti pārbaudei."
                 >
                     {caps.route ? (
-                        <MapRouteBuilder
-                            title="Build route on map"
-                            initialPoints={routeBuilderInitialPoints}
-                            onUseRoute={handleUseMapRoute}
-                            className="mb-5"
-                        />
+                        <>
+                            <div className="mb-5 rounded-xl border border-[#d9ded9] bg-white p-4">
+                                <label
+                                    htmlFor="route_template_picker"
+                                    className="text-[13px] font-semibold text-[#344137]"
+                                >
+                                    SaglabÄts marÅ¡ruts
+                                </label>
+                                <select
+                                    id="route_template_picker"
+                                    value={routeTemplateId}
+                                    onChange={(event) =>
+                                        handleUseSavedRouteTemplate(
+                                            event.target.value,
+                                        )
+                                    }
+                                    className={inputClass}
+                                >
+                                    <option value="">
+                                        IzvÄ“lies kartes marÅ¡rutu
+                                    </option>
+                                    {sortedRouteTemplateOptions.map(
+                                        (template) => (
+                                            <option
+                                                key={template.id}
+                                                value={template.id}
+                                            >
+                                                {formatRouteTemplateLabel(
+                                                    template,
+                                                )}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                                {selectedRouteTemplate ? (
+                                    <p className="mt-2 text-[13px] leading-5 text-[#5d6b61]">
+                                        {formatRouteTemplateDescription(
+                                            selectedRouteTemplate,
+                                        )}
+                                    </p>
+                                ) : null}
+                            </div>
+
+                            <MapRouteBuilder
+                                title="Izveido uzdevuma maršrutu"
+                                initialPoints={routeBuilderInitialPoints}
+                                isAttached={routeTemplateId !== ''}
+                                attachedRouteName={
+                                    attachedRouteName ||
+                                    (routeTemplateId
+                                        ? `Maršruts #${routeTemplateId}`
+                                        : '')
+                                }
+                                onUseRoute={handleUseMapRoute}
+                                onPreviewChange={handleMapPreviewChange}
+                                className="mb-5"
+                            />
+                            {routeTemplateId ? (
+                                <div className="mb-5 rounded-2xl border border-[#cfe3d8] bg-[#f3faf6] px-4 py-3 text-[14px] leading-6 text-[#32523f]">
+                                    <span className="font-semibold">
+                                        Kartes maršruts pievienots.
+                                    </span>{' '}
+                                    {attachedRouteName ||
+                                        `Maršruts #${routeTemplateId}`}{' '}
+                                    tiks saglabāts kā maršruts, ko studenti
+                                    redzēs simulatorā.
+                                </div>
+                            ) : null}
+
+                            {errors.route_template_id ? (
+                                <div className="mb-5">
+                                    <FieldError
+                                        error={errors.route_template_id}
+                                    />
+                                </div>
+                            ) : null}
+
+                            {!routeTemplateId ? (
+                                <div className="mb-5">
+                                    <AdvancedDisclosure
+                                        title="Vecie saglabātie sauszemes maršruti"
+                                        description="Izmanto tikai veciem uzdevumiem, kam vēl vajadzīgi saglabātie sauszemes maršrutu ieraksti. V2 uzdevumiem pievieno kartes maršrutu augstāk."
+                                    >
+                                        <SelectableGrid
+                                            title="Sauszemes maršruti"
+                                            items={sortedLandRouteOptions.map(
+                                                (item) => ({
+                                                    id: item.id,
+                                                    title: formatRouteOptionLabel(
+                                                        item,
+                                                    ),
+                                                    description:
+                                                        formatRouteOptionDescription(
+                                                            item,
+                                                        ),
+                                                }),
+                                            )}
+                                            selected={landRouteIds}
+                                            onToggle={(value) =>
+                                                toggleNumberSelection(
+                                                    landRouteIds,
+                                                    setLandRouteIds,
+                                                    value,
+                                                )
+                                            }
+                                        />
+                                    </AdvancedDisclosure>
+                                </div>
+                            ) : null}
+                        </>
                     ) : null}
+
+                    <div className="mb-3">
+                        <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
+                            Pārbaudes punkti
+                        </div>
+                        <p className="mt-1 text-[14px] leading-6 text-[#5b6b61]">
+                            Šie ir oficiālie uzdevuma sākuma un gala punkti. Ja
+                            kartes punkti nāk no saglabātām vietām, tie tiek
+                            aizpildīti automātiski.
+                        </p>
+                    </div>
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {caps.startLocation ? (
                             <Field
-                                label="Start location"
+                                label="Sākuma vieta"
                                 error={errors.start_location_id}
                             >
                                 <select
@@ -1565,7 +1827,7 @@ export default function OrderTemplateForm({
                                     }
                                     className={inputClass}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">Nav izvēlēts</option>
                                     {sortedLocationOptions.map((option) => (
                                         <option
                                             key={option.id}
@@ -1580,7 +1842,7 @@ export default function OrderTemplateForm({
 
                         {caps.endLocation ? (
                             <Field
-                                label="End location"
+                                label="Gala vieta"
                                 error={errors.end_location_id}
                             >
                                 <select
@@ -1590,7 +1852,7 @@ export default function OrderTemplateForm({
                                     }
                                     className={inputClass}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">Nav izvēlēts</option>
                                     {sortedLocationOptions.map((option) => (
                                         <option
                                             key={option.id}
@@ -1605,7 +1867,7 @@ export default function OrderTemplateForm({
 
                         {caps.startPort ? (
                             <Field
-                                label="Start port"
+                                label="Sākuma osta"
                                 error={errors.start_port_id}
                             >
                                 <select
@@ -1615,7 +1877,7 @@ export default function OrderTemplateForm({
                                     }
                                     className={inputClass}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">Nav izvēlēts</option>
                                     {sortedPortOptions.map((option) => (
                                         <option
                                             key={option.id}
@@ -1629,7 +1891,7 @@ export default function OrderTemplateForm({
                         ) : null}
 
                         {caps.endPort ? (
-                            <Field label="End port" error={errors.end_port_id}>
+                            <Field label="Gala osta" error={errors.end_port_id}>
                                 <select
                                     value={endPortId}
                                     onChange={(event) =>
@@ -1637,7 +1899,7 @@ export default function OrderTemplateForm({
                                     }
                                     className={inputClass}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">Nav izvēlēts</option>
                                     {sortedPortOptions.map((option) => (
                                         <option
                                             key={option.id}
@@ -1653,369 +1915,383 @@ export default function OrderTemplateForm({
                 </OrderTemplateFormSection>
             )}
 
-            <OrderTemplateFormSection
-                title="Time, limits, and scoring"
-                description="Group the operational limits and scoring weights so the scenario stays realistic without becoming a giant flat form."
+            <AdvancedDisclosure
+                title="Papildu laiki, izmaksas un vērtēšana"
+                description="Atver tikai tad, ja scenārijam vajag pielāgot termiņus, nakts tarifus, atpūtas noteikumus vai punktu svarus."
             >
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Field
-                        label="Scenario start"
-                        error={errors.scenario_start_at}
-                    >
-                        <input
-                            type="datetime-local"
-                            value={scenarioStartAt}
-                            onChange={(event) =>
-                                setScenarioStartAt(event.target.value)
-                            }
-                            className={inputClass}
-                        />
-                    </Field>
-
-                    <Field
-                        label="Deadline date/time"
-                        error={errors.deadline_at}
-                    >
-                        <input
-                            type="datetime-local"
-                            value={deadlineAt}
-                            onChange={(event) =>
-                                setDeadlineAt(event.target.value)
-                            }
-                            className={inputClass}
-                        />
-                    </Field>
-
-                    <Field
-                        label="Fallback deadline date"
-                        error={errors.deadline_date}
-                    >
-                        <input
-                            type="date"
-                            value={deadlineDate}
-                            onChange={(event) =>
-                                setDeadlineDate(event.target.value)
-                            }
-                            className={inputClass}
-                        />
-                    </Field>
-
-                    <Field label="Budget limit" error={errors.budget_limit}>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={budgetLimit}
-                            onChange={(event) =>
-                                setBudgetLimit(event.target.value)
-                            }
-                            className={inputClass}
-                            placeholder="15000"
-                        />
-                    </Field>
-
-                    <Field label="Max trips" error={errors.max_trips}>
-                        <input
-                            type="number"
-                            min="0"
-                            value={maxTrips}
-                            onChange={(event) =>
-                                setMaxTrips(event.target.value)
-                            }
-                            className={inputClass}
-                            placeholder="2"
-                        />
-                    </Field>
-                </div>
-
-                {caps.fuel ? (
-                    <ToggleGrid
-                        title="Planning switches"
-                        description="Use these toggles when the scenario should actively force students to plan around operational limits."
-                        items={[
-                            {
-                                label: 'Require refuel planning',
-                                checked: requiresRefuelPlanning,
-                                onChange: setRequiresRefuelPlanning,
-                                error: errors.requires_refuel_planning,
-                            },
-                        ]}
-                    />
-                ) : null}
-
-                <CompactGrid
-                    title="Timeline defaults"
-                    description="These scalar values drive the linear timeline and stay easy to adjust later."
-                    fields={[
-                        {
-                            label: 'Initial loading min',
-                            value: timingLoadingFixedMinutes,
-                            onChange: setTimingLoadingFixedMinutes,
-                            error: errors.timing_loading_fixed_minutes,
-                        },
-                        {
-                            label: 'Fuel stop min',
-                            value: timingFuelStopMinutes,
-                            onChange: setTimingFuelStopMinutes,
-                            error: errors.timing_fuel_stop_minutes,
-                            disabled: !caps.fuel,
-                        },
-                        {
-                            label: 'Port processing min',
-                            value: timingPortProcessingMinutes,
-                            onChange: setTimingPortProcessingMinutes,
-                            error: errors.timing_port_processing_minutes,
-                            disabled: !caps.port,
-                        },
-                        {
-                            label: 'Ship loading min',
-                            value: timingShipLoadingMinutes,
-                            onChange: setTimingShipLoadingMinutes,
-                            error: errors.timing_ship_loading_minutes,
-                            disabled: !caps.ship,
-                        },
-                        {
-                            label: 'Sea transit min',
-                            value: timingSeaTransitMinutes,
-                            onChange: setTimingSeaTransitMinutes,
-                            error: errors.timing_sea_transit_minutes,
-                            disabled: !caps.ship,
-                        },
-                        {
-                            label: 'Max drive before rest',
-                            value: timingMaxDriveMinutesBeforeRest,
-                            onChange: setTimingMaxDriveMinutesBeforeRest,
-                            error: errors.timing_max_drive_minutes_before_rest,
-                            disabled: !caps.transport && !caps.route,
-                        },
-                        {
-                            label: 'Rest min',
-                            value: timingRestMinutes,
-                            onChange: setTimingRestMinutes,
-                            error: errors.timing_rest_minutes,
-                            disabled: !caps.transport && !caps.route,
-                        },
-                        {
-                            label: 'Port queue min',
-                            value: waitingPortQueueMinutes,
-                            onChange: setWaitingPortQueueMinutes,
-                            error: errors.waiting_port_queue_minutes,
-                            disabled: !caps.port,
-                        },
-                        {
-                            label: 'Ship ready at',
-                            value: waitingShipReadyAt,
-                            onChange: setWaitingShipReadyAt,
-                            error: errors.waiting_ship_ready_at,
-                            type: 'datetime-local',
-                            disabled: !caps.ship,
-                        },
-                    ]}
-                />
-
-                <CompactGrid
-                    title="Day and night operation costs"
-                    description="Night work can cost more than daytime work for loading, fueling, port handling, and ship operations."
-                    fields={[
-                        {
-                            label: 'Day shift starts',
-                            value: costDayShiftStartHour,
-                            onChange: setCostDayShiftStartHour,
-                            error: errors.cost_day_shift_start_hour,
-                        },
-                        {
-                            label: 'Night shift starts',
-                            value: costNightShiftStartHour,
-                            onChange: setCostNightShiftStartHour,
-                            error: errors.cost_night_shift_start_hour,
-                        },
-                        {
-                            label: 'Labor €/h (day)',
-                            value: costLaborCostPerHourDay,
-                            onChange: setCostLaborCostPerHourDay,
-                            error: errors.cost_labor_cost_per_hour_day,
-                            step: '0.01',
-                        },
-                        {
-                            label: 'Machine €/h (day)',
-                            value: costMachineCostPerHourDay,
-                            onChange: setCostMachineCostPerHourDay,
-                            error: errors.cost_machine_cost_per_hour_day,
-                            step: '0.01',
-                        },
-                        {
-                            label: 'Night multiplier',
-                            value: costNightShiftMultiplier,
-                            onChange: setCostNightShiftMultiplier,
-                            error: errors.cost_night_shift_multiplier,
-                            type: 'number',
-                            min: '1',
-                            step: '0.01',
-                        },
-                    ]}
-                />
-
-                <CompactGrid
-                    title="Scoring weights"
-                    description="Keep the weights readable and grouped so future tuning does not need schema work."
-                    fields={[
-                        {
-                            label: 'Time weight',
-                            value: scoringTimeWeight,
-                            onChange: setScoringTimeWeight,
-                            error: errors.scoring_time_weight,
-                        },
-                        {
-                            label: 'Cost weight',
-                            value: scoringCostWeight,
-                            onChange: setScoringCostWeight,
-                            error: errors.scoring_cost_weight,
-                        },
-                        {
-                            label: 'Compatibility weight',
-                            value: scoringCompatibilityWeight,
-                            onChange: setScoringCompatibilityWeight,
-                            error: errors.scoring_compatibility_weight,
-                        },
-                        {
-                            label: 'Trips weight',
-                            value: scoringTripsWeight,
-                            onChange: setScoringTripsWeight,
-                            error: errors.scoring_trips_weight,
-                        },
-                    ]}
-                />
-            </OrderTemplateFormSection>
-
-            {supportsHandling ? (
                 <OrderTemplateFormSection
-                    title="Handling and compatibility"
-                    description="This section controls the port/ship handling layer, method whitelists, and the compatibility rules enforced during simulation."
+                    title="Laiki, limiti un vērtēšana"
+                    description="Operatīvie ierobežojumi un vērtēšanas svari šim scenārijam."
                 >
-                    <ToggleGrid
-                        title="Handling decisions"
-                        description="Choose whether the student must actively decide loading and unloading methods."
-                        items={[
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <Field
+                            label="Scenārija sākums"
+                            error={errors.scenario_start_at}
+                        >
+                            <input
+                                type="datetime-local"
+                                value={scenarioStartAt}
+                                onChange={(event) =>
+                                    setScenarioStartAt(event.target.value)
+                                }
+                                className={inputClass}
+                            />
+                        </Field>
+
+                        <Field label="Termiņš" error={errors.deadline_at}>
+                            <input
+                                type="datetime-local"
+                                value={deadlineAt}
+                                onChange={(event) =>
+                                    setDeadlineAt(event.target.value)
+                                }
+                                className={inputClass}
+                            />
+                        </Field>
+
+                        <Field
+                            label="Rezerves termiņa datums"
+                            error={errors.deadline_date}
+                        >
+                            <input
+                                type="date"
+                                value={deadlineDate}
+                                onChange={(event) =>
+                                    setDeadlineDate(event.target.value)
+                                }
+                                className={inputClass}
+                            />
+                        </Field>
+
+                        <Field
+                            label="Budžeta limits"
+                            error={errors.budget_limit}
+                        >
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={budgetLimit}
+                                onChange={(event) =>
+                                    setBudgetLimit(event.target.value)
+                                }
+                                className={inputClass}
+                                placeholder="15000"
+                            />
+                        </Field>
+
+                        <Field label="Maks. reisi" error={errors.max_trips}>
+                            <input
+                                type="number"
+                                min="0"
+                                value={maxTrips}
+                                onChange={(event) =>
+                                    setMaxTrips(event.target.value)
+                                }
+                                className={inputClass}
+                                placeholder="2"
+                            />
+                        </Field>
+                    </div>
+
+                    {caps.fuel ? (
+                        <ToggleGrid
+                            title="Plānošanas slēdži"
+                            description="Ieslēdz, ja scenārijam jāliek studentam plānot konkrētus operatīvos ierobežojumus."
+                            items={[
+                                {
+                                    label: 'Prasīt degvielas plānošanu',
+                                    checked: requiresRefuelPlanning,
+                                    onChange: setRequiresRefuelPlanning,
+                                    error: errors.requires_refuel_planning,
+                                },
+                            ]}
+                        />
+                    ) : null}
+
+                    <CompactGrid
+                        title="Timeline noklusējumi"
+                        description="Šīs vērtības vada aprēķināto notikumu līniju un ir ātri pielāgojamas."
+                        fields={[
                             {
-                                label: 'Student must choose loading method',
-                                checked: requiresLoadingMethodChoice,
-                                onChange: setRequiresLoadingMethodChoice,
-                                error: errors.requires_loading_method_choice,
+                                label: 'Sākuma iekraušana min',
+                                value: timingLoadingFixedMinutes,
+                                onChange: setTimingLoadingFixedMinutes,
+                                error: errors.timing_loading_fixed_minutes,
                             },
                             {
-                                label: 'Student must choose unloading method',
-                                checked: requiresUnloadingMethodChoice,
-                                onChange: setRequiresUnloadingMethodChoice,
-                                error: errors.requires_unloading_method_choice,
+                                label: 'Uzpildes pietura min',
+                                value: timingFuelStopMinutes,
+                                onChange: setTimingFuelStopMinutes,
+                                error: errors.timing_fuel_stop_minutes,
+                                disabled: !caps.fuel,
                             },
                             {
-                                label: 'Allow manual handling',
-                                checked: allowManualHandling,
-                                onChange: setAllowManualHandling,
-                                error: errors.allow_manual_handling,
+                                label: 'Ostas apstrāde min',
+                                value: timingPortProcessingMinutes,
+                                onChange: setTimingPortProcessingMinutes,
+                                error: errors.timing_port_processing_minutes,
+                                disabled: !caps.port,
                             },
                             {
-                                label: 'Allow port equipment',
-                                checked: allowPortEquipment,
-                                onChange: setAllowPortEquipment,
-                                error: errors.allow_port_equipment,
+                                label: 'Kuģa iekraušana min',
+                                value: timingShipLoadingMinutes,
+                                onChange: setTimingShipLoadingMinutes,
+                                error: errors.timing_ship_loading_minutes,
+                                disabled: !caps.ship,
                             },
                             {
-                                label: 'Allow ship equipment',
-                                checked: allowShipEquipment,
-                                onChange: setAllowShipEquipment,
-                                error: errors.allow_ship_equipment,
+                                label: 'Jūras tranzīts min',
+                                value: timingSeaTransitMinutes,
+                                onChange: setTimingSeaTransitMinutes,
+                                error: errors.timing_sea_transit_minutes,
+                                disabled: !caps.ship,
+                            },
+                            {
+                                label: 'Maks. braukšana pirms atpūtas',
+                                value: timingMaxDriveMinutesBeforeRest,
+                                onChange: setTimingMaxDriveMinutesBeforeRest,
+                                error: errors.timing_max_drive_minutes_before_rest,
+                                disabled: !caps.transport && !caps.route,
+                            },
+                            {
+                                label: 'Atpūta min',
+                                value: timingRestMinutes,
+                                onChange: setTimingRestMinutes,
+                                error: errors.timing_rest_minutes,
+                                disabled: !caps.transport && !caps.route,
+                            },
+                            {
+                                label: 'Ostas rinda min',
+                                value: waitingPortQueueMinutes,
+                                onChange: setWaitingPortQueueMinutes,
+                                error: errors.waiting_port_queue_minutes,
+                                disabled: !caps.port,
+                            },
+                            {
+                                label: 'Kuģis gatavs',
+                                value: waitingShipReadyAt,
+                                onChange: setWaitingShipReadyAt,
+                                error: errors.waiting_ship_ready_at,
+                                type: 'datetime-local',
+                                disabled: !caps.ship,
                             },
                         ]}
                     />
 
-                    <SelectionPills
-                        title="Allowed handling methods"
-                        description="Optional whitelist. Leave empty to allow any compatible configured method."
-                        options={options.handlingMethods.map((method) => ({
-                            value: method.code,
-                            label: method.name,
-                        }))}
-                        selected={allowedHandlingMethodCodes}
-                        onToggle={(value) =>
-                            toggleStringSelection(
-                                allowedHandlingMethodCodes,
-                                setAllowedHandlingMethodCodes,
-                                value,
-                            )
-                        }
-                        error={errors.allowed_handling_method_codes}
+                    <CompactGrid
+                        title="Dienas un nakts izmaksas"
+                        description="Nakts darbs var būt dārgāks iekraušanai, uzpildei, ostas apstrādei un kuģa operācijām."
+                        fields={[
+                            {
+                                label: 'Dienas maiņa sākas',
+                                value: costDayShiftStartHour,
+                                onChange: setCostDayShiftStartHour,
+                                error: errors.cost_day_shift_start_hour,
+                            },
+                            {
+                                label: 'Nakts maiņa sākas',
+                                value: costNightShiftStartHour,
+                                onChange: setCostNightShiftStartHour,
+                                error: errors.cost_night_shift_start_hour,
+                            },
+                            {
+                                label: 'Darbs EUR/h (dienā)',
+                                value: costLaborCostPerHourDay,
+                                onChange: setCostLaborCostPerHourDay,
+                                error: errors.cost_labor_cost_per_hour_day,
+                                step: '0.01',
+                            },
+                            {
+                                label: 'Tehnika EUR/h (dienā)',
+                                value: costMachineCostPerHourDay,
+                                onChange: setCostMachineCostPerHourDay,
+                                error: errors.cost_machine_cost_per_hour_day,
+                                step: '0.01',
+                            },
+                            {
+                                label: 'Nakts koeficients',
+                                value: costNightShiftMultiplier,
+                                onChange: setCostNightShiftMultiplier,
+                                error: errors.cost_night_shift_multiplier,
+                                type: 'number',
+                                min: '1',
+                                step: '0.01',
+                            },
+                        ]}
                     />
 
-                    <SelectionPills
-                        title="Required handling methods"
-                        description="If one of these methods must appear in the final handling plan, mark it here."
-                        options={options.handlingMethods.map((method) => ({
-                            value: method.code,
-                            label: method.name,
-                        }))}
-                        selected={requiredHandlingMethodCodes}
-                        onToggle={(value) =>
-                            toggleStringSelection(
-                                requiredHandlingMethodCodes,
-                                setRequiredHandlingMethodCodes,
-                                value,
-                            )
-                        }
-                        error={errors.required_handling_method_codes}
-                    />
-
-                    <ToggleGrid
-                        title="Compatibility engine"
-                        description="These switches prepare the simulation engine while keeping the rules editable in a compact place."
-                        items={[
+                    <CompactGrid
+                        title="Vērtēšanas svari"
+                        description="Svari ir grupēti, lai tos varētu pielāgot bez datubāzes izmaiņām."
+                        fields={[
                             {
-                                label: 'Enforce port cargo support',
-                                checked: compatibilityEnforcePortCargoSupport,
-                                onChange:
-                                    setCompatibilityEnforcePortCargoSupport,
-                                error: errors.compatibility_enforce_port_cargo_support,
+                                label: 'Laika svars',
+                                value: scoringTimeWeight,
+                                onChange: setScoringTimeWeight,
+                                error: errors.scoring_time_weight,
                             },
                             {
-                                label: 'Enforce ship cargo support',
-                                checked: compatibilityEnforceShipCargoSupport,
-                                onChange:
-                                    setCompatibilityEnforceShipCargoSupport,
-                                error: errors.compatibility_enforce_ship_cargo_support,
+                                label: 'Izmaksu svars',
+                                value: scoringCostWeight,
+                                onChange: setScoringCostWeight,
+                                error: errors.scoring_cost_weight,
                             },
                             {
-                                label: 'Enforce port draft vs ship draft',
-                                checked: compatibilityEnforcePortShipDraft,
-                                onChange: setCompatibilityEnforcePortShipDraft,
-                                error: errors.compatibility_enforce_port_ship_draft,
+                                label: 'Saderības svars',
+                                value: scoringCompatibilityWeight,
+                                onChange: setScoringCompatibilityWeight,
+                                error: errors.scoring_compatibility_weight,
                             },
                             {
-                                label: 'Enforce handling compatibility',
-                                checked:
-                                    compatibilityEnforceHandlingCompatibility,
-                                onChange:
-                                    setCompatibilityEnforceHandlingCompatibility,
-                                error: errors.compatibility_enforce_handling_compatibility,
+                                label: 'Reisu svars',
+                                value: scoringTripsWeight,
+                                onChange: setScoringTripsWeight,
+                                error: errors.scoring_trips_weight,
                             },
                         ]}
                     />
                 </OrderTemplateFormSection>
+            </AdvancedDisclosure>
+
+            {supportsHandling ? (
+                <AdvancedDisclosure
+                    title="Papildu kravas apstrāde un saderība"
+                    description="Atver, ja uzdevumam vajag īpašus iekraušanas/izkraušanas noteikumus vai stingru ostas un kuģa saderību."
+                >
+                    <OrderTemplateFormSection
+                        title="Kravas apstrāde un saderība"
+                        description="Ostas/kuģa apstrādes noteikumi un saderības pārbaudes šim scenārijam."
+                    >
+                        <ToggleGrid
+                            title="Apstrādes izvēles"
+                            description="Norādi, vai studentam pašam jāizvēlas iekraušanas un izkraušanas metodes."
+                            items={[
+                                {
+                                    label: 'Studentam jāizvēlas iekraušanas metode',
+                                    checked: requiresLoadingMethodChoice,
+                                    onChange: setRequiresLoadingMethodChoice,
+                                    error: errors.requires_loading_method_choice,
+                                },
+                                {
+                                    label: 'Studentam jāizvēlas izkraušanas metode',
+                                    checked: requiresUnloadingMethodChoice,
+                                    onChange: setRequiresUnloadingMethodChoice,
+                                    error: errors.requires_unloading_method_choice,
+                                },
+                                {
+                                    label: 'Atļaut manuālu apstrādi',
+                                    checked: allowManualHandling,
+                                    onChange: setAllowManualHandling,
+                                    error: errors.allow_manual_handling,
+                                },
+                                {
+                                    label: 'Atļaut ostas aprīkojumu',
+                                    checked: allowPortEquipment,
+                                    onChange: setAllowPortEquipment,
+                                    error: errors.allow_port_equipment,
+                                },
+                                {
+                                    label: 'Atļaut kuģa aprīkojumu',
+                                    checked: allowShipEquipment,
+                                    onChange: setAllowShipEquipment,
+                                    error: errors.allow_ship_equipment,
+                                },
+                            ]}
+                        />
+
+                        <SelectionPills
+                            title="Atļautās apstrādes metodes"
+                            description="Neobligāts atļauto metožu saraksts. Atstāj tukšu, lai atļautu jebkuru saderīgu metodi."
+                            options={options.handlingMethods.map((method) => ({
+                                value: method.code,
+                                label: method.name,
+                            }))}
+                            selected={allowedHandlingMethodCodes}
+                            onToggle={(value) =>
+                                toggleStringSelection(
+                                    allowedHandlingMethodCodes,
+                                    setAllowedHandlingMethodCodes,
+                                    value,
+                                )
+                            }
+                            error={errors.allowed_handling_method_codes}
+                        />
+
+                        <SelectionPills
+                            title="Obligātās apstrādes metodes"
+                            description="Ja kādai metodei obligāti jāparādās gala apstrādes plānā, atzīmē to šeit."
+                            options={options.handlingMethods.map((method) => ({
+                                value: method.code,
+                                label: method.name,
+                            }))}
+                            selected={requiredHandlingMethodCodes}
+                            onToggle={(value) =>
+                                toggleStringSelection(
+                                    requiredHandlingMethodCodes,
+                                    setRequiredHandlingMethodCodes,
+                                    value,
+                                )
+                            }
+                            error={errors.required_handling_method_codes}
+                        />
+
+                        <ToggleGrid
+                            title="Saderības pārbaudes"
+                            description="Šie slēdži nosaka, kuras saderības pārbaudes simulators izmantos."
+                            items={[
+                                {
+                                    label: 'Pārbaudīt ostas kravas atbalstu',
+                                    checked:
+                                        compatibilityEnforcePortCargoSupport,
+                                    onChange:
+                                        setCompatibilityEnforcePortCargoSupport,
+                                    error: errors.compatibility_enforce_port_cargo_support,
+                                },
+                                {
+                                    label: 'Pārbaudīt kuģa kravas atbalstu',
+                                    checked:
+                                        compatibilityEnforceShipCargoSupport,
+                                    onChange:
+                                        setCompatibilityEnforceShipCargoSupport,
+                                    error: errors.compatibility_enforce_ship_cargo_support,
+                                },
+                                {
+                                    label: 'Pārbaudīt ostas un kuģa iegrimi',
+                                    checked: compatibilityEnforcePortShipDraft,
+                                    onChange:
+                                        setCompatibilityEnforcePortShipDraft,
+                                    error: errors.compatibility_enforce_port_ship_draft,
+                                },
+                                {
+                                    label: 'Pārbaudīt apstrādes saderību',
+                                    checked:
+                                        compatibilityEnforceHandlingCompatibility,
+                                    onChange:
+                                        setCompatibilityEnforceHandlingCompatibility,
+                                    error: errors.compatibility_enforce_handling_compatibility,
+                                },
+                            ]}
+                        />
+                    </OrderTemplateFormSection>
+                </AdvancedDisclosure>
             ) : null}
 
             {(caps.transport || caps.route || caps.port || caps.ship) && (
                 <OrderTemplateFormSection
-                    title="Allowed assets"
-                    description="Keep resource selection compact by grouping each asset type into its own grid of concise cards."
+                    title="Studenta izvēles"
+                    description="Izvēlies opcijas, ko students var salīdzināt. Iekļauj arī nepareizas vai neefektīvas opcijas, ja uzdevumam jātrenē spriestspēja."
                 >
                     <div className="space-y-5">
                         {caps.transport ? (
                             <SelectableGrid
-                                title="Land transport"
+                                title="Sauszemes transports"
                                 items={options.transportTemplates.map(
                                     (item) => ({
                                         id: item.id,
                                         title: item.name,
-                                        description: item.type || 'No type',
+                                        description:
+                                            item.type || 'Tips nav norādīts',
                                     }),
                                 )}
                                 selected={transportTemplateIds}
@@ -2029,33 +2305,14 @@ export default function OrderTemplateForm({
                             />
                         ) : null}
 
-                        {caps.route ? (
-                            <SelectableGrid
-                                title="Land routes"
-                                items={sortedLandRouteOptions.map((item) => ({
-                                    id: item.id,
-                                    title: formatRouteOptionLabel(item),
-                                    description:
-                                        formatRouteOptionDescription(item),
-                                }))}
-                                selected={landRouteIds}
-                                onToggle={(value) =>
-                                    toggleNumberSelection(
-                                        landRouteIds,
-                                        setLandRouteIds,
-                                        value,
-                                    )
-                                }
-                            />
-                        ) : null}
-
                         {caps.port ? (
                             <SelectableGrid
-                                title="Ports"
+                                title="Ostas"
                                 items={sortedPortOptions.map((item) => ({
                                     id: item.id,
                                     title: formatPortOptionLabel(item),
-                                    description: item.country || 'No country',
+                                    description:
+                                        item.country || 'Valsts nav norādīta',
                                 }))}
                                 selected={portIds}
                                 onToggle={(value) =>
@@ -2070,14 +2327,14 @@ export default function OrderTemplateForm({
 
                         {caps.ship ? (
                             <SelectableGrid
-                                title="Ships"
+                                title="Kuģi"
                                 items={options.ships.map((item) => ({
                                     id: item.id,
                                     title: item.name,
                                     description:
                                         item.cargo_mode ||
                                         item.cargo_type ||
-                                        'No cargo profile',
+                                        'Kravas profils nav norādīts',
                                 }))}
                                 selected={shipIds}
                                 onToggle={(value) =>
@@ -2092,13 +2349,13 @@ export default function OrderTemplateForm({
 
                         {caps.fuel ? (
                             <SelectableGrid
-                                title="Suggested fuel stops"
+                                title="Ieteiktās uzpildes pieturas"
                                 items={options.fuelStations.map((item) => ({
                                     id: item.id,
                                     title:
                                         item.display_name ||
                                         item.location_name ||
-                                        `Fuel stop #${item.id}`,
+                                        `Uzpildes pietura #${item.id}`,
                                     description:
                                         [
                                             item.location_name,
@@ -2113,7 +2370,8 @@ export default function OrderTemplateForm({
                                                 : null,
                                         ]
                                             .filter(Boolean)
-                                            .join(' • ') || 'No fuel details',
+                                            .join(' • ') ||
+                                        'Degvielas dati nav norādīti',
                                 }))}
                                 selected={fuelStationIds}
                                 onToggle={(value) =>
@@ -2131,8 +2389,8 @@ export default function OrderTemplateForm({
 
             {(previewError || previewData) && (
                 <OrderTemplateFormSection
-                    title="Scenario preview"
-                    description="Quick teacher-side smoke test for the chosen land transport and route defaults."
+                    title="Scenārija priekšskatījums"
+                    description="Ātra skolotāja pārbaude izvēlētajam transportam un pievienotajam uzdevuma maršrutam."
                 >
                     {previewError ? (
                         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800">
@@ -2143,66 +2401,75 @@ export default function OrderTemplateForm({
                     {previewData ? (
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <PreviewCard
-                                label="Route"
+                                label="Maršruts"
                                 value={`${previewData.route?.from ?? '—'} → ${previewData.route?.to ?? '—'}`}
                             />
                             <PreviewCard
-                                label="Distance"
+                                label="Attālums"
                                 value={`${previewData.route?.distance_km ?? '—'} km`}
                             />
                             <PreviewCard
-                                label="Transport"
+                                label="Transports"
                                 value={previewData.transport?.name ?? '—'}
                             />
                             <PreviewCard
-                                label="Required vehicles"
+                                label="Nepieciešamie transporti"
                                 value={
                                     previewData.result?.required_vehicles ?? '—'
                                 }
                             />
                             <PreviewCard
-                                label="Trip time"
+                                label="Reisa laiks"
                                 value={`${previewData.result?.trip_time_hours ?? '—'} h`}
                             />
                             <PreviewCard
-                                label="Cycle time"
+                                label="Cikla laiks"
                                 value={`${previewData.result?.cycle_time_hours ?? '—'} h`}
                             />
                             <PreviewCard
-                                label="Base cost"
+                                label="Bāzes izmaksas"
                                 value={`${previewData.result?.total_base_cost ?? '—'} €`}
                             />
                             <PreviewCard
-                                label="Total cost"
+                                label="Kopējās izmaksas"
                                 value={`${previewData.result?.total_cost ?? '—'} €`}
                             />
                             <PreviewCard
-                                label="Fuel per vehicle"
+                                label="Degviela uz transportu"
                                 value={`${previewData.result?.fuel_used_liters_per_vehicle ?? '—'} l`}
                             />
                             <PreviewCard
-                                label="Needs refuel"
+                                label="Vajag uzpildi"
                                 value={
                                     previewData.result?.needs_refuel
-                                        ? 'Yes'
-                                        : 'No'
+                                        ? 'Jā'
+                                        : 'Nē'
                                 }
                             />
                             <PreviewCard
-                                label="Route valid"
+                                label="Maršruts derīgs"
                                 value={
                                     previewData.result
                                         ?.can_complete_with_current_route_data
-                                        ? 'Yes'
-                                        : 'No'
+                                        ? 'Jā'
+                                        : 'Nē'
                                 }
                             />
                             <PreviewCard
-                                label="Suggested fuel stop"
+                                label="Ieteiktā uzpildes pietura"
                                 value={
                                     previewData.fuel?.recommended_fuel_stop
-                                        ? `${previewData.fuel.recommended_fuel_stop.station_name ?? '—'} (${previewData.fuel.recommended_fuel_stop.distance_from_start_km} km)`
-                                        : 'None'
+                                        ? previewData.fuel.recommended_fuel_stop
+                                              .distance_from_start_km !==
+                                              null &&
+                                          previewData.fuel.recommended_fuel_stop
+                                              .distance_from_start_km !==
+                                              undefined
+                                            ? `${previewData.fuel.recommended_fuel_stop.station_name ?? '—'} (${previewData.fuel.recommended_fuel_stop.distance_from_start_km} km)`
+                                            : (previewData.fuel
+                                                  .recommended_fuel_stop
+                                                  .station_name ?? '—')
+                                        : 'Nav'
                                 }
                             />
                         </div>
@@ -2216,7 +2483,7 @@ export default function OrderTemplateForm({
                     onClick={() => onCancel?.()}
                     className="rounded-xl border border-[#d9ded9] bg-white px-5 py-3 text-[15px] font-medium text-[#182219] hover:bg-[#f7f9f7]"
                 >
-                    Cancel
+                    Atcelt
                 </button>
 
                 <button
@@ -2225,7 +2492,7 @@ export default function OrderTemplateForm({
                     disabled={isTryingScenario}
                     className="rounded-xl border border-[#166a4d] bg-white px-5 py-3 text-[15px] font-medium text-[#166a4d] transition hover:bg-[#f3faf6] disabled:opacity-60"
                 >
-                    {isTryingScenario ? 'Calculating…' : 'Preview scenario'}
+                    {isTryingScenario ? 'Aprēķina...' : 'Pārbaudīt scenāriju'}
                 </button>
 
                 <button
@@ -2256,6 +2523,46 @@ function Field({
             {children}
             {error ? <FieldError error={error} /> : null}
         </div>
+    );
+}
+
+function AdvancedDisclosure({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <details className="group rounded-2xl border border-dashed border-[#cfdad1] bg-[#fbfdfb] p-4">
+            <summary className="cursor-pointer list-none">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-[12px] font-semibold tracking-[0.18em] text-[#7b887f] uppercase">
+                            Papildu
+                        </div>
+                        <div className="mt-1 text-[16px] font-semibold text-[#182219]">
+                            {title}
+                        </div>
+                    </div>
+
+                    <span className="text-[13px] font-semibold text-[#166a4d] group-open:hidden">
+                        Atvērt iestatījumus
+                    </span>
+                    <span className="hidden text-[13px] font-semibold text-[#166a4d] group-open:inline">
+                        Paslēpt iestatījumus
+                    </span>
+                </div>
+
+                <p className="mt-2 max-w-3xl text-[14px] leading-6 text-[#5b6b61]">
+                    {description}
+                </p>
+            </summary>
+
+            <div className="mt-5">{children}</div>
+        </details>
     );
 }
 
@@ -2525,4 +2832,45 @@ function locationOptionToRoutePoint(
         type: location.type ?? 'custom',
         is_saved: true,
     };
+}
+
+function routeTemplatePointToRoutePoint(
+    point: RouteTemplatePoint,
+): RouteBuilderPoint {
+    const metadata = point.metadata ?? {};
+
+    return {
+        location_id: point.location_id ?? metadata.location_id ?? null,
+        source: metadata.source ?? 'local',
+        external_id: metadata.external_id ?? null,
+        name: point.name,
+        display_name: metadata.display_name ?? point.name,
+        country: metadata.country ?? null,
+        city: metadata.city ?? null,
+        latitude: point.latitude ?? metadata.latitude ?? null,
+        longitude: point.longitude ?? metadata.longitude ?? null,
+        type: point.point_type ?? metadata.type ?? point.type ?? 'custom',
+        is_saved: true,
+    };
+}
+
+function formatRouteTemplateLabel(template: RouteTemplateOption): string {
+    const distance = Number(template.total_distance_km ?? 0);
+    const distanceText = distance > 0 ? ` - ${Math.round(distance)} km` : '';
+
+    return `${template.name}${distanceText}`;
+}
+
+function formatRouteTemplateDescription(template: RouteTemplateOption): string {
+    const points = template.points ?? [];
+    const firstPoint = points[0]?.name;
+    const lastPoint = points[points.length - 1]?.name;
+    const duration = Number(template.total_duration_hours ?? 0);
+    const durationText = duration > 0 ? `${Math.round(duration)} h` : null;
+    const endpointText =
+        firstPoint && lastPoint ? `${firstPoint} -> ${lastPoint}` : null;
+
+    return [endpointText, durationText, template.mode ?? null]
+        .filter(Boolean)
+        .join(' | ');
 }

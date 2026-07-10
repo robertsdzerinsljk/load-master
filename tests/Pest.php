@@ -48,3 +48,29 @@ function something()
 {
     // ..
 }
+
+function testSchoolClass(?\App\Models\User $teacher = null): \App\Models\SchoolClass
+{
+    $teacher ??= \App\Models\User::factory()->create([
+        'role' => 'teacher',
+    ]);
+
+    return \App\Models\SchoolClass::query()->create([
+        'teacher_id' => $teacher->id,
+        'name' => 'Loģistika LT-2A',
+        'code' => 'LT-2A',
+        'academic_year' => '2026/2027',
+    ]);
+}
+
+function testStudent(array $attributes = []): \App\Models\User
+{
+    if (! array_key_exists('class_id', $attributes)) {
+        $attributes['class_id'] = testSchoolClass()->id;
+    }
+
+    return \App\Models\User::factory()->create([
+        'role' => 'student',
+        ...$attributes,
+    ]);
+}

@@ -71,12 +71,14 @@ class DemoUsersAndTasksSeeder extends Seeder
     private function seedClasses(User $teacher): array
     {
         $definitions = [
-            'LT-2A' => [
+            'M-11' => [
                 'name' => 'Loģistika LT-2A',
+                'academic_year' => '2026/2027',
                 'description' => 'Otrā kursa grupa transporta plānošanas praktiskajiem darbiem.',
             ],
-            'LT-3B' => [
+            'S-11' => [
                 'name' => 'Loģistika LT-3B',
+                'academic_year' => '2026/2027',
                 'description' => 'Trešā kursa grupa multimodālo pārvadājumu scenārijiem.',
             ],
         ];
@@ -85,10 +87,11 @@ class DemoUsersAndTasksSeeder extends Seeder
 
         foreach ($definitions as $code => $definition) {
             $classes[$code] = SchoolClass::query()->updateOrCreate(
-                ['code' => $code],
+                ['code' => $code, 'academic_year' => $definition['academic_year']],
                 [
                     'teacher_id' => $teacher->id,
-                    'name' => $definition['name'],
+                    'name' => $code,
+                    'academic_year' => $definition['academic_year'],
                     'description' => $definition['description'],
                 ],
             );
@@ -104,11 +107,11 @@ class DemoUsersAndTasksSeeder extends Seeder
     private function seedStudents(array $classes): array
     {
         $definitions = [
-            'anna' => ['Anna', 'Kalnina', 'anna.kalnina@loadmaster.test', 'LT-2A'],
-            'roberts' => ['Roberts', 'Ozols', 'roberts.ozols@loadmaster.test', 'LT-2A'],
-            'elina' => ['Elina', 'Berzina', 'elina.berzina@loadmaster.test', 'LT-3B'],
-            'kristaps' => ['Kristaps', 'Vitols', 'kristaps.vitols@loadmaster.test', 'LT-3B'],
-            'laura' => ['Laura', 'Jansone', 'laura.jansone@loadmaster.test', 'LT-2A'],
+            'anna' => ['Anna', 'Kalnina', 'anna.kalnina@loadmaster.test', 'M-11'],
+            'roberts' => ['Roberts', 'Ozols', 'roberts.ozols@loadmaster.test', 'M-11'],
+            'elina' => ['Elina', 'Berzina', 'elina.berzina@loadmaster.test', 'S-11'],
+            'kristaps' => ['Kristaps', 'Vitols', 'kristaps.vitols@loadmaster.test', 'S-11'],
+            'laura' => ['Laura', 'Jansone', 'laura.jansone@loadmaster.test', 'M-11'],
         ];
 
         $students = [];
@@ -193,7 +196,7 @@ class DemoUsersAndTasksSeeder extends Seeder
             'riga_helsinki_cold_chain' => [
                 'attributes' => [
                     'title' => 'Rīga → Helsinki atdzesētas kravas ķēde',
-                    'scenario_type' => 'mixed_transport',
+                    'scenario_type' => 'full_chain',
                     'scenario_focus' => 'cold_chain',
                     'evaluation_mode' => 'practice',
                     'status' => 'ready',
@@ -239,7 +242,7 @@ class DemoUsersAndTasksSeeder extends Seeder
                     ]),
                 ],
                 'transports' => [$refrigeratedTruck, $containerTruck],
-                'routes' => $this->routesFrom($riga),
+                'routes' => $this->routesBetween($riga, $rigaPort->location ?? $riga),
                 'ports' => [$rigaPort, $helsinkiPort],
                 'ships' => [$containerShip],
                 'fuel_stations' => $this->fuelStationsNear(['riga']),
@@ -278,7 +281,7 @@ class DemoUsersAndTasksSeeder extends Seeder
             'klaipeda_stockholm_port' => [
                 'attributes' => [
                     'title' => 'Klaipeda → Stockholm ostas apstrāde',
-                    'scenario_type' => 'mixed_transport',
+                    'scenario_type' => 'port_to_ship',
                     'scenario_focus' => 'port_loading',
                     'evaluation_mode' => 'practice',
                     'status' => 'ready',
@@ -427,7 +430,7 @@ class DemoUsersAndTasksSeeder extends Seeder
         string $status,
         ?int $grade,
         ?string $comment,
-        int $selectedVehicleCount = 3,
+        ?int $selectedVehicleCount = null,
         string $currentStep = 'submit',
         bool $submitted = true,
     ): SimulationAttempt {
@@ -435,14 +438,20 @@ class DemoUsersAndTasksSeeder extends Seeder
             'transportTemplates',
             'landRoutes.fromLocation',
             'landRoutes.toLocation',
+            'landRoutes.fuelStops.fuelStation',
             'ports',
             'ships',
             'fuelStations.location',
         ]);
 
-        $transport = $template->transportTemplates->first();
+        $transport = $template->transportTemplates
+            ->sortByDesc(fn (TransportTemplate $transport) => (int) ($transport->capacity_containers ?? 0))
+            ->first();
         $port = $template->ports->first();
         $ship = $template->ships->first();
+        $containerCount = (int) ($template->cargo_amount_containers ?? 0);
+        $transportCapacity = max(1, (int) ($transport?->capacity_containers ?? 1));
+        $vehicleCount = $selectedVehicleCount ?? max(1, (int) ceil($containerCount / $transportCapacity));
 
         $attempt = SimulationAttempt::query()->firstOrNew([
             'user_id' => $student->id,
@@ -453,7 +462,7 @@ class DemoUsersAndTasksSeeder extends Seeder
             'status' => $status,
             'current_step' => $currentStep,
             'selected_transport_template_id' => $transport?->id,
-            'selected_vehicle_count' => $selectedVehicleCount,
+            'selected_vehicle_count' => $vehicleCount,
             'selected_port_id' => $port?->id,
             'selected_ship_id' => $ship?->id,
             'selected_loading_method_code' => $port || $ship ? 'gantry_crane' : null,
@@ -472,10 +481,17 @@ class DemoUsersAndTasksSeeder extends Seeder
                 ->all(),
         );
 
+        $logicalFuelStops = $template->landRoutes
+            ->flatMap(fn (LandRoute $route) => $route->fuelStops)
+            ->pluck('fuelStation')
+            ->filter()
+            ->whereIn('id', $template->fuelStations->pluck('id'))
+            ->unique('id')
+            ->take(2)
+            ->values();
+
         $attempt->fuelStations()->sync(
-            $template->fuelStations
-                ->take(2)
-                ->values()
+            $logicalFuelStops
                 ->mapWithKeys(fn (FuelStation $station, int $index) => [$station->id => ['position' => $index + 1]])
                 ->all(),
         );
@@ -602,6 +618,7 @@ class DemoUsersAndTasksSeeder extends Seeder
         return TransportTemplate::query()
             ->orderBy('name')
             ->get()
+            ->sortByDesc(fn (TransportTemplate $transport) => $this->matchScore($transport->name.' '.$transport->type.' '.$transport->description, $needles))
             ->first(fn (TransportTemplate $transport) => $this->matches($transport->name.' '.$transport->type.' '.$transport->description, $needles))
             ?? TransportTemplate::query()->orderBy('name')->first()
             ?? throw new RuntimeException('No transport templates available.');
@@ -615,6 +632,7 @@ class DemoUsersAndTasksSeeder extends Seeder
         return Ship::query()
             ->orderBy('name')
             ->get()
+            ->sortByDesc(fn (Ship $ship) => $this->matchScore($ship->name.' '.$ship->cargo_type.' '.$ship->cargo_mode, $needles))
             ->first(fn (Ship $ship) => $this->matches($ship->name.' '.$ship->cargo_type.' '.$ship->cargo_mode, $needles))
             ?? Ship::query()->orderBy('name')->first()
             ?? throw new RuntimeException('No ships available.');
@@ -629,6 +647,7 @@ class DemoUsersAndTasksSeeder extends Seeder
             ->where('country', $country)
             ->orderBy('name')
             ->get()
+            ->sortByDesc(fn (Port $port) => $this->matchScore($port->name.' '.$port->notes, $needles))
             ->first(fn (Port $port) => $this->matches($port->name.' '.$port->notes, $needles))
             ?? Port::query()->where('country', $country)->orderBy('name')->first()
             ?? Port::query()->orderBy('name')->first()
@@ -659,7 +678,11 @@ class DemoUsersAndTasksSeeder extends Seeder
             ->orderBy('distance_km')
             ->get();
 
-        return $routes->isNotEmpty() ? $routes->all() : $this->routesFrom($from);
+        if ($routes->isNotEmpty()) {
+            return $routes->all();
+        }
+
+        return [$this->createDemoRoute($from, $to)];
     }
 
     /**
@@ -674,6 +697,47 @@ class DemoUsersAndTasksSeeder extends Seeder
             ->take(3)
             ->get()
             ->all();
+    }
+
+    private function createDemoRoute(Location $from, Location $to): LandRoute
+    {
+        $distanceKm = $this->approximateDistanceKm($from, $to);
+
+        return LandRoute::query()->updateOrCreate(
+            [
+                'from_location_id' => $from->id,
+                'to_location_id' => $to->id,
+            ],
+            [
+                'distance_km' => $distanceKm,
+                'estimated_time_hours' => round($distanceKm / 55, 2),
+                'toll_cost' => 0,
+                'provider' => 'demo',
+                'notes' => 'Automātiski izveidots demo maršruts uzdevuma loģiskai izpildei.',
+            ]
+        );
+    }
+
+    private function approximateDistanceKm(Location $from, Location $to): float
+    {
+        $fromLat = (float) ($from->latitude ?? 0);
+        $fromLng = (float) ($from->longitude ?? 0);
+        $toLat = (float) ($to->latitude ?? 0);
+        $toLng = (float) ($to->longitude ?? 0);
+
+        if ($fromLat === 0.0 || $fromLng === 0.0 || $toLat === 0.0 || $toLng === 0.0) {
+            return 50.0;
+        }
+
+        $earthRadiusKm = 6371;
+        $latDelta = deg2rad($toLat - $fromLat);
+        $lngDelta = deg2rad($toLng - $fromLng);
+
+        $a = sin($latDelta / 2) ** 2
+            + cos(deg2rad($fromLat)) * cos(deg2rad($toLat)) * sin($lngDelta / 2) ** 2;
+        $distance = 2 * $earthRadiusKm * atan2(sqrt($a), sqrt(1 - $a));
+
+        return round(max($distance * 1.25, 1), 2);
     }
 
     /**
@@ -717,14 +781,23 @@ class DemoUsersAndTasksSeeder extends Seeder
      */
     private function matches(string $haystack, array $needles): bool
     {
+        return $this->matchScore($haystack, $needles) > 0;
+    }
+
+    /**
+     * @param  array<int, string>  $needles
+     */
+    private function matchScore(string $haystack, array $needles): int
+    {
         $normalized = strtolower($haystack);
+        $score = 0;
 
         foreach ($needles as $needle) {
             if (str_contains($normalized, strtolower($needle))) {
-                return true;
+                $score++;
             }
         }
 
-        return false;
+        return $score;
     }
 }

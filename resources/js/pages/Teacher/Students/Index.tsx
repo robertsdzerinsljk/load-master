@@ -17,6 +17,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 type Template = {
     id: number;
@@ -295,7 +296,7 @@ export default function TeacherStudentsIndex() {
         const orderTemplateId = selectedTemplates[studentId];
 
         if (!orderTemplateId) {
-            alert('Izvēlieties uzdevumu.');
+            toast.error('Izvēlieties uzdevumu.');
             return;
         }
 
@@ -311,12 +312,11 @@ export default function TeacherStudentsIndex() {
                 preserveScroll: true,
                 onSuccess: () => {
                     setLoadingStudentId(null);
-                    alert('Uzdevums veiksmīgi piešķirts.');
+                    toast.success('Uzdevums veiksmīgi piešķirts.');
                 },
-                onError: (errors) => {
+                onError: () => {
                     setLoadingStudentId(null);
-                    console.error(errors);
-                    alert('Neizdevās piešķirt uzdevumu.');
+                    toast.error('Neizdevās piešķirt uzdevumu.');
                 },
                 onFinish: () => {
                     setLoadingStudentId(null);

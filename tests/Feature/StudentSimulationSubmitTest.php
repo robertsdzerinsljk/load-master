@@ -35,9 +35,7 @@ function makeInvalidAttempt(User $student, string $evaluationMode): SimulationAt
 }
 
 test('practice mode returns a target step when moving to submit is blocked', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $attempt = makeInvalidAttempt($student, 'practice');
 
@@ -52,9 +50,7 @@ test('practice mode returns a target step when moving to submit is blocked', fun
 });
 
 test('practice mode rejects invalid submit attempts and keeps the attempt open', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $attempt = makeInvalidAttempt($student, 'practice');
 
@@ -70,9 +66,7 @@ test('practice mode rejects invalid submit attempts and keeps the attempt open',
 });
 
 test('exam mode allows invalid submit attempts without exposing hints or step redirects', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $attempt = makeInvalidAttempt($student, 'exam');
 
@@ -87,9 +81,7 @@ test('exam mode allows invalid submit attempts without exposing hints or step re
 });
 
 test('exam mode can move to submit step even when preview is invalid', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $attempt = makeInvalidAttempt($student, 'exam');
 
@@ -105,9 +97,7 @@ test('exam mode can move to submit step even when preview is invalid', function 
 });
 
 test('changing a planning step invalidates preview without nulling is_valid', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $template = OrderTemplate::query()->create([
         'title' => 'Invalidate preview safely',

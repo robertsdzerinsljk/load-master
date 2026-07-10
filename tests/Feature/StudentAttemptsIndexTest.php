@@ -14,9 +14,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 test('student attempts page uses refreshed preview metrics for cards', function () {
-    $student = User::factory()->create([
-        'role' => 'student',
-    ]);
+    $student = testStudent();
 
     $fromLocation = Location::query()->create([
         'name' => 'Riga Warehouse',

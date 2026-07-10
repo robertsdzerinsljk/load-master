@@ -52,6 +52,7 @@ class HandleInertiaRequests extends Middleware
                     'display_name' => $displayName,
                     'email' => $user->email,
                     'role' => $user->role,
+                    'is_admin' => (bool) $user->is_admin,
                     'class_id' => $user->class_id,
                     'email_verified_at' => $user->email_verified_at,
                     'two_factor_enabled' => ! is_null($user->two_factor_secret),

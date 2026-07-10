@@ -16,6 +16,10 @@ class RoleMiddleware
             abort(403, 'Nav piekļuves (nav autentificēts).');
         }
 
+        if ($role === 'admin' && ($user->role === 'admin' || $user->is_admin)) {
+            return $next($request);
+        }
+
         if ($user->role !== $role) {
             abort(403, 'Tev nav piekļuves šai sadaļai.');
         }
